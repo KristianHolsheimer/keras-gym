@@ -4,6 +4,7 @@ all: clean src wheel
 
 clean:
 	$(PYTHON_EXEC) setup.py clean
+	rm -rf dist build *.egg-info
 
 docs: clean_docs
 	$(PYTHON_EXEC) setup.py build_sphinx
