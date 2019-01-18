@@ -11,5 +11,4 @@ Value-Based Policies
 .. automodule:: skgym.policies
 
     .. autoclass:: ValueBasedPolicy
-        :members:
-        :inherited-members:
+
