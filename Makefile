@@ -22,3 +22,6 @@ install:
 
 flake8:
 	$(PYTHON_EXEC) setup.py flake8
+
+upload: all
+	twine upload -u krispisvis dist/*
