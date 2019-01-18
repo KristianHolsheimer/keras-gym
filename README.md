@@ -16,7 +16,7 @@ $ pip install -U scikit-gym
 ```
 or install from a fresh clone
 ```
-$ git clone <url>
+$ git clone https://github.com/KristianHolsheimer/scikit-gym.git
 $ pip install -e ./scikit-gym
 ```
 
