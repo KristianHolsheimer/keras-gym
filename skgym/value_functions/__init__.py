@@ -1,2 +1,3 @@
-from .generic import GenericV, GenericQ, GenericQTypeI, GenericQTypeII  # noqa
-from .predefined import LinearV, LinearQ  # noqa
+# flake8: noqa
+from .generic import GenericV, GenericQ, GenericQTypeI, GenericQTypeII
+from .predefined import LinearV, LinearQ
