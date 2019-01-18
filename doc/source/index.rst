@@ -14,6 +14,7 @@ Welcome to scikit-gym's documentation!
     policies/index
     algorithms/index
     misc/utils
+    notebooks/index
 
 
 
