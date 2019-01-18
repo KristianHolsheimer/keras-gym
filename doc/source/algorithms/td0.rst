@@ -4,14 +4,9 @@ TD(0) Algorithms
 .. autosummary::
     :nosignatures:
 
-    skgym.algorithms.td0.QLearning
+    skgym.algorithms.QLearning
 
 
-.. automodule:: skgym.algorithms.td0
-
-    .. autosummary::
-        :nosignatures:
+.. automodule:: skgym.algorithms
 
     .. autoclass:: QLearning
-        :members:
-        :inherited-members:
