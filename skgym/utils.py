@@ -210,7 +210,6 @@ class ArrayDeque:
     def array(self):
         start = (self._idx - self._len + 1) % self.maxlen
         end = start + self._len
-        print(f"start={start}, end={end}")
         if not self:
             return self._array[:0]
         indices = np.arange(start, end)
