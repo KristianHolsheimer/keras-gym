@@ -28,8 +28,11 @@ class GenericV(BaseV):
         Unfortunately, there's no support for out-of-core fitting of
         transformers in scikit-learn. We can, however, use stateless
         transformers such as
-        :py:class:`sklearn.preprocessing.FunctionTransformer` or even
-        :py:class:`sklearn.preprocessing.PolynomialFeatures`.
+        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
+        We can also use other transformers that only learn the input shape at
+        training time, such as
+        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
+        Note that these do require us to set `attempt_fit_transformer=True`.
 
     attempt_fit_transformer : bool, optional
         Whether to attempt to pre-fit the transformer. Note: this is done on
@@ -122,8 +125,11 @@ class GenericQTypeI(BaseQ):
         Unfortunately, there's no support for out-of-core fitting of
         transformers in scikit-learn. We can, however, use stateless
         transformers such as
-        :py:class:`sklearn.preprocessing.FunctionTransformer` or even
-        :py:class:`sklearn.preprocessing.PolynomialFeatures`.
+        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
+        We can also use other transformers that only learn the input shape at
+        training time, such as
+        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
+        Note that these do require us to set `attempt_fit_transformer=True`.
 
     attempt_fit_transformer : bool, optional
         Whether to attempt to pre-fit the transformer. Note: this is done on
@@ -344,8 +350,11 @@ class GenericQTypeII(BaseQ):
         Unfortunately, there's no support for out-of-core fitting of
         transformers in scikit-learn. We can, however, use stateless
         transformers such as
-        :py:class:`sklearn.preprocessing.FunctionTransformer` or even
-        :py:class:`sklearn.preprocessing.PolynomialFeatures`.
+        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
+        We can also use other transformers that only learn the input shape at
+        training time, such as
+        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
+        Note that these do require us to set `attempt_fit_transformer=True`.
 
     attempt_fit_transformer : bool, optional
         Whether to attempt to pre-fit the transformer. Note: this is done on
@@ -516,8 +525,11 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         Unfortunately, there's no support for out-of-core fitting of
         transformers in scikit-learn. We can, however, use stateless
         transformers such as
-        :py:class:`sklearn.preprocessing.FunctionTransformer` or even
-        :py:class:`sklearn.preprocessing.PolynomialFeatures`.
+        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
+        We can also use other transformers that only learn the input shape at
+        training time, such as
+        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
+        Note that these do require us to set `attempt_fit_transformer=True`.
 
     model_type : {1, 2}, optional
         Specify the model type. This is important when modeling discrete action
@@ -633,8 +645,8 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         Parameters
         ----------
         args : depends on model_type
-            See :func:`skgym.value_functions.GenericQTypeI.batch_eval_typeI`
-            or :func:`skgym.value_functions.GenericQTypeII.batch_eval_typeI`
+            See :func:`GenericQTypeI.batch_eval_typeI<skgym.value_functions.GenericQTypeI.batch_eval_typeI>`
+            or :func:`GenericQTypeII.batch_eval_typeI<skgym.value_functions.GenericQTypeII.batch_eval_typeI>`
             for the correct function signature.
 
         Returns
@@ -660,8 +672,8 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         Parameters
         ----------
         args : depends on model_type
-            See :func:`skgym.value_functions.GenericQTypeI.batch_eval_typeII`
-            or :func:`skgym.value_functions.GenericQTypeII.batch_eval_typeII`
+            See :func:`GenericQTypeI.batch_eval_typeII<skgym.value_functions.GenericQTypeI.batch_eval_typeII>`
+            or :func:`GenericQTypeII.batch_eval_typeII<skgym.value_functions.GenericQTypeII.batch_eval_typeII>`
             for the correct function signature.
 
         Returns

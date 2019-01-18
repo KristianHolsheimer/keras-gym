@@ -2,7 +2,6 @@ from .generic import GenericV, GenericQ
 import numpy as np
 from sklearn.linear_model import SGDRegressor
 from sklearn.preprocessing import FunctionTransformer
-from .generic import GenericQTypeI, GenericQTypeII  # noqa: required for docs
 
 
 class LinearV(GenericV):
@@ -20,8 +19,14 @@ class LinearV(GenericV):
         Unfortunately, there's no support for out-of-core fitting of
         transformers in scikit-learn. We can, however, use stateless
         transformers such as
-        :py:class:`sklearn.preprocessing.FunctionTransformer` or even
-        :py:class:`sklearn.preprocessing.PolynomialFeatures`.
+        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
+        We can also use other transformers that only learn the input shape at
+        training time, such as
+        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
+        Note that these do require us to set `attempt_fit_transformer=True`. If left
+        unspecified, this defaults to
+        `FunctionTransformer(lambda x: np.hstack((x, x ** 2)), validate=False)`,
+        which generates point-wise quadratic interactions.
 
     attempt_fit_transformer : bool, optional
         Whether to attempt to pre-fit the transformer. Note: this is done on
@@ -31,15 +36,16 @@ class LinearV(GenericV):
         aggregations.
 
     regressor_kwargs : keyword arguments
-        Keyword arguments for :py:class:`sklearn.linear_model.SGDRegressor`.
-        The default values for `eta0` and `power_t` are set to 0.9 and 0, resp.
+        Keyword arguments for
+        :py:class:`SGDRegressor<sklearn.linear_model.SGDRegressor>`.
+        The default value for `learning_rate` is set to `'constant'`.
 
     """
     def __init__(self, env, transformer=None, attempt_fit_transformer=False,
                  **regressor_kwargs):
 
         # prepare model
-        kwargs = {'power_t': 0.0}  # defaults
+        kwargs = {'learning_rate': 'constant'}  # defaults
         kwargs.update(regressor_kwargs)  # override defaults
         self.regressor_kwargs = kwargs
         regressor = SGDRegressor(**kwargs)
@@ -70,7 +76,8 @@ class LinearV(GenericV):
 class LinearQ(GenericQ):
     """
     A linear function approximator for a state-action value function
-    :math:`Q(s,a)` based on :py:class:`sklearn.linear_model.SGDRegressor`.
+    :math:`Q(s,a)` based on scikit-learn's
+    :py:class:`SGDRegressor<sklearn.linear_model.SGDRegressor>`.
 
     Parameters
     ----------
@@ -82,10 +89,14 @@ class LinearQ(GenericQ):
         Unfortunately, there's no support for out-of-core fitting of
         transformers in scikit-learn. We can, however, use stateless
         transformers such as
-        :py:class:`sklearn.preprocessing.FunctionTransformer` or even
-        :py:class:`sklearn.preprocessing.PolynomialFeatures`. If left
+        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
+        We can also use other transformers that only learn the input shape at
+        training time, such as
+        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
+        Note that these do require us to set `attempt_fit_transformer=True`. If left
         unspecified, this defaults to
-        `FunctionTransformer(lambda x: np.hstack((x, x ** 2)), validate=False)`
+        `FunctionTransformer(lambda x: np.hstack((x, x ** 2)), validate=False)`,
+        which generates point-wise quadratic interactions.
 
     model_type : {1, 2}
         Whether to model the state-action value function as
@@ -111,8 +122,9 @@ class LinearQ(GenericQ):
         `dim_s + dim_a`. This option is more suitable for non-linear models.
 
     regressor_kwargs : keyword arguments
-        Keyword arguments for :py:class:`sklearn.linear_model.SGDRegressor`.
-        The default values for `eta0` and `power_t` are set to 0.9 and 0, resp.
+        Keyword arguments for
+        :py:class:`SGDRegressor<sklearn.linear_model.SGDRegressor>`.
+        The default value for `learning_rate` is set to `'constant'`.
 
     """
     def __init__(self, env, transformer=None, model_type=1,
@@ -120,7 +132,7 @@ class LinearQ(GenericQ):
                  **regressor_kwargs):
 
         # prepare model
-        kwargs = {'power_t': 0.0}  # defaults
+        kwargs = {'learning_rate': 'constant'}  # defaults
         kwargs.update(regressor_kwargs)  # override defaults
         self.regressor_kwargs = kwargs
         regressor = SGDRegressor(**kwargs)
