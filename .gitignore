@@ -1,0 +1,21 @@
+#python
+build/
+dist/
+__pycache__*
+*.pyc
+*.pyo
+*.egg-info
+
+# jupyter / ipython
+.ipynb_checkpoints
+Untitled*.ipynb
+notebooks/data/
+
+# tests
+.coverage
+
+# doc
+doc/build/
+
+# sublime
+*.sublime-*
