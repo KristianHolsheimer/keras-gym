@@ -5,11 +5,11 @@ all: clean src wheel
 clean:
 	$(PYTHON_EXEC) setup.py clean
 
-docs:
+docs: clean_docs
 	$(PYTHON_EXEC) setup.py build_sphinx
 
-docs refresh:
-	$(PYTHON_EXEC) setup.py build_sphinx --all-files
+clean_docs:
+	rm -rf build/sphinx doc/build
 
 src:
 	$(PYTHON_EXEC) setup.py sdist
