@@ -175,6 +175,34 @@ class BaseV(BaseValueFunction):
 class BaseQ(BaseValueFunction):
     MODELTYPES = (1, 2)
 
+    def __call__(self, s, a=None):
+        """
+        Evaluate the value of a state-action pair.
+
+        Parameters
+        ----------
+        s : int or array
+            A single observation (state).
+
+        a : int or array, optional
+            A single action.
+
+        Returns
+        -------
+        q_sa or q_s : float or 1d-array of float, shape: [num_actions]
+            Either a single float representing :math:`Q(s, a)` or a 1d array
+            of floats representing :math:`Q(s, .)` if `a` is left unspecified.
+
+        """
+        if a is None:
+            X_s = self.preprocess_typeII(s)
+            Q_s = self.batch_eval_typeII(X_s)
+            return Q_s[0]
+        else:
+            X_sa = self.preprocess_typeI(s, a)
+            Q_sa = self.batch_eval_typeI(X_sa)
+            return Q_sa[0]
+
     @abstractmethod
     def preprocess_typeI(self, *args):
         """
