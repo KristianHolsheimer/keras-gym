@@ -83,7 +83,7 @@ language = None
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = [
-    'themes/scikit-learn/static/ML_MAPS_README.rst',
+    '_themes/scikit-learn/static/ML_MAPS_README.rst',
 ]
 
 # The name of the Pygments (syntax highlighting) style to use.
@@ -95,14 +95,28 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'scikit-learn'
-html_theme_path = ['themes']
+html_theme = 'sphinx_rtd_theme'
+# html_theme_path = ['_themes']
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#
-# html_theme_options = {}
+# options for
+html_theme_options = {
+    'canonical_url': '',
+    # 'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
+    'logo_only': False,
+    'display_version': True,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': False,
+    'vcs_pageview_mode': '',
+    # Toc options
+    'collapse_navigation': True,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
+    'includehidden': True,
+    'titles_only': False
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -212,3 +226,7 @@ intersphinx_mapping = {
 todo_include_todos = True
 
 
+# add custom css and javascript
+def setup(app):
+    app.add_stylesheet('css/custom.css')
+    # app.add_javascript('js/custom.js')

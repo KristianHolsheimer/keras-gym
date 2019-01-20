@@ -7,7 +7,8 @@ from sklearn.preprocessing import FunctionTransformer
 class LinearV(GenericV):
     """
     A linear function approximator for a state value function :math:`V(s)`
-    based on :py:class:`SGDRegressor<sklearn.linear_model.SGDRegressor>`.
+    based on scikit-leanr's
+    :py:class:`SGDRegressor<sklearn.linear_model.SGDRegressor>`.
 
     Parameters
     ----------

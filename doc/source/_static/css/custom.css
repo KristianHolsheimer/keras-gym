@@ -1,0 +1,24 @@
+a {
+  font-weight: bold;
+}
+
+video#cartpole {
+  max-width: 360px;
+}
+
+.rst-content dl:not(.docutils) dl dt strong {
+  padding-left: 6pt;
+}
+
+.rst-content dl:not(.docutils) dl dt span {
+  color: #777;
+}
+
+.rst-content dl:not(.docutils) dl dt span.classifier-delimiter {
+  padding-left: 6pt;
+  padding-right: 6pt;
+}
+
+.rst-content dl:not(.docutils) dl dt span.classifier {
+  padding-right: 6pt;
+}

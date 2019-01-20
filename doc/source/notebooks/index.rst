@@ -1,5 +1,5 @@
-Notebooks
-=========
+Example Notebooks
+=================
 
 
 .. toctree::
