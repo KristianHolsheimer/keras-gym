@@ -15,8 +15,6 @@ Utility Functions & Classes
 .. automodule:: skgym.utils
 
     .. autoclass:: ArrayDeque
-        :members:
-
     .. autofunction:: argmax
     .. autofunction:: argmin
     .. autofunction:: check_dtype
