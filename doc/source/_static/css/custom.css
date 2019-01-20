@@ -2,6 +2,11 @@ a {
   font-weight: bold;
 }
 
+div.ethical-rtd {
+  /* hide ads */
+  display: none;
+}
+
 video#cartpole {
   max-width: 360px;
 }
