@@ -22,9 +22,6 @@ class QLearning(BaseValueTD0):
         This can be either a state value function :math:`V(s)`, a state-action
         value function :math:`Q(s, a)`, or a value-based policy.
 
-    alpha : float
-        Learning rate, value between 0 and 1.
-
     gamma : float
         Future discount factor, value between 0 and 1.
 

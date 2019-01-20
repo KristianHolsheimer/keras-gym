@@ -11,15 +11,11 @@ class BaseAlgorithm(ABC):
 
     Parameters
     ----------
-    alpha : float
-        Learning rate, value between 0 and 1.
-
     gamma : float
         Future discount factor, value between 0 and 1.
 
     """
-    def __init__(self, alpha=0.1, gamma=0.9):
-        self.alpha = alpha
+    def __init__(self, gamma=0.9):
         self.gamma = gamma
 
     @abstractmethod
@@ -166,14 +162,11 @@ class BaseValueAlgorithm(BaseAlgorithm):
         This can be either a state value function :math:`V(s)`, a state-action
         value function :math:`Q(s, a)`, or a value-based policy.
 
-    alpha : float
-        Learning rate, value between 0 and 1.
-
     gamma : float
         Future discount factor, value between 0 and 1.
 
     """
-    def __init__(self, value_function_or_policy, alpha=0.1, gamma=0.9):
+    def __init__(self, value_function_or_policy, gamma=0.9):
         if isinstance(value_function_or_policy, ValueBasedPolicy):
             self.policy = value_function_or_policy
             self.value_function = self.policy.value_function
@@ -184,7 +177,7 @@ class BaseValueAlgorithm(BaseAlgorithm):
             raise TypeError(
                 "value_function_or_policy must be either a value function or "
                 "a value-based policy")
-        super(BaseValueAlgorithm, self).__init__(alpha=alpha, gamma=gamma)
+        super(BaseValueAlgorithm, self).__init__(gamma=gamma)
 
     def preprocess_transition(self, s, a, r, s_next):
         if self.value_function.MODELTYPE == 1:
@@ -230,18 +223,15 @@ class BasePolicyAlgorithm(BaseAlgorithm):
         A policy object. Can be either a value-based policy model or a direct
         policy-gradient model.
 
-    alpha : float
-        Learning rate, value between 0 and 1.
-
     gamma : float
         Future discount factor, value between 0 and 1.
 
     TODO: write implementation, e.g. :math:`\\nabla \\log(\\pi)`
 
     """
-    def __init__(self, policy, alpha=0.1, gamma=0.9):
+    def __init__(self, policy, gamma=0.9):
         self.policy = policy
-        super(BaseAlgorithm, self).__init__(alpha=alpha, gamma=gamma)
+        super(BaseAlgorithm, self).__init__(gamma=gamma)
 
 
 class ExperienceCacheMixin(ABC):
