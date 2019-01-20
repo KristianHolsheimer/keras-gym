@@ -638,6 +638,35 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         else:
             raise ValueError("bad MODELTYPE")
 
+    def batch_eval(self, X):
+        """
+        Get a batch of values associated with a batch of states or state-action
+        pairs. This method presumes that the actions space is discrete.
+
+        Parameters
+        ----------
+        X : 2d-array, shape: [batch_size, num_features]
+            An sklearn-style design matrix representing a batch of states or
+            state-action pairs (depending on the model type). It's what comes
+            out of :func:`X`.
+
+        Returns
+        -------
+        Q_sa or Q_s : 1d- or 2d-array
+            The output shape depends on the model type. For a type-I model the
+            shape is `[batch_size]` and for a type-II model it is
+            `[batch_size, num_actions]`.
+
+        """
+        if self.MODELTYPE == 1:
+            return GenericQTypeI.batch_eval_typeI(self, X)
+        elif self.MODELTYPE == 2:
+            return GenericQTypeII.batch_eval_typeII(self, X)
+        elif self.MODELTYPE == 3:
+            raise NotImplementedError("MODELTYPE == 3")
+        else:
+            raise ValueError("bad MODELTYPE")
+
     def batch_eval_typeI(self, *args):
         """
         Get a batch of values associated with a batch of state-action pairs.
@@ -690,3 +719,57 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
             raise NotImplementedError("MODELTYPE == 3")
         else:
             raise ValueError("bad MODELTYPE")
+
+    def preprocess_typeI(self, s, a):
+        """
+        Create a feature vector from a state-action pair.
+
+        Parameters
+        ----------
+        s : int or array
+            A single observation (state).
+
+        a : int
+            A single action.
+
+        Returns
+        -------
+        X_sa : 2d array, shape: [1, num_features + 1]
+            `X_s[:,:num_features]` is sklearn-style design matrix of a single
+            state and `X_s[:,num_features]` is the corresponding array of
+            actions.
+
+        """
+        if self.MODELTYPE == 1:
+            return GenericQTypeI.preprocess_typeI(self, s, a)
+        elif self.MODELTYPE == 2:
+            return GenericQTypeII.preprocess_typeI(self, s, a)
+        elif self.MODELTYPE == 3:
+            raise NotImplementedError("MODELTYPE == 3")
+        else:
+            raise ValueError("bad MODELTYPE")
+
+    def preprocess_typeII(self, s):
+        """
+        Create a feature vector from a state :math:`s`.
+
+        Parameters
+        ----------
+        s : int or array of float
+            A single state observation.
+
+        Returns
+        -------
+        X_s : 3d-array, shape = [1, num_actions, num_features]
+            A sklearn-style design matrix of a single action.
+
+        """
+        if self.MODELTYPE == 1:
+            return GenericQTypeI.preprocess_typeII(self, s)
+        elif self.MODELTYPE == 2:
+            return GenericQTypeII.preprocess_typeII(self, s)
+        elif self.MODELTYPE == 3:
+            raise NotImplementedError("MODELTYPE == 3")
+        else:
+            raise ValueError("bad MODELTYPE")
+
