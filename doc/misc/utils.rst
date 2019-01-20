@@ -1,5 +1,5 @@
-Utility Functions & Classes
-===========================
+Utilities
+=========
 
 .. autosummary::
     :nosignatures:
@@ -8,6 +8,7 @@ Utility Functions & Classes
     skgym.utils.argmax
     skgym.utils.argmin
     skgym.utils.check_dtype
+    skgym.utils.idx
     skgym.utils.one_hot_vector
     skgym.utils.softmax
 
@@ -18,5 +19,6 @@ Utility Functions & Classes
     .. autofunction:: argmax
     .. autofunction:: argmin
     .. autofunction:: check_dtype
+    .. autofunction:: idx
     .. autofunction:: one_hot_vector
     .. autofunction:: softmax
