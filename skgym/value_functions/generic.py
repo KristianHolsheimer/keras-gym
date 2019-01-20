@@ -92,7 +92,7 @@ class GenericV(BaseV):
         ----------
         X_s : 2d-array, shape: [batch_size, num_features]
             This a sklearn-style design matrix; it's what comes out of
-            :func:`preprocess`.
+            :func:`X`.
 
         Returns
         -------

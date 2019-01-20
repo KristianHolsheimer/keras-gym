@@ -43,7 +43,7 @@ class ValueBasedPolicy(BasePolicy):
             For a type-I value function the input shape is
             `[batch_size, num_features]` and for a type-II value function the
             input shape is `[num_actions, batch_size, num_features]`. It is
-            what comes out of :func:`preprocess`.
+            what comes out of :func:`X`.
 
         Returns
         -------
