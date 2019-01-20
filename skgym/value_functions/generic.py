@@ -577,7 +577,7 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         else:
             raise ValueError("bad MODELTYPE")
 
-    def __call__(self, *args):
+    def __call__(self, s, a=None):
         """
         Evaluate the value of a state-action pair.
 
@@ -597,9 +597,9 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
 
         """
         if self.MODELTYPE == 1:
-            return GenericQTypeI.__call__(self, *args)
+            return GenericQTypeI.__call__(self, s, a)
         elif self.MODELTYPE == 2:
-            return GenericQTypeII.__call__(self, *args)
+            return GenericQTypeII.__call__(self, s, a)
         elif self.MODELTYPE == 3:
             raise NotImplementedError("MODELTYPE == 3")
         else:
