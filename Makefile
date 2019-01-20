@@ -26,3 +26,6 @@ flake8:
 
 upload: all
 	twine upload -u krispisvis dist/*
+
+nbconvert:
+	jupyter nbconvert --to html --output-dir doc/_static/notebooks/ notebooks/*.ipynb
