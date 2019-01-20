@@ -16,8 +16,7 @@ import os
 import sys
 
 # this adds the equivalent of "../../" to the python path
-PACKAGEDIR = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
+PACKAGEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PACKAGEDIR)
 
 
@@ -84,7 +83,6 @@ language = None
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = [
-    '_themes/scikit-learn/static/ML_MAPS_README.rst',
 ]
 
 # The name of the Pygments (syntax highlighting) style to use.
