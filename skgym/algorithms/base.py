@@ -201,14 +201,18 @@ class BaseValueAlgorithm(BaseAlgorithm):
 
         return X, A, R, X_next
 
-    def Y(self, X, A, R, X_next):
-        Q_target = self.target(X, A, R, X_next)
+    def _Y(self, X, A, Q_target):
         if self.value_function.MODELTYPE == 1:
             Y = Q_target
         elif self.value_function.MODELTYPE == 2:
             Y = self.value_function.batch_eval(X)
             idx = np.arange(A.shape[0])
             Y[idx, A] = Q_target
+        return Y
+
+    def Y(self, X, A, R, X_next):
+        Q_target = self.target(X, A, R, X_next)
+        Y = self._Y(X, A, Q_target)
         return Y
 
 

@@ -30,6 +30,26 @@ def check_dtype(x, dtype):
     raise NotImplementedError("only implemented checks for 'int' and 'float'")
 
 
+def idx(arr, axis=0):
+    """
+    Given a numpy array, return its corresponding integer index array.
+
+    Parameters
+    ----------
+    arr : array
+        Input array.
+
+    axis : int, optional
+        The axis along which we'd like to get an index.
+
+    Returns
+    -------
+    index : 1d array, shape: arr.shape[axis]
+        An index array `[0, 1, 2, ...]`.
+    """
+    return np.arange(arr.shape[axis])
+
+
 def one_hot_vector(i, n, dtype='float'):
     """
     Create a dense one-hot encoded vector.
