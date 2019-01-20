@@ -6,8 +6,8 @@ In this notebook we solve the `'CartPole-v0'` environment using the
 scikit-learn's :class:`SGDRegressor <sklearn.linear_model.SGDRegressor>` as its
 underlying function approximator. What's more, this notebook trains a *type-II*
 model instead of the default type-I. This means that it models the Q-function
-as a mapping :math:`s\\mapsto Q(s,.)` rather than
-:math:`(s, a)\\mapsto Q(s, a)`.
+as a mapping :math:`s\mapsto Q(s,.)` rather than
+:math:`(s, a)\mapsto Q(s, a)`.
 
 
 GitHub version
