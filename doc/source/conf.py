@@ -43,8 +43,8 @@ with open(os.path.join(PACKAGEDIR, 'version.txt')) as f:
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
+    'sphinx.ext.autodoc',
     'numpydoc',
     'sphinx.ext.mathjax',
     'sphinx.ext.doctest',
@@ -58,6 +58,7 @@ extensions = [
 numpydoc_show_class_members = False
 
 autodoc_default_flags = ['members', 'inherited-members']
+autodoc_default_options = {'special-members': '__call__'}
 autodoc_member_order = 'alphabetical'
 
 # Add any paths that contain templates here, relative to this directory.
