@@ -5,10 +5,10 @@ Value-Based Policies
 .. autosummary::
     :nosignatures:
 
-    skgym.policies.ValueBasedPolicy
+    skgym.policies.ValuePolicy
 
 
 .. automodule:: skgym.policies
 
-    .. autoclass:: ValueBasedPolicy
+    .. autoclass:: ValuePolicy
 

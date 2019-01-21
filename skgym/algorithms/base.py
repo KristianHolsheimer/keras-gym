@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from ..value_functions.base import BaseValueFunction
-from ..policies.value_based import ValueBasedPolicy
+from ..policies.value_based import ValuePolicy
 
 
 class BaseAlgorithm(ABC):
@@ -167,7 +167,7 @@ class BaseValueAlgorithm(BaseAlgorithm):
 
     """
     def __init__(self, value_function_or_policy, gamma=0.9):
-        if isinstance(value_function_or_policy, ValueBasedPolicy):
+        if isinstance(value_function_or_policy, ValuePolicy):
             self.policy = value_function_or_policy
             self.value_function = self.policy.value_function
         elif isinstance(value_function_or_policy, BaseValueFunction):
