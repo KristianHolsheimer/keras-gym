@@ -1,0 +1,4 @@
+
+
+class ArrayDequeOverflowError(Exception):
+    pass

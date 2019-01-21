@@ -1,4 +1,5 @@
 import numpy as np
+from .errors import ArrayDequeOverflowError
 
 
 def check_dtype(x, dtype):
@@ -188,10 +189,14 @@ class ArrayDeque:
         The shape of the to-be-cached arrays. This is the shape of a single
         entry.
 
-    maxlen : int
+    maxlen : int, optional
         The maximum number of arrays that can be stored in the deque. Overflow
-        is handled by replacing the oldest entry in the deque by the newly
-        supplied value, i.e. FIFO.
+        strategy can be specified by the `overflow` argument.
+
+    overflow : {'error', 'cycle', 'grow'}, optional
+        What to do when `maxlen` is reached: `'error'` means raise an error,
+        `'cycle'` means start overwriting old entries, and `'grow'` means grow
+        `maxlen` by a factor of 2.
 
     dtype : str or datatype, optional
         The datatype of the to-be-cached arrays. Default is `'float'`.
@@ -204,10 +209,15 @@ class ArrayDeque:
 
 
     """
-    def __init__(self, shape, maxlen, dtype='float'):
+    def __init__(self, shape, maxlen=512, overflow='cycle', dtype='float'):
+        if overflow not in ('error', 'cycle', 'grow'):
+            raise ValueError("bad value for overflow")
+
         self.shape = tuple(shape)
         self.maxlen = maxlen
         self.dtype = dtype
+        self.overflow = overflow
+
         self._len = 0
         self._idx = -1 % self.maxlen
         self._array = np.empty([maxlen] + list(shape), dtype)
@@ -245,10 +255,24 @@ class ArrayDeque:
             The array to be added.
 
         """
-        self._idx = (self._idx + 1) % self.maxlen
-        self._array[self._idx] = array
         if self._len < self.maxlen:
             self._len += 1
+        elif self.overflow == 'error':
+            raise ArrayDequeOverflowError(
+                "maxlen reached; consider increasing maxlen or set "
+                "overflow='cycle' or overflow='grow'")
+        elif self.overflow == 'cycle':
+            pass
+        elif self.overflow == 'grow':
+            self._array = np.concatenate(
+                [self._array, np.zeros_like(self._array)], axis=0)
+            self.maxlen *= 2
+            self._len += 1
+            assert self.maxlen == self._array.shape[0], "{} != {}".format(
+                self.maxlen, self._array.shape[0])
+
+        self._idx = (self._idx + 1) % self.maxlen
+        self._array[self._idx] = array
 
     def pop(self):
         """
@@ -280,5 +304,6 @@ class ArrayDeque:
         if not self:
             raise IndexError("pop from an empty deque")
         self._len -= 1
-        value = self._array[self._len - self._idx]
+        i = (self._idx - self._len) % self.maxlen
+        value = self._array[i]
         return value
