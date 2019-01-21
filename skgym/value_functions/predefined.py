@@ -1,7 +1,5 @@
 from .generic import GenericV, GenericQ
-import numpy as np
 from sklearn.linear_model import SGDRegressor
-from sklearn.preprocessing import FunctionTransformer
 
 
 class LinearV(GenericV):
@@ -24,10 +22,7 @@ class LinearV(GenericV):
         We can also use other transformers that only learn the input shape at
         training time, such as
         :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
-        Note that these do require us to set `attempt_fit_transformer=True`. If left
-        unspecified, this defaults to
-        `FunctionTransformer(lambda x: np.hstack((x, x ** 2)), validate=False)`,
-        which generates point-wise quadratic interactions.
+        Note that these do require us to set `attempt_fit_transformer=True`.
 
     attempt_fit_transformer : bool, optional
         Whether to attempt to pre-fit the transformer. Note: this is done on
@@ -50,9 +45,6 @@ class LinearV(GenericV):
         kwargs.update(regressor_kwargs)  # override defaults
         self.regressor_kwargs = kwargs
         regressor = SGDRegressor(**kwargs)
-        if transformer is None:
-            transformer = FunctionTransformer(
-                lambda x: np.hstack((x, x ** 2)), validate=False)
 
         super(LinearV, self).__init__(
             env=env, regressor=regressor, transformer=transformer,
@@ -94,10 +86,7 @@ class LinearQ(GenericQ):
         We can also use other transformers that only learn the input shape at
         training time, such as
         :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
-        Note that these do require us to set `attempt_fit_transformer=True`. If left
-        unspecified, this defaults to
-        `FunctionTransformer(lambda x: np.hstack((x, x ** 2)), validate=False)`,
-        which generates point-wise quadratic interactions.
+        Note that these do require us to set `attempt_fit_transformer=True`.
 
     model_type : {1, 2}
         Whether to model the state-action value function as
@@ -137,9 +126,6 @@ class LinearQ(GenericQ):
         kwargs.update(regressor_kwargs)  # override defaults
         self.regressor_kwargs = kwargs
         regressor = SGDRegressor(**kwargs)
-        if transformer is None:
-            transformer = FunctionTransformer(
-                lambda x: np.hstack((x, x ** 2)), validate=False)
 
         super(LinearQ, self).__init__(
             env=env, regressor=regressor, transformer=transformer,
