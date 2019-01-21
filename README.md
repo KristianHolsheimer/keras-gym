@@ -26,13 +26,13 @@ $ pip install -e ./scikit-gym
 
 import gym
 from skgym.value_functions import LinearQ
-from skgym.policies import ValueBasedPolicy
+from skgym.policies import ValuePolicy
 from skgym.algorithms import QLearning
 
 
 env = gym.make('CartPole-v0')
 q = LinearQ(env, power_t=0)  # uses sklearn's SGDRegressor
-policy = ValueBasedPolicy(q)
+policy = ValuePolicy(q)
 algo = QLearning(policy, gamma=0.75)
 
 

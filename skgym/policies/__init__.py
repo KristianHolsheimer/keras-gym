@@ -1,1 +1,1 @@
-from .value_based import ValueBasedPolicy  # noqa
+from .value_based import ValuePolicy  # noqa

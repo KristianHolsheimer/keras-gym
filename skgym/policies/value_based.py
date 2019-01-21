@@ -7,7 +7,7 @@ from ..value_functions.generic import GenericQ
 from ..utils import softmax
 
 
-class ValueBasedPolicy(BasePolicy):
+class ValuePolicy(BasePolicy):
     """
     Policies based on a state-action value function, i.e. it uses a Q-function
     to figure out what actions to pick.
@@ -26,7 +26,7 @@ class ValueBasedPolicy(BasePolicy):
         if not isinstance(value_function, BaseQ):
             raise TypeError("value_function must be a subtype of BaseQ")
         self.value_function = value_function
-        super(ValueBasedPolicy, self).__init__(value_function.env, random_seed)
+        super(ValuePolicy, self).__init__(value_function.env, random_seed)
 
     def __repr__(self):
         return (
