@@ -22,6 +22,32 @@ class MonteCarlo(BaseValueAlgorithm, ExperienceCacheMixin):
         return Q_target
 
     def update(self, s, a, r, s_next, done):
+        """
+        Update the given policy and/or value function.
+
+        Parameters
+        ----------
+        s : int or array
+            A single observation (state).
+
+        a : int or array
+            A single action.
+
+        r : float
+            Reward associated with the transition
+            :math:`(s, a)\\to s_\\text{next}`.
+
+        s_next : int or array
+            A single observation (state).
+
+        done : bool
+            Whether the episode is done. If `done` is `False`, the input
+            transition is cached and no actual update will take place. Once
+            `done` is `True`, however, the collected cache from the episode is
+            unrolled, replaying the epsiode in reverse chronological order.
+            This is when the actual updates are made.
+
+        """
         self.cache_transition(s, a, r, s_next)
         if not done:
             return
