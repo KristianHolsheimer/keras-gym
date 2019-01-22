@@ -1,8 +1,12 @@
 from __future__ import print_function, division
-import numpy as np
 from abc import ABC, abstractmethod
+from collections import Hashable
+
+import numpy as np
+from gym.spaces import Tuple, Discrete, Box, MultiDiscrete, MultiBinary
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.exceptions import NotFittedError
+
 
 from ..utils import one_hot_vector, check_dtype
 
@@ -135,18 +139,28 @@ class BaseValueFunction(ABC):
             self.regressor = MultiOutputRegressor(self.regressor)
             self.regressor.partial_fit(X, Y)
 
-    def _to_vec(self, x, kind):
-        assert kind in ('state', 'action')
-        if check_dtype(x, 'int'):
-            if kind == 'state':
-                n = self.env.observation_space.n
-            else:
-                n = self.env.action_space.n
-            x = one_hot_vector(x, n)
-        elif isinstance(x, np.ndarray) and x.ndim > 1:
-            x = x.ravel()
+    def _to_vec(self, x, space):
+        if isinstance(space, Tuple):
+            x = np.concatenate([
+                self._to_vec(x_, space_)  # recursive
+                for x_, space_ in zip(x, space.spaces)], axis=0)
+        elif isinstance(space, MultiDiscrete):
+            print(np.concatenate([
+                self._to_vec(x_, Discrete(n))  # recursive
+                for x_, n in zip(x.ravel(), space.nvec.ravel()) if n]))
+            x = np.concatenate([
+                self._to_vec(x_, Discrete(n))  # recursive
+                for x_, n in zip(x.ravel(), space.nvec.ravel()) if n], axis=0)
+        elif isinstance(space, Discrete):
+            x = one_hot_vector(x, space.n)
+        elif isinstance(space, (MultiBinary, Box)):
+            pass
+        else:
+            raise NotImplementedError(
+                "haven't implemented a preprocessor for space type: {}"
+                .format(type(space)))
 
-        assert x.ndim == 1, "x must be a 1d array"
+        assert x.ndim == 1, "x must be 1d array, got shape: {}".format(x.shape)
         return x
 
     def _transform(self, X):
