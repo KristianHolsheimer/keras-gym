@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+from ..utils import ArrayDeque
 from ..value_functions.base import BaseValueFunction
 from ..policies.value_based import ValuePolicy
 
@@ -243,9 +244,62 @@ class ExperienceCacheMixin(ABC):
     Mix-in class for adding experience cache to an algorithm. Such a cache is
     needed in e.g. Monte Carlo type algorithms.
 
-    TODO: write the actual implementation, using e.g.
-    :class:`skgym.utils.ArrayDeque`
-
     """
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError('ExperienceCacheMixin')
+    def cache_transition(self, s, a, r, s_next):
+        """
+        Cache a preprocessed version of a transition
+        :math:`(s, a, r, s_\\text{next})`.
+
+        Parameters
+        ----------
+        s : int or array
+            A single observation (state).
+
+        a : int or array
+            A single action.
+
+        r : float
+            Reward associated with the transition
+            :math:`(s, a)\\to s_\\text{next}`.
+
+        s_next : int or array
+            A single observation (state).
+
+        a_next : int or array, typically not required
+            A single action. This is typicall not required, with the SARSA
+            algorithm as the notable exception.
+
+        """
+        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+
+        if not hasattr(self, 'cache_'):
+            self.cache_ = {
+                'X': ArrayDeque(shape=X.shape, dtype=X.dtype, overflow='grow'),
+                'A': ArrayDeque(shape=A.shape, dtype=A.dtype, overflow='grow'),
+                'R': ArrayDeque(shape=R.shape, dtype=R.dtype, overflow='grow'),
+                'X_next': ArrayDeque(shape=X_next.shape, dtype=X_next.dtype, overflow='grow'),
+                'num_items': 0}
+
+        self.cache_['X'].append(X)
+        self.cache_['A'].append(A)
+        self.cache_['R'].append(R)
+        self.cache_['X_next'].append(X_next)
+        self.cache_['num_items'] += 1
+
+    @abstractmethod
+    def replay_experience(self, batch_size=1):
+        """
+        Replay the cached experience. The specific implementation depends on
+        the details of the algorithm. For instance, in Monte Carlo methods we
+        replay experience by unrolling it in reverse-chronological order. On
+        the other hand, in "TD with Experience Replay" we randomly sample
+        transitions, effective treating them as i.i.d. samples.
+
+        Returns
+        -------
+        preprocessed_transitions : iterator
+            An iterator that generates batches of preprocessed transitions
+            `(X, A, R, X_next)`.
+
+        """
+        pass
