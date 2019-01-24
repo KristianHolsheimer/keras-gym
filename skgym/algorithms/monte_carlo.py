@@ -1,5 +1,3 @@
-import numpy as np
-
 from .base import BaseValueAlgorithm, ExperienceCacheMixin
 from ..errors import NoExperienceCacheError
 
