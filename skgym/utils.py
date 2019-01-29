@@ -1,5 +1,5 @@
 import numpy as np
-from .errors import ArrayDequeOverflowError
+from .errors import ArrayDequeOverflowError, NoExperienceCacheError
 
 
 def check_dtype(x, dtype):
@@ -307,3 +307,220 @@ class ArrayDeque:
         i = (self._idx - self._len) % self.maxlen
         value = self._array[i]
         return value
+
+
+class ExperienceCache:
+    """
+    A class for conveniently storing and replaying experience. Each unit of
+    experience consists of a preprocessed transition `(X, A, R, X_next)`.
+
+    Parameters
+    ----------
+    maxlen : int, optional
+        The maximum number of arrays that can be stored in the deque. Overflow
+        strategy can be specified by the `overflow` argument.
+
+    overflow : {'error', 'cycle', 'grow'}, optional
+        What to do when `maxlen` is reached: `'error'` means raise an error,
+        `'cycle'` means start overwriting old entries, and `'grow'` means grow
+        `maxlen` by a factor of 2.
+
+    Attributes
+    ----------
+    X_ : ArrayDeque
+        Dict of numpy arrays of stored values. The shape of each value is
+        `[num_arrays, <array_shape>]`.
+
+    """
+    def __init__(self, maxlen=512, overflow='cycle', random_seed=None):
+        self.maxlen = maxlen
+        self.overflow = overflow
+        self.random_seed = random_seed
+        self._len = 0
+
+    def __len__(self):
+        return len(self.X_)
+
+    def __bool__(self):
+        return bool(self.X_)
+
+    def _check_fitted(self, raise_error=True):
+        fitted = all((
+            hasattr(self, 'X_'),
+            hasattr(self, 'A_'),
+            hasattr(self, 'R_'),
+            hasattr(self, 'X_next_')))
+        if raise_error and not fitted:
+            raise NoExperienceCacheError("no experience has yet been recorded")
+        return fitted
+
+    def append(self, X, A, R, X_next):
+        """
+        Add a preprocessed transition to the experience cache.
+
+        .. note::
+
+            This method has only been implemented for `batch_size=1`.
+
+        Parameters
+        ----------
+        X : 2d-array, shape: [batch_size, num_features]
+            Scikit-learn style design matrix. This represents a batch of either
+            states or state-action pairs, depending on the model type.
+
+        A : 1d-array, shape: [batch_size]
+            A batch of actions taken.
+
+        R : 1d-array, shape: [batch_size]
+            A batch of observed rewards.
+
+        X_next : 2d-array, shape depends on model type
+            The preprocessed next-state feature vector.
+
+        """
+
+        # check imput shapes (batch_size == 1)
+        assert X.ndim > 0 and X.shape[0] == 1
+        assert A.ndim > 0 and A.shape[0] == 1
+        assert R.ndim > 0 and R.shape[0] == 1
+        assert X_next.ndim > 0 and X_next.shape[0] == 1
+
+        # create cache objects
+        if not self._check_fitted(raise_error=False):
+            self.X_ = ArrayDeque(
+                shape=X.shape[1:], dtype=X.dtype,
+                overflow=self.overflow, maxlen=self.maxlen)
+            self.A_ = ArrayDeque(
+                shape=A.shape[1:], dtype=A.dtype,
+                overflow=self.overflow, maxlen=self.maxlen)
+            self.R_ = ArrayDeque(
+                shape=R.shape[1:], dtype=R.dtype,
+                overflow=self.overflow, maxlen=self.maxlen)
+            self.X_next_ = ArrayDeque(
+                shape=X_next.shape[1:], dtype=X_next.dtype,
+                overflow=self.overflow, maxlen=self.maxlen)
+
+        # add to cache
+        self.X_.append(X[0])
+        self.A_.append(A[0])
+        self.R_.append(R[0])
+        self.X_next_.append(X_next[0])
+
+    def sample(self, n=1):
+        """
+        Draw a sample, uniformly at random.
+
+        Parameters
+        ----------
+        n : int
+            The sample size.
+
+        Returns
+        -------
+        X, A, R, X_next : arrays
+            A batch of preprocessed transitions. The size of the first axis of
+            each of the four arrays matches and are equal to `batch_size=n`.
+
+        """
+        if not isinstance(n, (int, np.int_)) or n <= 0:
+            raise TypeError("n must be a positive integer")
+        idx = self._random.permutation(np.arange(len(self)))[:n]
+        X = self.X_.array[idx]
+        A = self.A_.array[idx]
+        R = self.R_.array[idx]
+        X_next = self.X_next_.array[idx]
+        return X, A, R, X_next
+
+    def pop(self):
+        """
+        Pop the newest cached transition.
+
+        Returns
+        -------
+        X, A, R, X_next : arrays
+            A batch of preprocessed transitions. The size of the first axis of
+            each of the four arrays matches and are equal to `batch_size=1`.
+
+        """
+        self._check_fitted()
+        X = np.expand_dims(self.X_.pop(), axis=0)
+        A = np.expand_dims(self.A_.pop(), axis=0)
+        R = np.expand_dims(self.R_.pop(), axis=0)
+        X_next = np.expand_dims(self.X_next_.pop(), axis=0)
+        return X, A, R, X_next
+
+    def popleft(self):
+        """
+        Pop the oldest cached transition.
+
+        Returns
+        -------
+        X, A, R, X_next : arrays
+            A batch of preprocessed transitions. The size of the first axis of
+            each of the four arrays matches and are equal to `batch_size=1`.
+
+        """
+        self._check_fitted()
+        X = np.expand_dims(self.X_.popleft(), axis=0)
+        A = np.expand_dims(self.A_.popleft(), axis=0)
+        R = np.expand_dims(self.R_.popleft(), axis=0)
+        X_next = np.expand_dims(self.X_next_.popleft(), axis=0)
+        return X, A, R, X_next
+
+    def popleft_nstep(self, n=1):
+        """
+        Pop the oldest cached transition and return the `R` and `X_next` that
+        correspond to an n-step look-ahead.
+
+        .. note::
+
+            To understand of what's going in this method, have a look at
+            chapter 7 of `Sutton & Barto
+            <http://incompleteideas.net/book/the-book-2nd.html>`_.
+
+        Parameters
+        ----------
+        n : int
+            The number of steps in the n-step bootstrapping procedure.
+
+        Returns
+        -------
+        X, A, R, X_next : arrays
+            A batch of preprocessed transitions. `X` and `A` correspond to the
+            to-be-updated timestep :math:`\\tau=t-n+1`, while `X_next`
+            corresponds to the look-ahead timestep :math:`\\tau+n=t+1`. `R`
+            contains all the observed rewards between timestep :math:`\\tau+1`
+            and :math:`\\tau+n` (inclusive), i.e. `R` represents the sequence
+            :math:`(R_\\tau, R_{\\tau+1}, \dots, R_{\\tau+n})`. This sequence
+            is truncated to a size smaller than :math:`n` as we approach the
+            end of the episode, where :math:`t>T-n`. The sequence becomes
+            :math:`(R_\\tau, R_{\\tau+1}, \dots, R_{T})`. In this phase of the
+            replay, we can longer do a bootstrapping type look-ahead, which
+            means that `X_next=None` until the end of the episode.
+
+        """
+        self._check_fitted()
+        X = np.expand_dims(self.X_.popleft(), axis=0)
+        A = np.expand_dims(self.A_.popleft(), axis=0)
+
+        R = self.R_.array[:n]
+        self.R_.popleft()
+
+        X_next = self.X_next_.array[[-1]] if len(self.X_next_) >= n else None
+        self.X_next_.popleft()
+
+        return X, A, R, X_next
+
+    @property
+    def random_seed(self):
+        return self._random_seed
+
+    @random_seed.setter
+    def random_seed(self, new_random_seed):
+        self._random = np.random.RandomState(new_random_seed)
+        self._random_seed = new_random_seed
+
+    @random_seed.deleter
+    def random_seed(self):
+        self._random = np.random.RandomState(None)
+        self._random_seed = None

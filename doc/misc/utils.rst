@@ -5,6 +5,7 @@ Utilities
     :nosignatures:
 
     skgym.utils.ArrayDeque
+    skgym.utils.ExperienceCache
     skgym.utils.argmax
     skgym.utils.argmin
     skgym.utils.check_dtype
@@ -16,6 +17,7 @@ Utilities
 .. automodule:: skgym.utils
 
     .. autoclass:: ArrayDeque
+    .. autoclass:: ExperienceCache
     .. autofunction:: argmax
     .. autofunction:: argmin
     .. autofunction:: check_dtype
