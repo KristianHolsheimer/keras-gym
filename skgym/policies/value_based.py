@@ -80,7 +80,6 @@ class ValuePolicy(BasePolicy):
             Scikit-learn style design matrix.
 
         """
-
         return GenericQ.X(self.value_function, s, a)
 
     def X_next(self, s):
@@ -92,10 +91,6 @@ class ValuePolicy(BasePolicy):
         ----------
         s : int or array of float
             A single state observation.
-
-        a : int, optional
-            This is required for `model_type=1` and must be left unspecified
-            for `model_type=2`.
 
         Returns
         -------
