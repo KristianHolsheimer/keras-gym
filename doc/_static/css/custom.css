@@ -2,6 +2,14 @@ a {
   font-weight: bold;
 }
 
+.math {
+    text-align: left;
+}
+
+.eqno {
+    float: right;
+}
+
 div.ethical-rtd {
   /* hide ads */
   display: none;
