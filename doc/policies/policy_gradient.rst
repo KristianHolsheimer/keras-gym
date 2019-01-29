@@ -30,73 +30,114 @@ In order to figure out what this target need to be, let's go back to the
 starting point of derivation of the update rule for :math:`\theta`. Let's start
 with our objective function:
 
-In
-particular, let's look at how the objective function varies when we vary
-:math:`\pi`:
+
+Let's start with the objective functional:[#sumsandintegrals]_
 
 .. math::
 
-    \delta J\ =\ \sum_{s,a}\,\mu(s)\,\mathcal{A}(s,a)\,\delta\pi(a|s)
+    J[\pi]\ =\ \int ds\,da\,\pi(a|s)\,\mu(s)\,\mathcal{A}(s,a)
 
 
-Here, :math:`\mathcal{A}(s,a)=Q(s,a) - V(s)` is the advantage function. Thus,
-the functional derivative is just:
-
-.. math::
-
-    \frac{\delta J}{\delta \pi}(S,A)\ =\ \mu(S)\,\mathcal{A}(S,A)
-
-
-This suggests that the :math:`\pi` update becomes:
+where :math:`\mathcal{A}(s,a)=Q(s,a) - V(s)` is the advantage function. The
+functional derivative w.r.t. the log-policy is:
 
 .. math::
 
-    \Delta\pi(A|S)\ =\ \alpha\,\mu(S)\,\mathcal{A}(S,A)
+    \frac{\delta J}{\delta\ln\pi}(s,a)\ =\ \mu(s)\,\pi(a|s)\,\mathcal{A}(s,a)
 
-Here :math:`\mu(s)` is the density of the state :math:`S=s`. From a
-frequentist's perspective, it tells us how many times we get to observe state
-:math:`S=s`, relative to all other states. Thus, the way this translates to
-online updates for a specific state is simply:
+
+This suggests that the gradient ascent update for the log-policy becomes:
 
 .. math::
 
-    \Delta\pi(A|s)\ =\ \alpha\,\mathcal{A}(s,A)
+    \Delta\ln\pi(a|s)\ =\ \alpha\,\pi(a|s)\,\mu(s)\,\mathcal{A}(s,a)
 
-The notation :math:`\pi(A|s)` is short-hand for :math:`\pi(A|S=s)`, i.e. the
-uppercase :math:`S` is the random variable and the lowercase :math:`s` is a
-specific value (variate). Note that preservation of normalization fixes
-:math:`V(S)=\sum_a\pi(a|s)\mathcal{A}(s,a)`, which follows directly from
+Here :math:`\mu(s)` is the density of the state :math:`s`. From a frequentist's
+perspective, it tells us how many times we get to observe state :math:`s=S_t`,
+relative to all other states. This means that the product
+:math:`\pi(a|s)\,\mu(s)` gives us the joint probability for the state-action
+pair :math:`(s,a)`. Thus, the way this translates to online updates for a
+specific state is simply:
 
 .. math::
 
-    0\ =\ \mathbb{E}_\pi\left[\Delta\pi(A|s)\right]
-     \ =\ \alpha\sum_a\,\pi(a|s)\,\mathcal{A}(s,a)
+    \Delta\ln\pi(a|S_t)\ =\ \alpha\,\mathcal{A}(S_t,a)
+
+We can satisfy preservation of normalization by picking :math:`V(s)=\int
+da\,\pi(a|s)Q(s,a)`, which can be seen via Jensen's inequality, see `Appendix`_
+below.
 
 
 We then use a linear approximation to get the "ground-truth" target we're
-interested in, :math:`y=\pi(a|s) + \Delta\pi(a|s)`. For instance, for a discrete actions space :math:`a=0,1,\dots`,
-the labeled example that we feed to our scikit-learn function approximator is:
+interested in, :math:`y=\pi(a|S_t)(1+ \Delta\ln\pi(a|S_t))`. For instance, for
+a discrete actions space :math:`a=0,1,\dots`, the labeled example that we feed
+to our scikit-learn function approximator is:
 
 .. math::
+    :label: bootstrap
 
-    X\ &=\ \phi(s)\\
-    \qquad y_a\ &=\ \hat{y}_a(s) + \alpha\,\mathcal{A}(s,a)
+    X\ &=\ \phi(S_t)\\
+    \qquad y_a\ &=\ \hat{y}_a(S_t)\left(1 + \alpha\,\mathcal{A}(S_t,a)\right)
 
 where :math:`\hat{y}_a(s)=\hat{\pi}(a|s,\theta)` and :math:`\phi` is some
 feature preprocessor (called a :term:`transformer` throughout this package).
 
-Of course, we could make the updates more sophisticated, using e.g. momentum
-(initialize to :math:`u(s,a)=0`):
+Essentially, what we're doing is gradient boosting for our log-policy. In fact,
+if we were to do actual gradient boosting, we would approximate the advantage
+function (the functional gradient) and then tune :math:`\alpha` to optimize
+objective. The updates would be:
 
 .. math::
 
-    u(s,a)\ &\leftarrow\ \eta\,u(s,a) + \alpha\,\mathcal{A}(s,a) \\
-    X\ &=\ \phi(s)\\
-    \qquad y_a\ &=\ \hat{y}_a(s) + g(s,a)
+    \hat{Q}(s,a)\ &\approx\ Q(s,a) \\
+    \ln\hat{\pi}(a|s)\ &\leftarrow\ \ln\hat{\pi}(a|s) + \alpha \frac{\delta J}{\delta\ln\pi}(s,a)
 
-This does mean, however, that we need one more function approximator to keep
-track of policy momentum :math:`u(s,a)`.
+
+In contrast to gradient boosting, in which we would keep the entire sequence of
+learners, we iteratively update our target relative to our previous prediction
+as per Eq. :eq:`bootstrap`.
 
 
 If you're reading this and you think I'm making a mistake somewhere, please
 would you let me know? I would really appreciate it!
+
+
+.. rubric:: Footnotes
+
+.. [#sumsandintegrals]
+
+    For discrete action/state spaces, we can replace the integrals by sums,
+    e.g. :math:`\int da \to \sum_a`.
+
+
+Appendix
+--------
+
+To see that :math:`V(s)=\int da\,\pi(a|s)Q(s,a)` indeed preserves
+normalization under updates of the form
+
+.. math::
+
+    \ln\pi(a|s)\ \leftarrow\ \ln\pi(a|s) + \Delta\ln\pi(a|s)
+
+consider the following application of Jensen's inequality:
+
+.. math::
+
+    1\ &=\ \int da\,\pi(a|s) \\
+     \ &=\ \int da\,\exp\left( \ln\pi(a|s) \right) \\
+     \ &=\ \int da\,\exp\left( \ln\pi(a|s) + \Delta\ln\pi(a|s) \right) \\
+     \ &=\ \int da\,\pi(a|s)\,\exp\left( \Delta\ln\pi(a|s) \right) \\
+     \ &=\ \mathbb{E}_\pi\left[\exp\left(\Delta\ln\pi(A|s)\right)\right] \\
+     \ &\geq\ \exp\mathbb{E}_\pi\left[\Delta\ln\pi(A|s)\right]
+
+We saturate Jensen's lower bound at the point where
+
+.. math::
+
+    0\ &=\ \mathbb{E}_\pi\left[\Delta\ln\pi(A|s)\right]\\
+     \ &=\ \int da\,\pi(a|s)\,\Delta\ln\pi(A|s) \\
+     \ &=\ \alpha\int da\,\pi(a|s)\,\mathcal{A}(s,a) \\
+     \ &=\ \alpha\int da\,\pi(a|s)\,\left(Q(s,a) - V(s)\right)
+
+This is guaranteed when we pick :math:`V(s)=\int da\,\pi(a|s)Q(s,a)`.
