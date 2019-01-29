@@ -554,8 +554,6 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         `dim_s + dim_a`. This option is more suitable for non-linear models.
 
     """
-    _METHODS = ('preprocess', 'batch_eval_typeI', 'batch_eval_typeII')
-
     def __init__(self, env, regressor, transformer=None, model_type=1,
                  attempt_fit_transformer=False, state_action_combiner='cross'):
 
