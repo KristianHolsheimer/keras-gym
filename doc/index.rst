@@ -28,6 +28,7 @@ Documentation
     misc/utils
     notebooks/index
     misc/about
+    misc/release_notes
 
 
 Indices and tables
