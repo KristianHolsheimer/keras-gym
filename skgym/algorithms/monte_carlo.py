@@ -1,23 +1,14 @@
-from .base import BaseValueAlgorithm, ExperienceCacheMixin
-from ..errors import NoExperienceCacheError
+from .base import BaseValueAlgorithm
+from ..utils import ExperienceCache
 
 
-class MonteCarlo(BaseValueAlgorithm, ExperienceCacheMixin):
-    def target(self, R, G_next):
-        """
-        The emperical Monte Carlo target for our value function.
+class MonteCarlo(BaseValueAlgorithm):
+    def __init__(self, value_function_or_policy, gamma=0.9):
+        self.experience_cache = ExperienceCache(overflow='grow')
+        super(MonteCarlo, self).__init__(value_function_or_policy, gamma=gamma)
 
-        Parameters
-        ----------
-        R : 1d-array, shape: [batch_size]
-            Reward.
-
-        G_next : 1d-array, shape: [batch_size]
-            The next timestep's return G.
-
-        """
-        Q_target = R + self.gamma * G_next
-        return Q_target
+    def target(self, *args, **kwargs):
+        raise NotImplementedError('MonteCarlo.target')
 
     def update(self, s, a, r, s_next, done):
         """
@@ -46,24 +37,21 @@ class MonteCarlo(BaseValueAlgorithm, ExperienceCacheMixin):
             This is when the actual updates are made.
 
         """
-        self.cache_transition(s, a, r, s_next)
+        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+        self.experience_cache.append(X, A, R, X_next)
+
+        # break out of function if episode hasn't yet finished
         if not done:
             return
 
-        Q_target = 0
-        for X, A, R, X_next in self.replay_experience():
-            Q_target = self.target(R, Q_target)
-            Y = self._Y(X, A, Q_target)
+        # initialize return
+        G = 0
+
+        # replay episode in reverse order
+        while self.experience_cache:
+            X, A, R, X_next = self.experience_cache.pop()
+
+            G = R + self.gamma * G  # gamma-discounted return
+            Y = self._Y(X, A, G)    # target for function approximator
+
             self.value_function.update(X, Y)
-
-    def replay_experience(self):
-        if not hasattr(self, 'cache_'):
-            raise NoExperienceCacheError("cannot find experience cache")
-
-        for _ in range(self.cache_['num_items']):
-            X = self.cache_['X'].pop()
-            A = self.cache_['A'].pop()
-            R = self.cache_['R'].pop()
-            X_next = self.cache_['X_next'].pop()
-            self.cache_['num_items'] -= 1
-            yield X, A, R, X_next
