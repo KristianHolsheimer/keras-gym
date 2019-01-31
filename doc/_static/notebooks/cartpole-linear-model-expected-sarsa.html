@@ -13121,7 +13121,7 @@ div#notebook {
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
 <span class="kn">from</span> <span class="nn">skgym.value_functions</span> <span class="k">import</span> <span class="n">GenericQ</span>
 <span class="kn">from</span> <span class="nn">skgym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">skgym.algorithms</span> <span class="k">import</span> <span class="n">QLearning</span><span class="p">,</span> <span class="n">ExpectedSarsa</span>
+<span class="kn">from</span> <span class="nn">skgym.algorithms</span> <span class="k">import</span> <span class="n">ExpectedSarsa</span>
 <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">SGDRegressor</span>
 <span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">FunctionTransformer</span>
 
@@ -13140,7 +13140,6 @@ div#notebook {
 <span class="n">Q</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">regressor</span><span class="p">,</span> <span class="n">transformer</span><span class="p">)</span>
 <span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
 <span class="n">algo</span> <span class="o">=</span> <span class="n">ExpectedSarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">policy</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-<span class="c1"># algo = QLearning(Q, gamma=0.8)</span>
 
 
 <span class="c1"># number of iterations</span>
@@ -13212,10 +13211,7 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>module reloaded: skgym.algorithms.base
-module reloaded: skgym.algorithms.td0
-module reloaded: skgym.algorithms
-failed after 51 steps
+<pre>failed after 51 steps
 failed after 83 steps
 failed after 16 steps
 failed after 14 steps
