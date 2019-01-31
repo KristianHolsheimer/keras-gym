@@ -133,22 +133,24 @@ class TestExperienceCache:
         X, A, R, X_next = ec.popleft_nstep(n)
         assert R.shape == (4,)
         assert len(ec) == 5
+        assert X[0, 0] == 1
 
         X, A, R, X_next = ec.popleft_nstep(n)
         assert R.shape == (4,)
         assert len(ec) == 4
+        assert X[0, 0] == 2
         assert X_next is not None
 
         X, A, R, X_next = ec.popleft_nstep(n)
         assert R.shape == (4,)
         assert len(ec) == 3
+        assert X[0, 0] == 3
         assert X_next is not None
 
         X, A, R, X_next = ec.popleft_nstep(n)
         assert R.shape == (3,)
         assert len(ec) == 2
         assert X_next is None
-
         np.testing.assert_array_almost_equal(
             X, [[4., -1.512845, -0.764034, 0.10127, -0.317266]])
         np.testing.assert_array_almost_equal(
