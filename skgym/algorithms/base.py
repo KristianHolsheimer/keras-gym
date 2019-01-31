@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-from ..utils import ArrayDeque
 from ..value_functions.base import BaseValueFunction
 from ..policies.value_based import ValuePolicy
 

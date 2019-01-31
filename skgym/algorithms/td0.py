@@ -14,7 +14,9 @@ class BaseValueTD0(BaseValueAlgorithm):
 
 class QLearning(BaseValueTD0):
     """
-    Update the Q-function according to the Q-learning algorithm. The Q-function
+    Update the Q-function according to the Q-learning algorithm, cf.
+    Section 6.5 of `Sutton & Barto
+    <http://incompleteideas.net/book/the-book-2nd.html>`_. The Q-function
     object can either be passed directly or implicitly by passing a value-based
     policy object.
 
@@ -36,15 +38,18 @@ class QLearning(BaseValueTD0):
 
 class ExpectedSarsa(BaseValueTD0):
     """
-    Update the Q-function according to the Q-learning algorithm. The Q-function
-    object can either be passed directly or implicitly by passing a value-based
-    policy object.
+    Update the Q-function according to the Expected-SARSA algorithm, cf.
+    Section 6.6 of `Sutton & Barto
+    <http://incompleteideas.net/book/the-book-2nd.html>`_. This algorithm
+    requires both a policy as well as a value function.
 
     Parameters
     ----------
-    value_function : value function
-        This can be either a state value function :math:`V(s)`, a state-action
-        value function :math:`Q(s, a)`, or a value-based policy.
+    value_function : value function object
+        A state-action value function :math:`Q(s, a)`.
+
+    policy : policy object
+        The policy under evaluation.
 
     gamma : float
         Future discount factor, value between 0 and 1.
@@ -73,7 +78,9 @@ class ExpectedSarsa(BaseValueTD0):
 
 class Sarsa(BaseValueTD0):
     """
-    Update the Q-function according to the Q-learning algorithm. The Q-function
+    Update the Q-function according to the SARSA algorithm, cf.
+    Section 6.4 of `Sutton & Barto
+    <http://incompleteideas.net/book/the-book-2nd.html>`_. The Q-function
     object can either be passed directly or implicitly by passing a value-based
     policy object.
 

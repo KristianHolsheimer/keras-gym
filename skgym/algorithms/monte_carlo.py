@@ -3,12 +3,34 @@ from ..utils import ExperienceCache
 
 
 class MonteCarlo(BaseValueAlgorithm):
+    """
+    Update the Q-function according to the plain vanilla Monte Carlo algorithm,
+    cf. Section 5.3 of `Sutton & Barto
+    <http://incompleteideas.net/book/the-book-2nd.html>`_. The Q-function
+    object can either be passed directly or implicitly by passing a value-based
+    policy object.
+
+    Parameters
+    ----------
+    value_function_or_policy : value function or value-based policy
+        This can be either a state value function :math:`V(s)`, a state-action
+        value function :math:`Q(s, a)`, or a value-based policy.
+
+    gamma : float
+        Future discount factor, value between 0 and 1.
+
+    """
     def __init__(self, value_function_or_policy, gamma=0.9):
         self.experience_cache = ExperienceCache(overflow='grow')
         super(MonteCarlo, self).__init__(value_function_or_policy, gamma=gamma)
 
     def target(self, *args, **kwargs):
         raise NotImplementedError('MonteCarlo.target')
+    target.__doc__ = ""
+
+    def Y(self, *args, **kwargs):
+        raise NotImplementedError('MonteCarlo.Y')
+    Y.__doc__ = ""
 
     def update(self, s, a, r, s_next, done):
         """
