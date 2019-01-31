@@ -171,7 +171,10 @@ def softmax(arr, axis=0):
         make them good candidates for modeling probabilities.
 
     """
-    arr = np.clip(arr, -30, 30)
+    if not isinstance(arr, np.ndarray):
+        arr = np.array(arr)
+    arr -= arr.mean(axis=axis, keepdims=True)  # center before clipping
+    arr = np.clip(arr, -30, 30)                # avoid overflow before exp
     arr = np.exp(arr)
     arr /= arr.sum(axis=axis, keepdims=True)
     return arr

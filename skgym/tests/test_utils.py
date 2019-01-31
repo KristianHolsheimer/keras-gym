@@ -1,7 +1,29 @@
 import numpy as np
 import pytest
-from ..utils import ArrayDeque, ExperienceCache
+from ..utils import ArrayDeque, ExperienceCache, softmax
 from ..errors import ArrayDequeOverflowError
+
+
+def test_softmax():
+    rnd = np.random.RandomState(7)
+    w = rnd.randn(3, 5)
+    x = softmax(w, axis=1)
+    y = softmax(w + 100., axis=1)
+    z = softmax(w * 100., axis=1)
+
+    # check shape
+    assert x.shape == w.shape
+
+    # check normalization
+    np.testing.assert_almost_equal(x.sum(axis=1), np.ones(3))
+
+    # check translation invariance
+    np.testing.assert_almost_equal(y.sum(axis=1), np.ones(3))
+    np.testing.assert_almost_equal(x, y)
+
+    # check robustness by clipping
+    assert not np.any(np.isnan(z))
+    np.testing.assert_almost_equal(z.sum(axis=1), np.ones(3))
 
 
 class TestArrayDeque:
