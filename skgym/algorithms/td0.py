@@ -1,4 +1,5 @@
 import numpy as np
+from gym.spaces import Discrete
 
 from .base import BaseValueAlgorithm
 from ..utils import idx
@@ -30,6 +31,43 @@ class QLearning(BaseValueTD0):
     def target(self, X, A, R, X_next):
         Q_next = self.value_function.batch_eval_typeII(X_next)
         Q_target = R + self.gamma * np.max(Q_next, axis=1)
+        return Q_target
+
+
+class ExpectedSarsa(BaseValueTD0):
+    """
+    Update the Q-function according to the Q-learning algorithm. The Q-function
+    object can either be passed directly or implicitly by passing a value-based
+    policy object.
+
+    Parameters
+    ----------
+    value_function : value function
+        This can be either a state value function :math:`V(s)`, a state-action
+        value function :math:`Q(s, a)`, or a value-based policy.
+
+    gamma : float
+        Future discount factor, value between 0 and 1.
+
+    """
+    def __init__(self, value_function, policy, gamma=0.9):
+        super(ExpectedSarsa, self).__init__(value_function, gamma=gamma)
+        self.policy = policy
+
+    def target(self, X, A, R, X_next):
+        if isinstance(self.policy.env.action_space, Discrete):
+            P = self.policy.batch_eval(X_next)
+        else:
+            raise NotImplementedError(
+                "I haven't yet implemented continuous action spaces; "
+                "please send me a message to let me know if this is holding "
+                "you back. -kris")
+
+        Q_next = self.value_function.batch_eval_typeII(X_next)
+        assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b, n]
+
+        Q_target = R + self.gamma * np.einsum('bn,bn->b', P, Q_next)
+
         return Q_target
 
 
