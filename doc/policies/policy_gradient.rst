@@ -1,6 +1,10 @@
 Policy Gradient
 ===============
 
+.. note::
+
+    I haven't implemented policy gradient algorithms yet, because I first need
+    to work through Chapter 13 of Sutton & Barto more carefully.
 
 
 Target Definition
