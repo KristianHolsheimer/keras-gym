@@ -1,5 +1,5 @@
 from __future__ import print_function, division
-# import numpy as np
+from gym.spaces import Discrete
 
 from .base import BasePolicy
 from ..value_functions.base import BaseQ
@@ -37,6 +37,8 @@ class ValuePolicy(BasePolicy):
         """
         Given a batch of preprocessed states, get the associated probabilities.
 
+        .. note:: This has only been implemented for discrete action spaces.
+
         Parameters
         ----------
         X_s : 2d or 3d array of float
@@ -47,7 +49,11 @@ class ValuePolicy(BasePolicy):
 
         Returns
         -------
-        Q_s : 2d array, shape: [batch_size, num_actions]
+        params : 2d array, shape: [batch_size, num_params]
+            The parameters required to describe the probability distribution
+            over actions :math:`\\pi(a|s)`. For discrete action spaces,
+            `params` is the array of probabilities
+            :math:`(p_0, \\dots, p_{n-1})`, where :math:`p_i=P(a=i)`.
 
         """
         consistent = (
@@ -56,9 +62,16 @@ class ValuePolicy(BasePolicy):
         if not consistent:
             raise TypeError("shape and model type are inconsistent")
 
-        Q_s = self.value_function.batch_eval_typeII(X_s)
-        P = softmax(Q_s, axis=1)
-        return P
+        if isinstance(self.env.action_space, Discrete):
+            Q_s = self.value_function.batch_eval_typeII(X_s)
+            params = softmax(Q_s, axis=1)
+        else:
+            raise NotImplementedError(
+                "I haven't yet implemented continuous action spaces; "
+                "please send me a message to let me know if this is holding "
+                "you back. -kris")
+
+        return params
 
     def X(self, s, a=None):
         """
