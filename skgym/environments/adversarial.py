@@ -24,7 +24,8 @@ class ConnectFour:
         assert actions.size <= self.num_cols
         return actions
 
-    def __init__(self, adversary_policy=None, greedy_adversary=True, random_seed=None):
+    def __init__(self, adversary_policy=None, greedy_adversary=True,
+                 random_seed=None):
         self.adversary_policy = adversary_policy
         self.greedy_adversary = greedy_adversary
 
@@ -60,13 +61,17 @@ class ConnectFour:
         assert self.action_space.contains(a)
         assert player in (1, 2)
 
+        # upper bounds
+        imax = self.num_rows - 1
+        jmax = self.num_cols - 1
+
         # check for a draw
         if len(self.available_actions) == 0:
             return True, -0.5
 
         # check vertical
         i, j, c = self._levels[a], a, 1
-        for k in range(1, 4):
+        for _ in range(3):
             i -= 1
             if i < 0 or self.state[i, j] != player:
                 break
@@ -75,9 +80,9 @@ class ConnectFour:
                 return True, 1.0 if player == 1 else -1.0
 
         i = self._levels[a]
-        for k in range(1, 4):
+        for _ in range(3):
             i += 1
-            if i > self.num_rows - 1 or self.state[i, j] != player:
+            if i > imax or self.state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -85,7 +90,7 @@ class ConnectFour:
 
         # check horizontal
         i, j, c = self._levels[a], a, 1
-        for k in range(1, 4):
+        for _ in range(3):
             j -= 1
             if j < 0 or self.state[i, j] != player:
                 break
@@ -94,9 +99,9 @@ class ConnectFour:
                 return True, 1.0 if player == 1 else -1.0
 
         j = a
-        for k in range(1, 4):
+        for _ in range(3):
             j += 1
-            if j > self.num_cols - 1 or self.state[i, j] != player:
+            if j > jmax or self.state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -104,7 +109,7 @@ class ConnectFour:
 
         # check diagonal: NW/SE
         i, j, c = self._levels[a], a, 1
-        for k in range(1, 4):
+        for _ in range(3):
             i -= 1
             j -= 1
             if i < 0 or j < 0 or self.state[i, j] != player:
@@ -114,10 +119,10 @@ class ConnectFour:
                 return True, 1.0 if player == 1 else -1.0
 
         i, j = self._levels[a], a
-        for k in range(1, 4):
+        for _ in range(3):
             i += 1
             j += 1
-            if i > self.num_rows - 1 or j > self.num_cols - 1 or self.state[i, j] != player:
+            if i > imax or j > jmax or self.state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -125,20 +130,20 @@ class ConnectFour:
 
         # check diagonal: NE/SW
         i, j, c = self._levels[a], a, 1
-        for k in range(1, 4):
+        for _ in range(3):
             i += 1
             j -= 1
-            if i > self.num_rows - 1 or j < 0 or self.state[i, j] != player:
+            if i > imax or j < 0 or self.state[i, j] != player:
                 break
             c += 1
             if c == 4:
                 return True, 1.0 if player == 1 else -1.0
 
         i, j = self._levels[a], a
-        for k in range(1, 4):
+        for _ in range(3):
             i -= 1
             j += 1
-            if i < 0 or j > self.num_cols - 1 or self.state[i, j] != player:
+            if i < 0 or j > jmax or self.state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -148,7 +153,8 @@ class ConnectFour:
 
     def step(self, action):
         if self.adversary_policy is None:
-            raise NoAdversaryError("must specify adversary in order to run the environment")
+            raise NoAdversaryError(
+                "must specify adversary in order to run the environment")
         if not self.action_space.contains(action):
             raise ValueError("invalid action")
         if action not in self.available_actions:
@@ -160,7 +166,7 @@ class ConnectFour:
         done, reward = self._done_reward(action, player)
         self._levels[action] -= 1
         if done:
-            return self.state, reward, done, {'available_actions': self.available_actions}
+            return self.state, reward, done, None
 
         # adversary's turn
         player = 2
@@ -169,7 +175,7 @@ class ConnectFour:
         done, reward = self._done_reward(action, player)
         self._levels[action] -= 1
 
-        return self.state, reward, done, {'available_actions': self.available_actions}
+        return self.state, reward, done, None
 
     def render(self):
         # lookup for symbols
@@ -182,12 +188,14 @@ class ConnectFour:
         # render board
         hrule = '+---' * self.num_cols + '+\n'
         board = "  "
-        board += "   ".join(symbol.get(-(a == self.last_adversary_action), " ") for a in range(self.num_cols))
+        board += "   ".join(symbol.get(-(a == self.last_adversary_action), " ")
+                            for a in range(self.num_cols))
         board += "  \n"
         board += hrule
         for i in range(self.num_rows):
             board += "| "
-            board += " | ".join(symbol.get(self.state[i, j], " ") for j in range(self.num_cols))
+            board += " | ".join(symbol.get(self.state[i, j], " ")
+                                for j in range(self.num_cols))
             board += " |\n"
             board += hrule
 
