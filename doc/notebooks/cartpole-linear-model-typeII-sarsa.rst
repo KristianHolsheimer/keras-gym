@@ -10,6 +10,16 @@ as a mapping :math:`s\mapsto Q(s,.)` rather than
 :math:`(s, a)\mapsto Q(s, a)`.
 
 
+.. note::
+
+    I didn't have a luck of success getting this to converge properly. The run
+    depicted in this notebook is highly cherry-picked. In other words, please
+    don't expect consistent performance on CartPole with this specific model.
+    Having said that, I do expect type-II models to be able to outperform
+    type-I ones on some other environments (perhaps environments with a larger
+    action space).
+
+
 GitHub version
 --------------
 
