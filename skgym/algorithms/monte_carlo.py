@@ -24,14 +24,6 @@ class MonteCarlo(BaseValueAlgorithm):
         self.experience_cache = ExperienceCache(overflow='grow')
         super(MonteCarlo, self).__init__(value_function_or_policy, gamma=gamma)
 
-    def target(self, *args, **kwargs):
-        raise NotImplementedError('MonteCarlo.target')
-    target.__doc__ = ""
-
-    def Y(self, *args, **kwargs):
-        raise NotImplementedError('MonteCarlo.Y')
-    Y.__doc__ = ""
-
     def update(self, s, a, r, s_next, done):
         """
         Update the given policy and/or value function.
@@ -74,6 +66,6 @@ class MonteCarlo(BaseValueAlgorithm):
             X, A, R, X_next = self.experience_cache.pop()
 
             G = R + self.gamma * G  # gamma-discounted return
-            Y = self._Y(X, A, G)    # target for function approximator
+            Y = self.Y(X, A, G)     # target for function approximator
 
             self.value_function.update(X, Y)

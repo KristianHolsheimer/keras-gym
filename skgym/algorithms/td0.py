@@ -3,16 +3,10 @@ from gym.spaces import Discrete
 
 from .base import BaseValueAlgorithm
 from ..utils import idx
+from ..errors import NonDiscreteActionSpaceError
 
 
-class BaseValueTD0(BaseValueAlgorithm):
-    def update(self, s, a, r, s_next):
-        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        Y = self.Y(X, A, R, X_next)
-        self.value_function.update(X, Y)
-
-
-class QLearning(BaseValueTD0):
+class QLearning(BaseValueAlgorithm):
     """
     Update the Q-function according to the Q-learning algorithm, cf.
     Section 6.5 of `Sutton & Barto
@@ -30,13 +24,19 @@ class QLearning(BaseValueTD0):
         Future discount factor, value between 0 and 1.
 
     """
-    def target(self, X, A, R, X_next):
-        Q_next = self.value_function.batch_eval_typeII(X_next)
-        Q_target = R + self.gamma * np.max(Q_next, axis=1)
-        return Q_target
+    def update(self, s, a, r, s_next):
+        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+
+        # get target Q-value
+        Q_next = self.value_function.batch_eval_typeII(X_next)  # bootstrap
+        G = R + self.gamma * np.max(Q_next, axis=1)  # target under Q-learning
+
+        # target for function approximator
+        Y = self.Y(X, A, G)
+        self.value_function.update(X, Y)
 
 
-class ExpectedSarsa(BaseValueTD0):
+class ExpectedSarsa(BaseValueAlgorithm):
     """
     Update the Q-function according to the Expected-SARSA algorithm, cf.
     Section 6.6 of `Sutton & Barto
@@ -56,27 +56,29 @@ class ExpectedSarsa(BaseValueTD0):
 
     """
     def __init__(self, value_function, policy, gamma=0.9):
+        if not isinstance(value_function.env.action_space, Discrete):
+            raise NonDiscreteActionSpaceError()
+
         super(ExpectedSarsa, self).__init__(value_function, gamma=gamma)
         self.policy = policy
 
-    def target(self, X, A, R, X_next):
-        if isinstance(self.policy.env.action_space, Discrete):
-            P = self.policy.batch_eval(X_next)
-        else:
-            raise NotImplementedError(
-                "I haven't yet implemented continuous action spaces; "
-                "please send me a message to let me know if this is holding "
-                "you back. -kris")
+    def update(self, s, a, r, s_next):
+        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
 
-        Q_next = self.value_function.batch_eval_typeII(X_next)
+        # get probabilities over next actions from policy
+        P = self.policy.batch_eval(X_next)
+
+        # get target Q-value
+        Q_next = self.value_function.batch_eval_typeII(X_next)  # bootstrap
         assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b, n]
+        G = R + self.gamma * np.einsum('bn,bn->b', P, Q_next)
 
-        Q_target = R + self.gamma * np.einsum('bn,bn->b', P, Q_next)
+        # target for function approximator
+        Y = self.Y(X, A, G)
+        self.value_function.update(X, Y)
 
-        return Q_target
 
-
-class Sarsa(BaseValueTD0):
+class Sarsa(BaseValueAlgorithm):
     """
     Update the Q-function according to the SARSA algorithm, cf.
     Section 6.4 of `Sutton & Barto
@@ -94,95 +96,6 @@ class Sarsa(BaseValueTD0):
         Future discount factor, value between 0 and 1.
 
     """
-    def target(self, X, A, R, X_next, A_next):
-        """
-        Update the Q-function according to the given algorithm.
-
-        Parameters
-        ----------
-        X : 2d-array, shape: [batch_size, num_features]
-            Scikit-learn style design matrix. This represents a batch of either
-            states or state-action pairs, depending on the model type.
-
-        A : 1d-array, shape: [batch_size]
-            A batch of actions taken.
-
-        R : 1d-array, shape: [batch_size]
-            A batch of observed rewards.
-
-        X_next : 2d-array, shape depends on model type
-            The preprocessed next-state feature vector. Its shape depends on
-            the model type, if applicable. For a type-I model `X_next` has
-            shape `[batch_size * num_actions, num_features]`, while a type-II
-            model it has shape `[batch_size, num_features]`. Note that this
-            distinction of model types only applies for value-based models. For
-            a policy gradient model, `X_next` always has the shape
-            `[batch_size, num_features]`.
-
-        A_next : 1d-array, shape: [batch_size]
-            A batch of 'next' actions to be taken.
-
-        Returns
-        -------
-        target : 2d-array, shape: [batch_size, num_actions]
-            This is the target we are optimizing towards. For instance, for a
-            value-based algorithm, this is the target value for
-            :math:`Q(s, a)`.
-
-        """
-        Q_next = self.value_function.batch_eval_typeII(X_next)
-
-        # project onto next action
-        Q_next = Q_next[idx(Q_next), A_next]
-
-        # TD-target under SARSA
-        Q_target = R + self.gamma * Q_next
-
-        return Q_target
-
-    def Y(self, X, A, R, X_next, A_next):
-        """
-        Given a preprocessed transition `(X, A, R, X_next)`, return the target
-        to train our regressor on.
-
-        Parameters
-        ----------
-        X : 2d-array, shape: [batch_size, num_features]
-            Scikit-learn style design matrix. This represents a batch of either
-            states or state-action pairs, depending on the model type.
-
-        A : 1d-array, shape: [batch_size]
-            A batch of actions taken.
-
-        R : 1d-array, shape: [batch_size]
-            A batch of observed rewards.
-
-        X_next : 2d-array, shape depends on model type
-            The preprocessed next-state feature vector. Its shape depends on
-            the model type, if applicable. For a type-I model `X_next` has
-            shape `[batch_size * num_actions, num_features]`, while a type-II
-            model it has shape `[batch_size, num_features]`. Note that this
-            distinction of model types only applies for value-based models. For
-            a policy gradient model, `X_next` always has the shape
-            `[batch_size, num_features]`.
-
-        A_next : 1d-array, shape: [batch_size]
-            A batch of 'next' actions to be taken.
-
-        Returns
-        -------
-        Y : 1d- or 2d-array, depends on model type
-            sklearn-style label array. Also here, the shape depends on the
-            model type, if applicable. For a type-I model, the output shape is
-            `[batch_size]` and for a type-II model the shape is
-            `[batch_size, num_actions]`. For a policy-gradient model, the
-            output shape is always `[batch_size]`.
-
-        """
-        Q_target = self.target(X, A, R, X_next, A_next)
-        Y = self._Y(X, A, Q_target)
-        return Y
-
     def update(self, s, a, r, s_next, a_next):
         """
         Update the given policy and/or value function.
@@ -207,6 +120,12 @@ class Sarsa(BaseValueTD0):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        A_next = np.array([a_next])
-        Y = self.Y(X, A, R, X_next, A_next)
+
+        # get target Q-value
+        Q_next = self.value_function.batch_eval_typeII(X_next)  # bootstrap
+        Q_next = Q_next[idx(Q_next), [a_next]]  # project onto next action
+        G = R + self.gamma * Q_next             # TD-target under SARSA
+
+        # target for function approximator
+        Y = self.Y(X, A, G)
         self.value_function.update(X, Y)

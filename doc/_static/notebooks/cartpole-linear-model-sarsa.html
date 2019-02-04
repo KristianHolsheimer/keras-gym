@@ -13131,7 +13131,7 @@ div#notebook {
 
 
 <span class="c1"># define sklearn model for approximating Q-function</span>
-<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
+<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
 <span class="n">transformer</span> <span class="o">=</span> <span class="n">FunctionTransformer</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
@@ -13211,19 +13211,6 @@ div#notebook {
     <div class="prompt"></div>
 
 
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>module reloaded: skgym.algorithms.td0
-module reloaded: skgym.algorithms
-failed after 133 steps
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
 <div class="output_subarea output_stream output_stderr output_text">
 <pre>/home/kris/.local/lib/python3.6/site-packages/gym/envs/registration.py:14: PkgResourcesDeprecationWarning: Parameters to load are deprecated.  Call .resolve and .require separately.
   result = entry_point.load(False)
@@ -13237,36 +13224,206 @@ failed after 133 steps
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 183 steps
+<pre>failed after 51 steps
+failed after 50 steps
+failed after 57 steps
+failed after 26 steps
+failed after 37 steps
+failed after 15 steps
+failed after 23 steps
+failed after 14 steps
+failed after 11 steps
+failed after 9 steps
+failed after 15 steps
+failed after 12 steps
+failed after 12 steps
+failed after 25 steps
+failed after 11 steps
+failed after 27 steps
+failed after 10 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 14 steps
+failed after 27 steps
+failed after 9 steps
+failed after 21 steps
+failed after 12 steps
+failed after 12 steps
+failed after 29 steps
+failed after 29 steps
+failed after 19 steps
+failed after 36 steps
+failed after 9 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 17 steps
+failed after 14 steps
+failed after 9 steps
+failed after 26 steps
+failed after 9 steps
+failed after 9 steps
+failed after 8 steps
+failed after 14 steps
+failed after 72 steps
+failed after 12 steps
+failed after 9 steps
+failed after 8 steps
+failed after 9 steps
+failed after 12 steps
+failed after 21 steps
+failed after 9 steps
+failed after 9 steps
+failed after 44 steps
+failed after 15 steps
+failed after 11 steps
+failed after 21 steps
+failed after 11 steps
+failed after 10 steps
+failed after 17 steps
+failed after 9 steps
+failed after 10 steps
+failed after 37 steps
+failed after 9 steps
+failed after 36 steps
+failed after 15 steps
+failed after 17 steps
+failed after 17 steps
+failed after 8 steps
+failed after 10 steps
+failed after 15 steps
+failed after 8 steps
+failed after 10 steps
+failed after 10 steps
+failed after 14 steps
+failed after 10 steps
+failed after 10 steps
+failed after 9 steps
+failed after 11 steps
+failed after 10 steps
+failed after 32 steps
+failed after 18 steps
+failed after 10 steps
+failed after 10 steps
+failed after 22 steps
+failed after 11 steps
+failed after 10 steps
+failed after 9 steps
+failed after 25 steps
+failed after 8 steps
+failed after 14 steps
+failed after 52 steps
+failed after 15 steps
+failed after 9 steps
+failed after 12 steps
+failed after 10 steps
+failed after 10 steps
+failed after 11 steps
+failed after 80 steps
+failed after 16 steps
+failed after 9 steps
+failed after 10 steps
+failed after 38 steps
+failed after 17 steps
 failed after 19 steps
 failed after 17 steps
-failed after 36 steps
-failed after 64 steps
-failed after 87 steps
 failed after 20 steps
-failed after 102 steps
-num_consecutive_successes = 1
-failed after 149 steps
-failed after 39 steps
-failed after 116 steps
+failed after 18 steps
+failed after 8 steps
+failed after 74 steps
+failed after 27 steps
+failed after 37 steps
+failed after 37 steps
+failed after 10 steps
+failed after 8 steps
+failed after 13 steps
+failed after 8 steps
+failed after 22 steps
+failed after 10 steps
+failed after 20 steps
+failed after 10 steps
+failed after 9 steps
+failed after 10 steps
+failed after 10 steps
+failed after 17 steps
+failed after 11 steps
+failed after 15 steps
+failed after 11 steps
+failed after 12 steps
+failed after 13 steps
+failed after 12 steps
+failed after 13 steps
+failed after 13 steps
+failed after 19 steps
+failed after 9 steps
+failed after 43 steps
+failed after 10 steps
+failed after 10 steps
+failed after 12 steps
+failed after 13 steps
+failed after 38 steps
+failed after 12 steps
+failed after 10 steps
+failed after 9 steps
+failed after 8 steps
+failed after 17 steps
 failed after 31 steps
-failed after 136 steps
+failed after 60 steps
+failed after 13 steps
+failed after 12 steps
+failed after 77 steps
+failed after 37 steps
+failed after 70 steps
+failed after 53 steps
+failed after 195 steps
+failed after 78 steps
+failed after 86 steps
+num_consecutive_successes = 1
+failed after 48 steps
+failed after 99 steps
+failed after 197 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 164 steps
+failed after 60 steps
+failed after 126 steps
+failed after 144 steps
+failed after 157 steps
+failed after 83 steps
+failed after 98 steps
+failed after 116 steps
+failed after 101 steps
+failed after 70 steps
+failed after 81 steps
+failed after 93 steps
+failed after 146 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+failed after 100 steps
+failed after 145 steps
+num_consecutive_successes = 1
+failed after 89 steps
+failed after 106 steps
+failed after 103 steps
+num_consecutive_successes = 1
+failed after 185 steps
+failed after 129 steps
+num_consecutive_successes = 1
+failed after 160 steps
+num_consecutive_successes = 1
+failed after 128 steps
+num_consecutive_successes = 1
+failed after 134 steps
+num_consecutive_successes = 1
+failed after 164 steps
+num_consecutive_successes = 1
+failed after 154 steps
 num_consecutive_successes = 1
 num_consecutive_successes = 2
 num_consecutive_successes = 3
 num_consecutive_successes = 4
-failed after 175 steps
-failed after 180 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-num_consecutive_successes = 7
-num_consecutive_successes = 8
-num_consecutive_successes = 9
-num_consecutive_successes = 10
 </pre>
 </div>
 </div>
@@ -13282,7 +13439,7 @@ num_consecutive_successes = 10
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># record video</span>
 <span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v1&#39;</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Monitor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;video&#39;</span><span class="p">),</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Monitor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;video&#39;</span><span class="p">,</span> <span class="s1">&#39;cartpole-linear-model-sarsa&#39;</span><span class="p">),</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
 <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
@@ -13315,19 +13472,6 @@ num_consecutive_successes = 10
 </div>
 </div>
 
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[5]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</pre></div>
-
-    </div>
 </div>
 </div>
 

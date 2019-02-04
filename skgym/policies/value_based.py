@@ -5,6 +5,7 @@ from .base import BasePolicy
 from ..value_functions.base import BaseQ
 from ..value_functions.generic import GenericQ
 from ..utils import softmax
+from ..errors import NonDiscreteActionSpaceError
 
 
 class ValuePolicy(BasePolicy):
@@ -66,10 +67,7 @@ class ValuePolicy(BasePolicy):
             Q_s = self.value_function.batch_eval_typeII(X_s)
             params = softmax(Q_s, axis=1)
         else:
-            raise NotImplementedError(
-                "I haven't yet implemented continuous action spaces; "
-                "please send me a message to let me know if this is holding "
-                "you back. -kris")
+            raise NonDiscreteActionSpaceError()
 
         return params
 

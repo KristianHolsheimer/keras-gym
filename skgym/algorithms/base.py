@@ -49,7 +49,7 @@ class BaseAlgorithm(ABC):
         pass
 
     @abstractmethod
-    def Y(self, X, A, R, X_next):
+    def Y(self, X, A, G):
         """
         Given a preprocessed transition `(X, A, R, X_next)`, return the target
         to train our regressor on.
@@ -63,17 +63,10 @@ class BaseAlgorithm(ABC):
         A : 1d-array, shape: [batch_size]
             A batch of actions taken.
 
-        R : 1d-array, shape: [batch_size]
-            A batch of observed rewards.
-
-        X_next : 2d-array, shape depends on model type
-            The preprocessed next-state feature vector. Its shape depends on
-            the model type, if applicable. For a type-I model `X_next` has
-            shape `[batch_size * num_actions, num_features]`, while a type-II
-            model it has shape `[batch_size, num_features]`. Note that this
-            distinction of model types only applies for value-based models. For
-            a policy gradient model, `X_next` always has the shape
-            `[batch_size, num_features]`.
+        G : 1d-array, shape: [batch_size]
+            The target, which is the (estimated, discounted) return. The target
+            `G` differs from algorithm to algorithm. It is typically
+            implemented in an algorithm's `update` method.
 
         Returns
         -------
@@ -110,42 +103,6 @@ class BaseAlgorithm(ABC):
         a_next : int or array, typically not required
             A single action. This is typicall not required, with the SARSA
             algorithm as the notable exception.
-
-        """
-        pass
-
-    @abstractmethod
-    def target(self, X, A, R, X_next):
-        """
-        Update the Q-function according to the given algorithm.
-
-        Parameters
-        ----------
-        X : 2d-array, shape: [batch_size, num_features]
-            Scikit-learn style design matrix. This represents a batch of either
-            states or state-action pairs, depending on the model type.
-
-        A : 1d-array, shape: [batch_size]
-            A batch of actions taken.
-
-        R : 1d-array, shape: [batch_size]
-            A batch of observed rewards.
-
-        X_next : 2d-array, shape depends on model type
-            The preprocessed next-state feature vector. Its shape depends on
-            the model type, if applicable. For a type-I model `X_next` has
-            shape `[batch_size * num_actions, num_features]`, while a type-II
-            model it has shape `[batch_size, num_features]`. Note that this
-            distinction of model types only applies for value-based models. For
-            a policy gradient model, `X_next` always has the shape
-            `[batch_size, num_features]`.
-
-        Returns
-        -------
-        target : 2d-array, shape: [batch_size, num_actions]
-            This is the target we are optimizing towards. For instance, for a
-            value-based algorithm, this is the target value for
-            :math:`Q(s, a)`.
 
         """
         pass
@@ -201,18 +158,13 @@ class BaseValueAlgorithm(BaseAlgorithm):
 
         return X, A, R, X_next
 
-    def _Y(self, X, A, Q_target):
+    def Y(self, X, A, G):
         if self.value_function.MODELTYPE == 1:
-            Y = Q_target
+            Y = G
         elif self.value_function.MODELTYPE == 2:
             Y = self.value_function.batch_eval(X)
             idx = np.arange(A.shape[0])
-            Y[idx, A] = Q_target
-        return Y
-
-    def Y(self, X, A, R, X_next):
-        Q_target = self.target(X, A, R, X_next)
-        Y = self._Y(X, A, Q_target)
+            Y[idx, A] = G
         return Y
 
 
