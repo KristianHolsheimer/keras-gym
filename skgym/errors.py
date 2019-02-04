@@ -1,7 +1,3 @@
-NONDISCRETE_ACTION_ERROR_MESSAGE = """
-
-""".strip().replace('\n', ' ')
-
 
 class ArrayDequeOverflowError(Exception):
     pass
