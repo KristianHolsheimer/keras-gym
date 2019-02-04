@@ -6,3 +6,11 @@ class ArrayDequeOverflowError(Exception):
 
 class NoExperienceCacheError(Exception):
     pass
+
+
+class NoAdversaryError(Exception):
+    pass
+
+
+class UnavailableActionError(Exception):
+    pass
