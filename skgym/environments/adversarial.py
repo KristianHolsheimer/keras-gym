@@ -30,6 +30,19 @@ class ConnectFour:
     intermediate_reward : float, optional
         The reward to give out between turns when episode is ongoing.
 
+    Attributes
+    ----------
+    action_space : gym.spaces.Discrete(7)
+        The action space.
+
+    observation_space : gym.spaces.MultiDiscrete([[3, 3, 3, 3, 3, 3, 3], ...])
+        The state observation space.
+
+    max_time_steps : int
+        Maximum number of timesteps within each episode.
+
+    available_actions : array of int
+        Array of available actions. This list shrinks when columns saturate.
 
     """
     # class attributes
@@ -65,6 +78,18 @@ class ConnectFour:
         self._levels = np.full(self.num_cols, self.num_rows - 1, dtype='int')
 
     def reset(self):
+        """
+        Reset the environment to the starting position.
+
+        Returns
+        -------
+        s : array, shape [6, 7]
+            The state representation. Each cell can take either one of three
+            values: 0, 1, 2. An empty cell is indicated by 0, a cell filled by
+            the agent is set to 1 and a cell filled by the adversary is set to
+            2.
+
+        """
         self._init_state()
 
         # flip a coin to decide whether adversary starts
@@ -75,31 +100,62 @@ class ConnectFour:
 
         return self.state
 
-    def step(self, action):
+    def step(self, a):
+        """
+        Take one step in the MDP, following the single-player convention from
+        gym.
+
+        Parameters
+        ----------
+        a : int, options: {0, 1, 2, 3, 4, 5, 6}
+            The action to be taken. The action is the zero-based count of the
+            possible insertion slots, starting from the left of the board.
+
+        Returns
+        -------
+        s_next : array, shape [6, 7]
+            The state representation. Each cell can take either one of three
+            values: 0, 1, 2. An empty cell is indicated by 0, a cell filled by
+            the agent is set to 1 and a cell filled by the adversary is set to
+            2.
+
+        r : float
+            Reward associated with the transition
+            :math:`(s, a)\\to s_\\text{next}`.
+
+        done : bool
+            Whether the episode is done.
+
+        info : dict or None
+            A dict with some extra information (or None).
+
+        """
         if self.adversary_policy is None:
             raise NoAdversaryError(
                 "must specify adversary in order to run the environment")
-        if not self.action_space.contains(action):
+        if not self.action_space.contains(a):
             raise ValueError("invalid action")
-        if action not in self.available_actions:
+        if a not in self.available_actions:
             raise UnavailableActionError("action is not available")
 
         # player's turn
         player = 1
-        self.state[self._levels[action], action] = player
-        done, reward = self._done_reward(action, player)
+        self.state[self._levels[a], a] = player
+        done, reward = self._done_reward(a, player)
         if done:
             return self.state, reward, done, None
 
         # adversary's turn
         player = 2
-        action = self._adversary_action()
-        self.state[self._levels[action], action] = player
-        done, reward = self._done_reward(action, player)
+        a = self._adversary_action()
+        self.state[self._levels[a], a] = player
+        done, reward = self._done_reward(a, player)
 
         return self.state, reward, done, None
 
     def render(self):
+        """ Render the current state of the environment. """
+
         # lookup for symbols
         symbol = {
             1: u'\u25CF',   # player 1 token (agent)
@@ -140,7 +196,9 @@ class ConnectFour:
     def _done_reward(self, a, player):
         """
         Check whether the last action `a` by player `player` resulted in a win,
-        loss or draw for player 1 (the agent).
+        loss or draw for player 1 (the agent). This contains the main logic and
+        implements the rules of the game.
+
         """
         assert self.action_space.contains(a)
         assert player in (1, 2)

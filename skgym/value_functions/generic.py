@@ -672,8 +672,10 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         Parameters
         ----------
         args : depends on model_type
-            See :func:`GenericQTypeI.batch_eval_typeI<skgym.value_functions.GenericQTypeI.batch_eval_typeI>`
-            or :func:`GenericQTypeII.batch_eval_typeI<skgym.value_functions.GenericQTypeII.batch_eval_typeI>`
+            See :func:`GenericQTypeI.batch_eval_typeI
+            <skgym.value_functions.GenericQTypeI.batch_eval_typeI>`
+            or :func:`GenericQTypeII.batch_eval_typeI
+            <skgym.value_functions.GenericQTypeII.batch_eval_typeI>`
             for the correct function signature.
 
         Returns
@@ -699,8 +701,10 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         Parameters
         ----------
         args : depends on model_type
-            See :func:`GenericQTypeI.batch_eval_typeII<skgym.value_functions.GenericQTypeI.batch_eval_typeII>`
-            or :func:`GenericQTypeII.batch_eval_typeII<skgym.value_functions.GenericQTypeII.batch_eval_typeII>`
+            See :func:`GenericQTypeI.batch_eval_typeII
+            <skgym.value_functions.GenericQTypeI.batch_eval_typeII>`
+            or :func:`GenericQTypeII.batch_eval_typeII
+            <skgym.value_functions.GenericQTypeII.batch_eval_typeII>`
             for the correct function signature.
 
         Returns
@@ -770,4 +774,3 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
             raise NotImplementedError("MODELTYPE == 3")
         else:
             raise ValueError("bad MODELTYPE")
-

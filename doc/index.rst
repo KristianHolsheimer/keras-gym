@@ -22,11 +22,12 @@ Documentation
 .. toctree::
     :maxdepth: 1
 
+    notebooks/index
     value_functions/index
     policies/index
     algorithms/index
+    environments/index
     misc/utils
-    notebooks/index
     misc/about
     misc/release_notes
 

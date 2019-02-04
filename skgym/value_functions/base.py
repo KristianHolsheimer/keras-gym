@@ -1,6 +1,5 @@
-from __future__ import print_function, division
+import sys
 from abc import ABC, abstractmethod
-from collections import Hashable
 
 import numpy as np
 from gym.spaces import Tuple, Discrete, Box, MultiDiscrete, MultiBinary
@@ -8,7 +7,7 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.exceptions import NotFittedError
 
 
-from ..utils import one_hot_vector, check_dtype
+from ..utils import one_hot_vector
 
 
 class BaseValueFunction(ABC):
@@ -145,9 +144,6 @@ class BaseValueFunction(ABC):
                 self._to_vec(x_, space_)  # recursive
                 for x_, space_ in zip(x, space.spaces)], axis=0)
         elif isinstance(space, MultiDiscrete):
-            print(np.concatenate([
-                self._to_vec(x_, Discrete(n))  # recursive
-                for x_, n in zip(x.ravel(), space.nvec.ravel()) if n]))
             x = np.concatenate([
                 self._to_vec(x_, Discrete(n))  # recursive
                 for x_, n in zip(x.ravel(), space.nvec.ravel()) if n], axis=0)
@@ -173,7 +169,7 @@ class BaseValueFunction(ABC):
                         "transformer needs to be fitted; setting "
                         "attempt_fit_transformer=True will fit the "
                         "transformer on one data point")
-                print("will now fit")
+                print("attemting to fit transformer", file=sys.stderr)
                 X = self.transformer.fit_transform(X)
         return X
 
