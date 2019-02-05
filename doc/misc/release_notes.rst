@@ -2,6 +2,18 @@ Release Notes
 =============
 
 
+v0.2.6
+------
+
+- refactored BaseAlgorithm to simplify implementation (at the cost of more code, but it's worth it)
+- refactored notebooks: they are now bundled by environment / algo type
+- added n-step bootstrap algorithms:
+
+  - :class:`NStepQLearning <skgym.algorithms.NStepQLearning>`
+  - :class:`NStepSarsa <skgym.algorithms.NStepSarsa>`
+  - :class:`NStepExpectedSarsa <skgym.algorithms.NStepExpectedSarsa>`
+
+
 v0.2.5
 ------
 
