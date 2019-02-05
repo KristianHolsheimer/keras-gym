@@ -83,7 +83,7 @@ class NStepExpectedSarsa(BaseValueAlgorithm):
             assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b,n]
             Q_next = np.einsum('bn,bn->b', P, Q_next)  # expected Q_next
             G = self._gammas.dot(R) + np.power(self.gamma, self.n + 1) * Q_next
-            Y = self._Y(X, A, G)
+            Y = self.Y(X, A, G)
             self.value_function.update(X, Y)
 
             return  # wait until episode terminates
@@ -91,6 +91,6 @@ class NStepExpectedSarsa(BaseValueAlgorithm):
         # roll out remainder of episode
         while self.experience_cache:
             X, A, R, X_next = self.experience_cache.popleft_nstep(self.n)
-            G = self._gammas[:len(R)].dot(R)  # no more bootstrapping
-            Y = self._Y(X, A, G)
+            G = np.expand_dims(self._gammas[:len(R)].dot(R), axis=0)
+            Y = self.Y(X, A, G)
             self.value_function.update(X, Y)
