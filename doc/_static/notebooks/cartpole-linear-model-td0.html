@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>cartpole-linear-model-nstep-expected-sarsa</title>
+<title>cartpole-linear-model-td0</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13113,6 +13113,19 @@ div#notebook {
   <div tabindex="-1" id="notebook" class="border-box-sizing">
     <div class="container" id="notebook-container">
 
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="Table-Of-Contents">Table Of Contents<a class="anchor-link" href="#Table-Of-Contents">&#182;</a></h1><ul>
+<li><a href="#Q-learning">Q-learning</a></li>
+<li><a href="#SARSA">SARSA</a></li>
+<li><a href="#SARSA-with-type-II-model">SARSA with type-II model</a></li>
+<li><a href="#Expected-SARSA">Expected-SARSA</a></li>
+</ul>
+<h1 id="Q-learning">Q-learning<a class="anchor-link" href="#Q-learning">&#182;</a></h1>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[1]:</div>
@@ -13121,7 +13134,7 @@ div#notebook {
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
 <span class="kn">from</span> <span class="nn">skgym.value_functions</span> <span class="k">import</span> <span class="n">GenericQ</span>
 <span class="kn">from</span> <span class="nn">skgym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">skgym.algorithms</span> <span class="k">import</span> <span class="n">NStepExpectedSarsa</span>
+<span class="kn">from</span> <span class="nn">skgym.algorithms</span> <span class="k">import</span> <span class="n">QLearning</span>
 <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">SGDRegressor</span>
 <span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">FunctionTransformer</span>
 
@@ -13131,7 +13144,7 @@ div#notebook {
 
 
 <span class="c1"># define sklearn model for approximating Q-function</span>
-<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
+<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
 <span class="n">transformer</span> <span class="o">=</span> <span class="n">FunctionTransformer</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
@@ -13139,7 +13152,7 @@ div#notebook {
 <span class="c1"># define Q, its induced policy and update algorithm</span>
 <span class="n">Q</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">regressor</span><span class="p">,</span> <span class="n">transformer</span><span class="p">)</span>
 <span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">NStepExpectedSarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">policy</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">QLearning</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
 
 
 <span class="c1"># number of iterations</span>
@@ -13172,7 +13185,7 @@ div#notebook {
         
         <span class="c1"># update or render</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
-            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>            
+            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">)</span>            
         <span class="k">else</span><span class="p">:</span>
             <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
         
@@ -13223,77 +13236,73 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 15 steps
-failed after 12 steps
-failed after 43 steps
-failed after 19 steps
-failed after 14 steps
-failed after 25 steps
-failed after 39 steps
-failed after 11 steps
-failed after 42 steps
-failed after 42 steps
+<pre>failed after 22 steps
+failed after 13 steps
 failed after 10 steps
-failed after 66 steps
-failed after 27 steps
-failed after 76 steps
-failed after 9 steps
-failed after 91 steps
-failed after 109 steps
+failed after 59 steps
+failed after 41 steps
+failed after 10 steps
+failed after 19 steps
+failed after 19 steps
+failed after 10 steps
 failed after 8 steps
-failed after 157 steps
-failed after 39 steps
-failed after 18 steps
-failed after 81 steps
-failed after 14 steps
-failed after 107 steps
-failed after 76 steps
-failed after 85 steps
-num_consecutive_successes = 1
-failed after 106 steps
-failed after 118 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-failed after 100 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-failed after 90 steps
-num_consecutive_successes = 1
-failed after 141 steps
-num_consecutive_successes = 1
-failed after 185 steps
-failed after 167 steps
-failed after 137 steps
-failed after 114 steps
-num_consecutive_successes = 1
-failed after 150 steps
-failed after 39 steps
-failed after 29 steps
-failed after 83 steps
-failed after 150 steps
-failed after 149 steps
-failed after 123 steps
-failed after 104 steps
-failed after 93 steps
-failed after 145 steps
-num_consecutive_successes = 1
-failed after 85 steps
-failed after 94 steps
-failed after 99 steps
-failed after 180 steps
-failed after 131 steps
-failed after 175 steps
-failed after 175 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 10 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 9 steps
+failed after 9 steps
+failed after 34 steps
+failed after 11 steps
+failed after 40 steps
+failed after 44 steps
+failed after 161 steps
 failed after 155 steps
+failed after 89 steps
+failed after 171 steps
+failed after 137 steps
+failed after 109 steps
+failed after 164 steps
+failed after 163 steps
 num_consecutive_successes = 1
-failed after 112 steps
-failed after 47 steps
-failed after 62 steps
+num_consecutive_successes = 2
+failed after 82 steps
+failed after 117 steps
+failed after 195 steps
+failed after 154 steps
+failed after 178 steps
+failed after 178 steps
+failed after 143 steps
+failed after 195 steps
+failed after 91 steps
+failed after 174 steps
+failed after 166 steps
+failed after 123 steps
+num_consecutive_successes = 1
+failed after 159 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 163 steps
+num_consecutive_successes = 1
+failed after 94 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+num_consecutive_successes = 4
+failed after 134 steps
+failed after 169 steps
+failed after 140 steps
+failed after 116 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 137 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 123 steps
+failed after 120 steps
 num_consecutive_successes = 1
 num_consecutive_successes = 2
 num_consecutive_successes = 3
@@ -13302,14 +13311,29 @@ num_consecutive_successes = 5
 num_consecutive_successes = 6
 num_consecutive_successes = 7
 num_consecutive_successes = 8
-failed after 160 steps
+failed after 148 steps
 num_consecutive_successes = 1
-failed after 145 steps
+failed after 105 steps
+failed after 128 steps
+failed after 189 steps
 num_consecutive_successes = 1
-failed after 192 steps
+failed after 157 steps
+failed after 140 steps
+failed after 92 steps
+failed after 189 steps
+failed after 113 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+failed after 182 steps
+failed after 166 steps
 failed after 144 steps
-failed after 185 steps
-failed after 97 steps
+failed after 193 steps
+failed after 96 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+failed after 190 steps
 num_consecutive_successes = 1
 num_consecutive_successes = 2
 num_consecutive_successes = 3
@@ -13317,7 +13341,174 @@ num_consecutive_successes = 4
 num_consecutive_successes = 5
 num_consecutive_successes = 6
 num_consecutive_successes = 7
-failed after 123 steps
+num_consecutive_successes = 8
+num_consecutive_successes = 9
+num_consecutive_successes = 10
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="SARSA">SARSA<a class="anchor-link" href="#SARSA">&#182;</a></h1>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
+<span class="kn">from</span> <span class="nn">skgym.value_functions</span> <span class="k">import</span> <span class="n">GenericQ</span>
+<span class="kn">from</span> <span class="nn">skgym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
+<span class="kn">from</span> <span class="nn">skgym.algorithms</span> <span class="k">import</span> <span class="n">Sarsa</span>
+<span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">SGDRegressor</span>
+<span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">FunctionTransformer</span>
+
+
+<span class="c1"># the Gym environment</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
+
+
+<span class="c1"># define sklearn model for approximating Q-function</span>
+<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
+<span class="n">transformer</span> <span class="o">=</span> <span class="n">FunctionTransformer</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+
+<span class="c1"># define Q, its induced policy and update algorithm</span>
+<span class="n">Q</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">regressor</span><span class="p">,</span> <span class="n">transformer</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">Sarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+
+
+<span class="c1"># number of iterations</span>
+<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
+
+
+<span class="c1"># used for early stopping</span>
+<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
+    
+    <span class="c1"># init</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
+    
+    <span class="c1"># amount of random exploration</span>
+    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
+    
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="n">a_next</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
+        
+        <span class="c1"># update or render</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
+            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span><span class="p">)</span>         
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+        
+        <span class="c1"># keep track of consecutive successes</span>
+        <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
+                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
+            <span class="k">break</span>
+    
+        <span class="c1"># prepare for next step</span>
+        <span class="n">s</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span>
+
+        
+    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
+        <span class="k">break</span>
+
+
+<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>/home/kris/.local/lib/python3.6/site-packages/gym/envs/registration.py:14: PkgResourcesDeprecationWarning: Parameters to load are deprecated.  Call .resolve and .require separately.
+  result = entry_point.load(False)
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>failed after 88 steps
+failed after 10 steps
+failed after 14 steps
+failed after 16 steps
+failed after 14 steps
+failed after 14 steps
+failed after 11 steps
+failed after 50 steps
+failed after 69 steps
+failed after 88 steps
+failed after 95 steps
+failed after 46 steps
+failed after 119 steps
+failed after 100 steps
+failed after 90 steps
+num_consecutive_successes = 1
+failed after 160 steps
+failed after 186 steps
+failed after 125 steps
+failed after 129 steps
+failed after 82 steps
+failed after 119 steps
+failed after 135 steps
+failed after 67 steps
+failed after 160 steps
+failed after 147 steps
+failed after 156 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 155 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 129 steps
+num_consecutive_successes = 1
+failed after 103 steps
+num_consecutive_successes = 1
+failed after 199 steps
+num_consecutive_successes = 1
+failed after 185 steps
 num_consecutive_successes = 1
 num_consecutive_successes = 2
 num_consecutive_successes = 3
@@ -13338,21 +13529,1254 @@ num_consecutive_successes = 10
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="prompt input_prompt">In&nbsp;[3]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># record video</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v1&#39;</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Monitor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;video&#39;</span><span class="p">,</span> <span class="s1">&#39;cartpole-linear-model-nstep-expected-sarsa&#39;</span><span class="p">),</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-<span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-<span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># # record video</span>
+<span class="c1"># env = gym.make(&#39;CartPole-v1&#39;)</span>
+<span class="c1"># env = gym.wrappers.Monitor(env, os.path.join(&#39;data&#39;, &#39;video&#39;, &#39;cartpole-linear-model-sarsa&#39;), force=True)</span>
+<span class="c1"># s = env.reset()</span>
+<span class="c1"># env.render()</span>
+<span class="c1"># done = False</span>
 
-<span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
-    <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
-    <span class="n">s</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-    <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+<span class="c1"># while not done:</span>
+<span class="c1">#     a = policy.greedy(s)</span>
+<span class="c1">#     s, _, done, _ = env.step(a)</span>
+<span class="c1">#     env.render()</span>
     
+<span class="c1"># env.close()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="SARSA-with-type-II-model">SARSA with type-II model<a class="anchor-link" href="#SARSA-with-type-II-model">&#182;</a></h1>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[4]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
+<span class="kn">from</span> <span class="nn">skgym.value_functions</span> <span class="k">import</span> <span class="n">GenericQ</span>
+<span class="kn">from</span> <span class="nn">skgym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
+<span class="kn">from</span> <span class="nn">skgym.algorithms</span> <span class="k">import</span> <span class="n">Sarsa</span>
+<span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">SGDRegressor</span>
+<span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">FunctionTransformer</span>
+
+
+<span class="c1"># the Gym environment</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
+
+
+<span class="c1"># define sklearn model for approximating Q-function</span>
+<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
+<span class="n">transformer</span> <span class="o">=</span> <span class="n">FunctionTransformer</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># transformer = None</span>
+
+
+<span class="c1"># define Q, its induced policy and update algorithm</span>
+<span class="n">Q</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">regressor</span><span class="p">,</span> <span class="n">transformer</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">Sarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+
+
+<span class="c1"># number of iterations</span>
+<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
+
+
+<span class="c1"># used for early stopping</span>
+<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
+    
+    <span class="c1"># init</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
+    
+    <span class="c1"># amount of random exploration</span>
+    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
+    
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="n">a_next</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
+        
+        <span class="c1"># update or render</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
+            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span><span class="p">)</span>         
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+        
+        <span class="c1"># keep track of consecutive successes</span>
+        <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
+                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
+            <span class="k">break</span>
+    
+        <span class="c1"># prepare for next step</span>
+        <span class="n">s</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span>
+
+        
+    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
+        <span class="k">break</span>
+
+
+<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>failed after 19 steps
+failed after 14 steps
+failed after 15 steps
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>/home/kris/.local/lib/python3.6/site-packages/gym/envs/registration.py:14: PkgResourcesDeprecationWarning: Parameters to load are deprecated.  Call .resolve and .require separately.
+  result = entry_point.load(False)
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>failed after 10 steps
+failed after 21 steps
+failed after 9 steps
+failed after 76 steps
+failed after 12 steps
+failed after 15 steps
+failed after 12 steps
+failed after 19 steps
+failed after 12 steps
+failed after 9 steps
+failed after 10 steps
+failed after 17 steps
+failed after 14 steps
+failed after 8 steps
+failed after 11 steps
+failed after 12 steps
+failed after 10 steps
+failed after 10 steps
+failed after 17 steps
+failed after 13 steps
+failed after 10 steps
+failed after 12 steps
+failed after 12 steps
+failed after 10 steps
+failed after 10 steps
+failed after 9 steps
+failed after 10 steps
+failed after 13 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 13 steps
+failed after 8 steps
+failed after 14 steps
+failed after 10 steps
+failed after 38 steps
+failed after 30 steps
+failed after 22 steps
+failed after 11 steps
+failed after 10 steps
+failed after 15 steps
+failed after 27 steps
+failed after 12 steps
+failed after 9 steps
+failed after 12 steps
+failed after 14 steps
+failed after 13 steps
+failed after 22 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 13 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 13 steps
+failed after 41 steps
+failed after 10 steps
+failed after 10 steps
+failed after 16 steps
+failed after 10 steps
+failed after 10 steps
+failed after 9 steps
+failed after 16 steps
+failed after 92 steps
+failed after 103 steps
+failed after 61 steps
+failed after 43 steps
+failed after 36 steps
+failed after 37 steps
+failed after 38 steps
+failed after 45 steps
+failed after 36 steps
+failed after 30 steps
+failed after 19 steps
+failed after 11 steps
+failed after 12 steps
+failed after 15 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 11 steps
+failed after 11 steps
+failed after 13 steps
+failed after 14 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 10 steps
+failed after 14 steps
+failed after 16 steps
+failed after 11 steps
+failed after 8 steps
+failed after 13 steps
+failed after 14 steps
+failed after 15 steps
+failed after 16 steps
+failed after 9 steps
+failed after 12 steps
+failed after 13 steps
+failed after 13 steps
+failed after 16 steps
+failed after 32 steps
+failed after 13 steps
+failed after 11 steps
+failed after 11 steps
+failed after 10 steps
+failed after 8 steps
+failed after 9 steps
+failed after 13 steps
+failed after 8 steps
+failed after 13 steps
+failed after 12 steps
+failed after 112 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 10 steps
+failed after 10 steps
+failed after 25 steps
+failed after 63 steps
+failed after 34 steps
+failed after 17 steps
+failed after 19 steps
+failed after 15 steps
+failed after 8 steps
+failed after 10 steps
+failed after 9 steps
+failed after 10 steps
+failed after 11 steps
+failed after 13 steps
+failed after 12 steps
+failed after 62 steps
+failed after 10 steps
+failed after 9 steps
+failed after 9 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 10 steps
+failed after 12 steps
+failed after 9 steps
+failed after 12 steps
+failed after 8 steps
+failed after 9 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 15 steps
+failed after 16 steps
+failed after 13 steps
+failed after 15 steps
+failed after 10 steps
+failed after 9 steps
+failed after 56 steps
+failed after 76 steps
+failed after 39 steps
+failed after 31 steps
+failed after 26 steps
+failed after 26 steps
+failed after 34 steps
+failed after 27 steps
+failed after 32 steps
+failed after 21 steps
+failed after 25 steps
+failed after 26 steps
+failed after 20 steps
+failed after 22 steps
+failed after 26 steps
+failed after 20 steps
+failed after 16 steps
+failed after 17 steps
+failed after 17 steps
+failed after 15 steps
+failed after 14 steps
+failed after 15 steps
+failed after 11 steps
+failed after 9 steps
+failed after 12 steps
+failed after 13 steps
+failed after 10 steps
+failed after 13 steps
+failed after 8 steps
+failed after 9 steps
+failed after 15 steps
+failed after 12 steps
+failed after 11 steps
+failed after 16 steps
+failed after 37 steps
+failed after 32 steps
+failed after 22 steps
+failed after 31 steps
+failed after 33 steps
+failed after 26 steps
+failed after 25 steps
+failed after 27 steps
+failed after 29 steps
+failed after 27 steps
+failed after 24 steps
+failed after 18 steps
+failed after 23 steps
+failed after 18 steps
+failed after 22 steps
+failed after 19 steps
+failed after 24 steps
+failed after 17 steps
+failed after 25 steps
+failed after 23 steps
+failed after 26 steps
+failed after 37 steps
+failed after 34 steps
+failed after 39 steps
+failed after 22 steps
+failed after 24 steps
+failed after 29 steps
+failed after 42 steps
+failed after 74 steps
+failed after 12 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 12 steps
+failed after 11 steps
+failed after 16 steps
+failed after 13 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 12 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 37 steps
+failed after 10 steps
+failed after 173 steps
+failed after 17 steps
+failed after 16 steps
+failed after 12 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 11 steps
+failed after 8 steps
+failed after 16 steps
+failed after 14 steps
+failed after 12 steps
+failed after 18 steps
+failed after 9 steps
+failed after 11 steps
+failed after 20 steps
+failed after 22 steps
+failed after 19 steps
+failed after 12 steps
+failed after 71 steps
+failed after 25 steps
+failed after 12 steps
+failed after 9 steps
+failed after 10 steps
+failed after 134 steps
+failed after 52 steps
+failed after 72 steps
+failed after 81 steps
+failed after 18 steps
+failed after 10 steps
+failed after 10 steps
+failed after 20 steps
+failed after 13 steps
+failed after 10 steps
+failed after 11 steps
+failed after 12 steps
+failed after 12 steps
+failed after 16 steps
+failed after 11 steps
+failed after 10 steps
+failed after 8 steps
+failed after 10 steps
+failed after 9 steps
+failed after 12 steps
+failed after 8 steps
+failed after 10 steps
+failed after 10 steps
+failed after 9 steps
+failed after 10 steps
+failed after 13 steps
+failed after 15 steps
+failed after 8 steps
+failed after 10 steps
+failed after 12 steps
+failed after 10 steps
+failed after 11 steps
+failed after 9 steps
+failed after 29 steps
+failed after 28 steps
+failed after 11 steps
+failed after 11 steps
+failed after 12 steps
+failed after 11 steps
+failed after 9 steps
+failed after 12 steps
+failed after 9 steps
+failed after 12 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 11 steps
+failed after 12 steps
+failed after 12 steps
+failed after 10 steps
+failed after 11 steps
+failed after 10 steps
+failed after 10 steps
+failed after 11 steps
+failed after 12 steps
+failed after 12 steps
+failed after 10 steps
+failed after 13 steps
+failed after 39 steps
+failed after 26 steps
+failed after 12 steps
+failed after 10 steps
+failed after 10 steps
+failed after 11 steps
+failed after 12 steps
+failed after 13 steps
+failed after 12 steps
+failed after 10 steps
+failed after 9 steps
+failed after 10 steps
+failed after 12 steps
+failed after 11 steps
+failed after 9 steps
+failed after 12 steps
+failed after 13 steps
+failed after 10 steps
+failed after 11 steps
+failed after 14 steps
+failed after 30 steps
+failed after 10 steps
+failed after 12 steps
+failed after 9 steps
+failed after 8 steps
+failed after 11 steps
+failed after 11 steps
+failed after 10 steps
+failed after 13 steps
+failed after 13 steps
+failed after 12 steps
+failed after 12 steps
+failed after 14 steps
+failed after 9 steps
+failed after 8 steps
+failed after 10 steps
+failed after 48 steps
+failed after 13 steps
+failed after 13 steps
+failed after 52 steps
+failed after 10 steps
+failed after 24 steps
+failed after 24 steps
+failed after 25 steps
+failed after 39 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 62 steps
+failed after 32 steps
+failed after 12 steps
+failed after 9 steps
+failed after 11 steps
+failed after 9 steps
+failed after 8 steps
+failed after 10 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 12 steps
+failed after 41 steps
+failed after 29 steps
+failed after 14 steps
+failed after 10 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 15 steps
+failed after 10 steps
+failed after 9 steps
+failed after 14 steps
+failed after 13 steps
+failed after 10 steps
+failed after 9 steps
+failed after 15 steps
+failed after 61 steps
+failed after 9 steps
+failed after 13 steps
+failed after 8 steps
+failed after 10 steps
+failed after 12 steps
+failed after 12 steps
+failed after 10 steps
+failed after 12 steps
+failed after 12 steps
+failed after 9 steps
+failed after 10 steps
+failed after 9 steps
+failed after 13 steps
+failed after 32 steps
+failed after 29 steps
+failed after 11 steps
+failed after 21 steps
+failed after 29 steps
+failed after 11 steps
+failed after 10 steps
+failed after 14 steps
+num_consecutive_successes = 1
+failed after 12 steps
+failed after 12 steps
+failed after 13 steps
+failed after 11 steps
+failed after 18 steps
+failed after 17 steps
+failed after 25 steps
+failed after 11 steps
+failed after 10 steps
+failed after 13 steps
+failed after 9 steps
+failed after 12 steps
+failed after 9 steps
+failed after 12 steps
+failed after 11 steps
+failed after 12 steps
+failed after 32 steps
+failed after 60 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 11 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 8 steps
+failed after 13 steps
+failed after 12 steps
+failed after 9 steps
+failed after 10 steps
+failed after 10 steps
+failed after 38 steps
+failed after 9 steps
+failed after 15 steps
+failed after 12 steps
+failed after 53 steps
+failed after 24 steps
+failed after 9 steps
+failed after 8 steps
+failed after 12 steps
+failed after 9 steps
+failed after 12 steps
+failed after 9 steps
+failed after 10 steps
+failed after 13 steps
+failed after 13 steps
+failed after 8 steps
+failed after 10 steps
+failed after 13 steps
+failed after 9 steps
+failed after 11 steps
+failed after 15 steps
+failed after 13 steps
+failed after 22 steps
+failed after 15 steps
+failed after 16 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 24 steps
+num_consecutive_successes = 1
+failed after 79 steps
+failed after 10 steps
+failed after 18 steps
+failed after 12 steps
+failed after 10 steps
+failed after 10 steps
+failed after 13 steps
+failed after 12 steps
+failed after 9 steps
+failed after 12 steps
+failed after 10 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 14 steps
+failed after 13 steps
+failed after 31 steps
+failed after 49 steps
+failed after 10 steps
+failed after 12 steps
+failed after 10 steps
+failed after 10 steps
+failed after 10 steps
+failed after 11 steps
+failed after 10 steps
+failed after 10 steps
+failed after 10 steps
+failed after 11 steps
+failed after 9 steps
+failed after 16 steps
+failed after 15 steps
+failed after 27 steps
+failed after 32 steps
+failed after 28 steps
+failed after 24 steps
+num_consecutive_successes = 1
+failed after 49 steps
+failed after 14 steps
+failed after 10 steps
+failed after 17 steps
+failed after 24 steps
+failed after 13 steps
+failed after 9 steps
+failed after 8 steps
+failed after 10 steps
+failed after 9 steps
+failed after 12 steps
+failed after 11 steps
+failed after 12 steps
+failed after 10 steps
+failed after 12 steps
+failed after 10 steps
+failed after 11 steps
+failed after 12 steps
+failed after 9 steps
+failed after 11 steps
+failed after 9 steps
+failed after 10 steps
+failed after 13 steps
+failed after 11 steps
+failed after 12 steps
+failed after 10 steps
+failed after 9 steps
+failed after 13 steps
+failed after 11 steps
+failed after 8 steps
+failed after 11 steps
+failed after 40 steps
+failed after 11 steps
+failed after 31 steps
+failed after 12 steps
+failed after 12 steps
+failed after 8 steps
+failed after 10 steps
+failed after 10 steps
+failed after 9 steps
+failed after 50 steps
+num_consecutive_successes = 1
+failed after 30 steps
+failed after 15 steps
+failed after 11 steps
+failed after 12 steps
+failed after 13 steps
+failed after 11 steps
+failed after 13 steps
+failed after 11 steps
+failed after 13 steps
+failed after 12 steps
+failed after 13 steps
+failed after 9 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 13 steps
+failed after 28 steps
+failed after 10 steps
+failed after 21 steps
+failed after 14 steps
+failed after 10 steps
+failed after 80 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 31 steps
+failed after 12 steps
+failed after 11 steps
+failed after 11 steps
+failed after 33 steps
+failed after 9 steps
+failed after 18 steps
+failed after 23 steps
+failed after 9 steps
+failed after 84 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 30 steps
+failed after 11 steps
+failed after 22 steps
+failed after 34 steps
+failed after 11 steps
+failed after 12 steps
+failed after 13 steps
+failed after 11 steps
+failed after 13 steps
+failed after 11 steps
+failed after 14 steps
+failed after 31 steps
+failed after 11 steps
+failed after 11 steps
+failed after 11 steps
+failed after 13 steps
+failed after 8 steps
+failed after 14 steps
+failed after 9 steps
+failed after 18 steps
+failed after 24 steps
+failed after 10 steps
+failed after 13 steps
+failed after 13 steps
+failed after 15 steps
+failed after 11 steps
+failed after 10 steps
+failed after 9 steps
+failed after 10 steps
+failed after 12 steps
+failed after 9 steps
+failed after 10 steps
+failed after 12 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 11 steps
+failed after 11 steps
+failed after 12 steps
+failed after 11 steps
+failed after 12 steps
+failed after 12 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 27 steps
+failed after 10 steps
+failed after 10 steps
+failed after 22 steps
+failed after 33 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 10 steps
+failed after 9 steps
+failed after 12 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 10 steps
+failed after 13 steps
+failed after 12 steps
+failed after 13 steps
+failed after 25 steps
+failed after 185 steps
+failed after 95 steps
+failed after 16 steps
+failed after 11 steps
+failed after 12 steps
+failed after 9 steps
+failed after 17 steps
+failed after 18 steps
+failed after 21 steps
+failed after 11 steps
+failed after 13 steps
+failed after 12 steps
+failed after 25 steps
+failed after 9 steps
+failed after 13 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 10 steps
+failed after 10 steps
+failed after 11 steps
+failed after 10 steps
+failed after 10 steps
+failed after 29 steps
+failed after 10 steps
+failed after 12 steps
+failed after 12 steps
+failed after 13 steps
+failed after 9 steps
+failed after 32 steps
+failed after 30 steps
+failed after 25 steps
+failed after 29 steps
+failed after 12 steps
+failed after 10 steps
+failed after 14 steps
+failed after 13 steps
+failed after 12 steps
+failed after 14 steps
+failed after 10 steps
+failed after 14 steps
+failed after 9 steps
+failed after 11 steps
+failed after 8 steps
+failed after 13 steps
+failed after 8 steps
+failed after 9 steps
+failed after 25 steps
+num_consecutive_successes = 1
+failed after 31 steps
+failed after 13 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 12 steps
+failed after 8 steps
+failed after 9 steps
+failed after 16 steps
+failed after 11 steps
+failed after 9 steps
+failed after 12 steps
+failed after 10 steps
+failed after 12 steps
+failed after 10 steps
+failed after 13 steps
+failed after 19 steps
+failed after 14 steps
+failed after 10 steps
+failed after 11 steps
+failed after 10 steps
+failed after 30 steps
+failed after 24 steps
+failed after 111 steps
+failed after 32 steps
+failed after 11 steps
+failed after 11 steps
+failed after 15 steps
+failed after 10 steps
+failed after 14 steps
+failed after 11 steps
+failed after 11 steps
+failed after 13 steps
+failed after 13 steps
+failed after 10 steps
+failed after 11 steps
+failed after 32 steps
+failed after 12 steps
+failed after 12 steps
+failed after 27 steps
+failed after 32 steps
+num_consecutive_successes = 1
+failed after 13 steps
+failed after 11 steps
+failed after 11 steps
+failed after 14 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 11 steps
+failed after 12 steps
+failed after 12 steps
+failed after 8 steps
+failed after 11 steps
+failed after 11 steps
+failed after 10 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 13 steps
+failed after 12 steps
+failed after 9 steps
+failed after 10 steps
+failed after 12 steps
+failed after 13 steps
+failed after 10 steps
+failed after 10 steps
+failed after 14 steps
+failed after 11 steps
+failed after 13 steps
+failed after 11 steps
+failed after 11 steps
+failed after 10 steps
+failed after 12 steps
+failed after 10 steps
+failed after 9 steps
+failed after 13 steps
+failed after 14 steps
+failed after 11 steps
+failed after 36 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 9 steps
+failed after 9 steps
+failed after 15 steps
+failed after 14 steps
+failed after 38 steps
+failed after 17 steps
+failed after 39 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+failed after 28 steps
+failed after 13 steps
+failed after 13 steps
+failed after 23 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 14 steps
+failed after 11 steps
+failed after 9 steps
+failed after 32 steps
+failed after 25 steps
+num_consecutive_successes = 1
+failed after 165 steps
+failed after 35 steps
+failed after 11 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 37 steps
+failed after 12 steps
+failed after 45 steps
+failed after 13 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 10 steps
+failed after 12 steps
+failed after 11 steps
+failed after 18 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 12 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 25 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+failed after 15 steps
+failed after 14 steps
+failed after 10 steps
+failed after 11 steps
+failed after 9 steps
+failed after 12 steps
+failed after 12 steps
+failed after 28 steps
+failed after 10 steps
+failed after 38 steps
+failed after 27 steps
+failed after 9 steps
+failed after 10 steps
+failed after 9 steps
+failed after 11 steps
+failed after 13 steps
+failed after 14 steps
+failed after 9 steps
+failed after 31 steps
+failed after 27 steps
+failed after 8 steps
+failed after 22 steps
+failed after 28 steps
+failed after 13 steps
+failed after 11 steps
+failed after 13 steps
+failed after 9 steps
+failed after 11 steps
+failed after 20 steps
+failed after 22 steps
+failed after 15 steps
+failed after 12 steps
+failed after 38 steps
+failed after 18 steps
+failed after 27 steps
+failed after 14 steps
+failed after 10 steps
+failed after 10 steps
+failed after 9 steps
+failed after 17 steps
+failed after 11 steps
+failed after 10 steps
+failed after 9 steps
+failed after 35 steps
+failed after 10 steps
+failed after 12 steps
+failed after 22 steps
+failed after 12 steps
+failed after 11 steps
+failed after 21 steps
+failed after 165 steps
+failed after 193 steps
+failed after 11 steps
+failed after 11 steps
+failed after 14 steps
+failed after 9 steps
+failed after 11 steps
+failed after 9 steps
+failed after 12 steps
+failed after 8 steps
+failed after 9 steps
+failed after 13 steps
+failed after 10 steps
+failed after 9 steps
+failed after 8 steps
+failed after 9 steps
+failed after 10 steps
+failed after 11 steps
+failed after 14 steps
+failed after 11 steps
+failed after 11 steps
+failed after 8 steps
+failed after 13 steps
+failed after 14 steps
+failed after 10 steps
+failed after 10 steps
+failed after 10 steps
+failed after 12 steps
+failed after 10 steps
+failed after 13 steps
+failed after 10 steps
+failed after 15 steps
+failed after 20 steps
+failed after 22 steps
+failed after 13 steps
+failed after 10 steps
+failed after 12 steps
+failed after 10 steps
+failed after 11 steps
+failed after 8 steps
+failed after 10 steps
+failed after 11 steps
+failed after 10 steps
+failed after 12 steps
+failed after 11 steps
+failed after 10 steps
+failed after 13 steps
+failed after 11 steps
+failed after 9 steps
+failed after 10 steps
+failed after 10 steps
+failed after 15 steps
+failed after 23 steps
+failed after 33 steps
+failed after 11 steps
+failed after 9 steps
+failed after 10 steps
+failed after 13 steps
+failed after 11 steps
+failed after 11 steps
+failed after 20 steps
+failed after 28 steps
+failed after 50 steps
+failed after 24 steps
+failed after 9 steps
+failed after 17 steps
+failed after 14 steps
+failed after 9 steps
+failed after 21 steps
+failed after 32 steps
+failed after 10 steps
+failed after 9 steps
+failed after 16 steps
+failed after 10 steps
+failed after 8 steps
+failed after 15 steps
+failed after 11 steps
+failed after 9 steps
+failed after 9 steps
+failed after 13 steps
+failed after 12 steps
+failed after 13 steps
+failed after 9 steps
+failed after 12 steps
+failed after 11 steps
+failed after 9 steps
+failed after 11 steps
+failed after 11 steps
+failed after 9 steps
+failed after 15 steps
+failed after 10 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 15 steps
+failed after 11 steps
+failed after 9 steps
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="Expected-SARSA">Expected SARSA<a class="anchor-link" href="#Expected-SARSA">&#182;</a></h1>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[5]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
+<span class="kn">from</span> <span class="nn">skgym.value_functions</span> <span class="k">import</span> <span class="n">GenericQ</span>
+<span class="kn">from</span> <span class="nn">skgym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
+<span class="kn">from</span> <span class="nn">skgym.algorithms</span> <span class="k">import</span> <span class="n">ExpectedSarsa</span>
+<span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">SGDRegressor</span>
+<span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">FunctionTransformer</span>
+
+
+<span class="c1"># the Gym environment</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
+
+
+<span class="c1"># define sklearn model for approximating Q-function</span>
+<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
+<span class="n">transformer</span> <span class="o">=</span> <span class="n">FunctionTransformer</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)),</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+
+<span class="c1"># define Q, its induced policy and update algorithm</span>
+<span class="n">Q</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">regressor</span><span class="p">,</span> <span class="n">transformer</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">ExpectedSarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">policy</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+
+
+<span class="c1"># number of iterations</span>
+<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
+
+
+<span class="c1"># used for early stopping</span>
+<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
+    
+    <span class="c1"># init</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    
+    <span class="c1"># amount of random exploration</span>
+    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
+    
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
+        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        
+        <span class="c1"># update or render</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
+            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">)</span>            
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+        
+        <span class="c1"># keep track of consecutive successes</span>
+        <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
+                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
+            <span class="k">break</span>
+    
+        <span class="c1"># prepare for next step</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
+
+        
+    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
+        <span class="k">break</span>
+
+
 <span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </pre></div>
 
@@ -13372,6 +14796,140 @@ num_consecutive_successes = 10
 <div class="output_subarea output_stream output_stderr output_text">
 <pre>/home/kris/.local/lib/python3.6/site-packages/gym/envs/registration.py:14: PkgResourcesDeprecationWarning: Parameters to load are deprecated.  Call .resolve and .require separately.
   result = entry_point.load(False)
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>failed after 9 steps
+failed after 11 steps
+failed after 8 steps
+failed after 20 steps
+failed after 10 steps
+failed after 12 steps
+failed after 14 steps
+failed after 11 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 9 steps
+failed after 9 steps
+failed after 8 steps
+failed after 9 steps
+failed after 10 steps
+failed after 9 steps
+failed after 10 steps
+failed after 10 steps
+failed after 10 steps
+failed after 10 steps
+failed after 16 steps
+failed after 19 steps
+failed after 8 steps
+failed after 22 steps
+failed after 9 steps
+failed after 8 steps
+failed after 8 steps
+failed after 45 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 13 steps
+failed after 8 steps
+failed after 8 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 9 steps
+failed after 9 steps
+failed after 9 steps
+failed after 10 steps
+failed after 8 steps
+failed after 21 steps
+failed after 65 steps
+num_consecutive_successes = 1
+failed after 95 steps
+failed after 115 steps
+failed after 145 steps
+failed after 175 steps
+failed after 73 steps
+failed after 90 steps
+num_consecutive_successes = 1
+failed after 123 steps
+failed after 115 steps
+failed after 174 steps
+num_consecutive_successes = 1
+failed after 182 steps
+failed after 150 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 111 steps
+failed after 151 steps
+failed after 145 steps
+failed after 177 steps
+failed after 132 steps
+failed after 162 steps
+failed after 177 steps
+failed after 134 steps
+failed after 106 steps
+failed after 177 steps
+failed after 140 steps
+failed after 150 steps
+failed after 146 steps
+failed after 121 steps
+num_consecutive_successes = 1
+failed after 183 steps
+failed after 78 steps
+failed after 104 steps
+num_consecutive_successes = 1
+failed after 149 steps
+failed after 88 steps
+failed after 150 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+failed after 172 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 173 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+num_consecutive_successes = 4
+failed after 172 steps
+failed after 169 steps
+num_consecutive_successes = 1
+failed after 68 steps
+failed after 94 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+failed after 164 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+num_consecutive_successes = 4
+num_consecutive_successes = 5
+failed after 164 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+failed after 171 steps
+num_consecutive_successes = 1
+num_consecutive_successes = 2
+num_consecutive_successes = 3
+num_consecutive_successes = 4
+num_consecutive_successes = 5
+num_consecutive_successes = 6
+num_consecutive_successes = 7
+num_consecutive_successes = 8
+num_consecutive_successes = 9
+num_consecutive_successes = 10
 </pre>
 </div>
 </div>

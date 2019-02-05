@@ -28,4 +28,5 @@ upload: all
 	twine upload -u krispisvis dist/*
 
 nbconvert:
+	rm -f doc/_static/notebooks/*.html
 	jupyter nbconvert --to html --output-dir doc/_static/notebooks/ notebooks/*.ipynb
