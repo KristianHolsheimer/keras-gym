@@ -1,0 +1,14 @@
+{
+	"folders":
+	[
+		{
+			"folder_exclude_patterns":
+			[
+				"__pycache__",
+				".pytest_cache",
+				".ipynb_checkpoints"
+			],
+			"path": "."
+		}
+	]
+}

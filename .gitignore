@@ -18,4 +18,4 @@ notebooks/data/
 doc/build/
 
 # sublime
-*.sublime-*
+*.sublime-workspace
