@@ -336,7 +336,23 @@ class ArrayDeque:
         return value
 
 
-class ExperienceCache:
+class RandomStateMixin:
+    @property
+    def random_seed(self):
+        return self._random_seed
+
+    @random_seed.setter
+    def random_seed(self, new_random_seed):
+        self._random = np.random.RandomState(new_random_seed)
+        self._random_seed = new_random_seed
+
+    @random_seed.deleter
+    def random_seed(self):
+        self._random = np.random.RandomState(None)
+        self._random_seed = None
+
+
+class ExperienceCache(RandomStateMixin):
     """
     A class for conveniently storing and replaying experience. Each unit of
     experience consists of a preprocessed transition `(X, A, R, X_next)`.
@@ -537,17 +553,3 @@ class ExperienceCache:
         self.X_next_.popleft()
 
         return X, A, R, X_next
-
-    @property
-    def random_seed(self):
-        return self._random_seed
-
-    @random_seed.setter
-    def random_seed(self, new_random_seed):
-        self._random = np.random.RandomState(new_random_seed)
-        self._random_seed = new_random_seed
-
-    @random_seed.deleter
-    def random_seed(self):
-        self._random = np.random.RandomState(None)
-        self._random_seed = None
