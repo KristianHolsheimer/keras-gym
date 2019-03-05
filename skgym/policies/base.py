@@ -1,171 +1,179 @@
-from __future__ import print_function, division
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
+import sys
+
 import numpy as np
-import scipy.stats as st
-from gym.spaces.discrete import Discrete
-from ..utils import argmax
+from scipy.stats import multinomial
+from sklearn.exceptions import NotFittedError
+from gym.spaces import Discrete
+
+from ..utils import softmax, feature_vector, RandomStateMixin
+from ..errors import NonDiscreteActionSpaceError
 
 
-class BasePolicy(ABC):
+class BasePolicy(ABC, RandomStateMixin):
     """
-    Abstract base class for policy objects.
+
+
+    Attributes
+    ----------
+    is_value_based : bool
+        Whether the policy is a value-based policy (when value_function is
+        specified) or not (when policy_regressor is specified).
+
 
     """
-    def __init__(self, env, random_seed=None):
+    def __init__(self, env, value_function=None, policy_regressor=None,
+                 policy_transformer=None, random_seed=None):
+
         self.env = env
         self.random_seed = random_seed
+        self.value_function = None
+        self.policy_regressor = None
+        self.policy_transformer = None
+        self.is_value_based = None
 
-    @abstractmethod
-    def X(self, s, a=None):
-        pass
-
-    @abstractmethod
-    def X_next(self, s):
-        pass
-
-    @abstractmethod
-    def batch_eval(self, *args):
-        pass
+        if value_function is not None:
+            if policy_regressor is not None or policy_transformer is not None:
+                raise ValueError(
+                    "if value_function is provided, policy_regressor and "
+                    "policy_transformer must be left unspecified")
+            self.value_function = value_function
+            self.is_value_based = True
+        elif policy_regressor is not None:
+            self.policy_regressor = policy_regressor
+            self.policy_transformer = policy_transformer
+            self.is_value_based = False
+        else:
+            raise ValueError(
+                "must either specify value_function or policy_regressor "
+                "(possibly with policy_transformer); cannot leave both "
+                "unspecified")
 
     @abstractmethod
     def update(self, X, Y):
+        """ Update the underlying sklearn-style function approximator. """
         pass
 
-    def proba(self, s):
+    @abstractmethod
+    def __call__(self, s, return_propensity=False):
         """
-        Given a state observation :math:`s`, return a proability distribution
-        over all possible actions.
+        Draw the next action :math:`a` according to :math:`\\pi(a|s)`.
 
         Parameters
         ----------
-        s : state observation
-            Depending on the observation space, `s` may be an integer or an
-            array of floats.
+        s : state
+            The current state observation.
 
         Returns
         -------
-        dist : scipy.stats probability distribution
-            Depending on the action space, this may be a discrete distribution
-            (typically a Dirichlet distribution) or a continuous distribution
-            (typically a normal distribution).
+        a or (a, p) : action or action-propensity pair
+
+            The action `a` is drawn from the probability distribution
+            :math:`a\\sim\\pi(a|s)`. If `return_propensity=True`, the
+            propensity `p` is also returned, which is the probability of
+            picking action `a` under the current policy.
 
         """
-        X_s = self.X_next(s)
-        P = self.batch_eval(X_s)
+        pass
+
+    def X(self, s):
+        """
+        Create a feature vector from a state-action pair.
+
+        Parameters
+        ----------
+        s : int or array of float
+            A single state observation.
+
+        Returns
+        -------
+        X_s : 2d-array, shape = [1, num_features]
+            A sklearn-style design matrix of a single data point.
+
+        .. note::
+
+            This method is used for policy-gradient type updates. For
+            valuefunction updates, please use the value function's own methods
+            instead.
+
+        """
+        if self.is_value_based:
+            raise NotImplementedError(
+                "This method is only implemented for policy-gradient type "
+                "updates; for value function updates, please use the value "
+                "function's own methods instead.")
+
+        X_s = feature_vector(s, self.env.observation_space)
+        X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
+        X_s = self._transform(X_s)  # apply transformer if provided
+        return X_s
+
+    def _transform(self, X):
+        if self.transformer is not None:
+            try:
+                X = self.transformer.transform(X)
+            except NotFittedError:
+                if not self.attempt_fit_transformer:
+                    raise NotFittedError(
+                        "transformer needs to be fitted; setting "
+                        "attempt_fit_transformer=True will fit the "
+                        "transformer on one data point")
+                print("attemting to fit transformer", file=sys.stderr)
+                X = self.transformer.fit_transform(X)
+        return X
+
+    def _distr(self, X_s):
+        """
+        Given a batch of preprocessed state observation, return a batch of
+        probability distributions over the space of actions
+        :math:`\\mathcal{A}(s)` for each :math:`s` represented in the input
+        batch.
+
+        """
         if isinstance(self.env.action_space, Discrete):
-            return st.multinomial(n=1, p=P[0])
+            if self.is_value_based:
+                Q_s = self.value_function.batch_eval_typeII(X_s)
+                P_s = softmax(Q_s, axis=1)
+            else:
+                P_s = self.regressor.predict_proba(X_s)
+            distr = np.array([multinomial(n=1, p=p) for p in P_s])
         else:
-            raise NotImplementedError(
-                "I haven't yet implemented continuous action spaces; "
-                "please send me a message to let me know if this is holding "
-                "you back. -kris")
+            raise NonDiscreteActionSpaceError()
 
-    def thompson(self, s):
-        """
-        Given a state observation :math:`s`, return an action :math:`a` drawn
-        from the policy's probability distribution :math:`\\pi(a|s)` given by
-        :func:`proba`.
+        return distr
 
-        Parameters
-        ----------
-        s : state observation
-            Depending on the observation space, `s` may be an integer or an
-            array of floats.
 
-        Returns
-        -------
-        a : action
-            The action is sampled according to :math:`\\pi(a|s)`.
-
-        """
-        dist = self.proba(s)
-        if isinstance(dist, st._multivariate.multinomial_frozen):
-            a_onehot = dist.rvs(size=1)[0]
-            a = np.argmax(a_onehot)  # int
+class RandomPolicy(BasePolicy):
+    def __call__(self, s=None, return_propensity=False):
+        if isinstance(self.env.action_space, Discrete):
+            n = self.env.action_space.n
+            a = self._random.randint(n)
+            p = 1.0 / n
         else:
-            raise NotImplementedError(
-                "I haven't yet implemented continuous action spaces; "
-                "please send me a message to let me know if this is holding "
-                "you back. -kris")
-        return a
+            raise NonDiscreteActionSpaceError()
 
-    def greedy(self, s):
-        """
-        Given a state observation :math:`s`, return an action :math:`a` in a
-        way that is greedy with respect to the policy's probability
-        distribution, given by :func:`proba`.
+        return (a, p) if return_propensity else a
 
-        Parameters
-        ----------
-        s : state observation
-            Depending on the observation space, `s` may be an integer or an
-            array of floats.
+    def update(*args, **kwargs):
+        pass
 
-        Returns
-        -------
-        a : action
-            The action with the highest probability under the current policy.
 
-        """
-        dist = self.proba(s)
-        if isinstance(dist, st._multivariate.multinomial_frozen):
-            p = dist.p
-            a = argmax(p)
-            return a
-        elif isinstance(dist, st._distn_infrastructure.rv_frozen):  # Gaussian
-            return dist.median()
+class ThompsonPolicy(BasePolicy):
+    def __call__(self, s, return_propensity=False):
+        if self.is_value_based:
+            X_s = self.value_function.preprocess_typeII(s)
         else:
-            raise NotImplementedError(
-                "I haven't yet implemented continuous action spaces; "
-                "please send me a message to let me know if this is holding "
-                "you back. -kris")
+            X_s = self.X(s)
+        distr = self._distr(X_s)[0]
 
-    def random(self):
-        """
-        Pick action uniformly at random.
-
-        Returns
-        -------
-        a : action
-            A random action.
-
-        """
-        return self.env.action_space.sample()
-
-    def epsilon_greedy(self, s, epsilon=0.01):
-        """
-        Flip a epsilon-weighted coin to decide whether pick action
-        using `greedy` or `random`.
-
-        Parameters
-        ----------
-        s : int or array
-            A single observation (state).
-
-        epsilon : float
-            The expected probability of picking a random action.
-
-        Returns
-        -------
-        a : int
-            An action, assuming discrete action space.
-
-        """
-        if self._random.rand() < epsilon:
-            return self.random()
+        if isinstance(self.env.action_space, Discrete):
+            a_onehot = distr.rvs(size=1).astype('bool').ravel()
+            a = np.asscalar(np.argwhere(a_onehot))  # one-hot -> index
+            p = distr.p[a]
         else:
-            return self.greedy(s)
+            raise NonDiscreteActionSpaceError()
 
-    @property
-    def random_seed(self):
-        return self._random_seed
+        return (a, p) if return_propensity else a
 
-    @random_seed.setter
-    def random_seed(self, new_random_seed):
-        self._random = np.random.RandomState(new_random_seed)
-        self._random_seed = new_random_seed
-
-    @random_seed.deleter
-    def random_seed(self):
-        self._random = np.random.RandomState(None)
-        self._random_seed = None
+    def update(*args, **kwargs):
+        pass

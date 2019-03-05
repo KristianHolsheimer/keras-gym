@@ -3,7 +3,6 @@ from gym.spaces import Discrete
 
 from .base import BasePolicy
 from ..value_functions.base import BaseQ
-from ..value_functions.generic import GenericQ
 from ..utils import softmax
 from ..errors import NonDiscreteActionSpaceError
 
@@ -71,29 +70,7 @@ class ValuePolicy(BasePolicy):
 
         return params
 
-    def X(self, s, a=None):
-        """
-        Create a feature vector from a state :math:`s` or state-action pair
-        :math:`(s, a)`, depending on the model type.
-
-        Parameters
-        ----------
-        s : int or array of float
-            A single state observation.
-
-        a : int, optional
-            This is required for `model_type=1` and must be left unspecified
-            for `model_type=2`.
-
-        Returns
-        -------
-        X : 2d array
-            Scikit-learn style design matrix.
-
-        """
-        return GenericQ.X(self.value_function, s, a)
-
-    def X_next(self, s):
+    def X(self, s):
         """
         Create a feature vector from a state :math:`s` or state-action pair
         :math:`(s, a)`, depending on the model type.
@@ -110,6 +87,3 @@ class ValuePolicy(BasePolicy):
 
         """
         return self.value_function.preprocess_typeII(s)
-
-    def update(self, X, Y):
-        self.value_function.update(X, Y)
