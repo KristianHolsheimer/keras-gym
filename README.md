@@ -130,5 +130,5 @@ The last episode is rendered, which shows something like this:
 * ~check whether the above example still works~
 * ~implement experience cache for MC implement experience-replay type algorithms~
 * implement sparse one-hot vectors
-* implement `_to_vec` for `gym.spaces.Dict` space.
+* implement `utils.feature_vector` for `gym.spaces.Dict` space.
 * fix slow monte-carlo algorithm (standalone benchmark in notebook is faster)

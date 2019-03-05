@@ -1,5 +1,29 @@
 import numpy as np
+from gym.spaces import Tuple, Discrete, Box, MultiDiscrete, MultiBinary
+
 from .errors import ArrayDequeOverflowError, NoExperienceCacheError
+
+
+def feature_vector(x, space):
+    if isinstance(space, Tuple):
+        x = np.concatenate([
+            feature_vector(x_, space_)  # recursive
+            for x_, space_ in zip(x, space.spaces)], axis=0)
+    elif isinstance(space, MultiDiscrete):
+        x = np.concatenate([
+            feature_vector(x_, Discrete(n))  # recursive
+            for x_, n in zip(x.ravel(), space.nvec.ravel()) if n], axis=0)
+    elif isinstance(space, Discrete):
+        x = one_hot_vector(x, space.n)
+    elif isinstance(space, (MultiBinary, Box)):
+        pass
+    else:
+        raise NotImplementedError(
+            "haven't implemented a preprocessor for space type: {}"
+            .format(type(space)))
+
+    assert x.ndim == 1, "x must be 1d array, got shape: {}".format(x.shape)
+    return x
 
 
 def check_dtype(x, dtype):

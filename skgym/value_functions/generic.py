@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import six
 import numpy as np
 
+from ..utils import feature_vector
 from .base import BaseV, BaseQ
 
 
@@ -78,7 +79,7 @@ class GenericV(BaseV):
             A sklearn-style design matrix of a single data point.
 
         """
-        X_s = self._to_vec(s, self.env.observation_space)
+        X_s = feature_vector(s, self.env.observation_space)
         X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
         X_s = self._transform(X_s)  # apply transformer if provided
         return X_s
@@ -207,8 +208,8 @@ class GenericQTypeI(BaseQ):
         if a is None:
             raise TypeError("'a' must be an action, got a=None")
 
-        X_sa = self._combiner(self._to_vec(s, self.env.observation_space),
-                              self._to_vec(a, self.env.action_space))
+        X_sa = self._combiner(feature_vector(s, self.env.observation_space),
+                              feature_vector(a, self.env.action_space))
         X_sa = np.expand_dims(X_sa, axis=0)  # add batch axis (batch_size == 1)
         X_sa = self._transform(X_sa)  # apply transformer if provided
         return X_sa
@@ -425,7 +426,7 @@ class GenericQTypeII(BaseQ):
             A sklearn-style design matrix of a single action.
 
         """
-        X_s = self._to_vec(s, self.env.observation_space)
+        X_s = feature_vector(s, self.env.observation_space)
         X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
         X_s = self._transform(X_s)  # apply transformer if provided
         return X_s

@@ -2,12 +2,8 @@ import sys
 from abc import ABC, abstractmethod
 
 import numpy as np
-from gym.spaces import Tuple, Discrete, Box, MultiDiscrete, MultiBinary
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.exceptions import NotFittedError
-
-
-from ..utils import one_hot_vector
 
 
 class BaseValueFunction(ABC):
@@ -137,27 +133,6 @@ class BaseValueFunction(ABC):
                 raise
             self.regressor = MultiOutputRegressor(self.regressor)
             self.regressor.partial_fit(X, Y)
-
-    def _to_vec(self, x, space):
-        if isinstance(space, Tuple):
-            x = np.concatenate([
-                self._to_vec(x_, space_)  # recursive
-                for x_, space_ in zip(x, space.spaces)], axis=0)
-        elif isinstance(space, MultiDiscrete):
-            x = np.concatenate([
-                self._to_vec(x_, Discrete(n))  # recursive
-                for x_, n in zip(x.ravel(), space.nvec.ravel()) if n], axis=0)
-        elif isinstance(space, Discrete):
-            x = one_hot_vector(x, space.n)
-        elif isinstance(space, (MultiBinary, Box)):
-            pass
-        else:
-            raise NotImplementedError(
-                "haven't implemented a preprocessor for space type: {}"
-                .format(type(space)))
-
-        assert x.ndim == 1, "x must be 1d array, got shape: {}".format(x.shape)
-        return x
 
     def _transform(self, X):
         if self.transformer is not None:
