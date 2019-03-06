@@ -5,6 +5,8 @@ import numpy as np
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.exceptions import NotFittedError
 
+from ..errors import NonDiscreteActionSpaceError
+
 
 class BaseValueFunction(ABC):
     """
@@ -98,8 +100,7 @@ class BaseValueFunction(ABC):
         try:
             n = self.env.action_space.n
         except AttributeError:
-            raise NotImplementedError(
-                "can only do discrete action spaces for now")
+            raise NonDiscreteActionSpaceError()
 
         # create dummy input X
         s = self.env.observation_space.sample()
