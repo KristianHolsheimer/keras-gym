@@ -67,6 +67,13 @@ specific state is simply:
 
     \Delta\ln\pi(a|S_t)\ =\ \alpha\,\pi(a|S_t)\,\mathcal{A}(S_t,a)
 
+If we want to go one step further and sample the state as well, the update for
+the specific sampled action :math:`a=A_t` is:
+
+.. math::
+
+    \Delta\ln\pi(A_t|S_t)\ =\ \alpha\,\mathcal{A}(S_t,A_t)
+
 We can satisfy preservation of normalization by picking :math:`V(s)=\int
 da\,\pi(a|s)Q(s,a)`, which can be seen via Jensen's inequality, see `Appendix`_
 below.
@@ -75,16 +82,25 @@ below.
 We then use a linear approximation to get the "ground-truth" target we're
 interested in, :math:`y=\pi(a|S_t)(1+ \Delta\ln\pi(a|S_t))`. For instance, for
 a discrete actions space :math:`a=0,1,\dots`, the labeled example that we feed
-to our scikit-learn function approximator is:
+to our scikit-learn function approximator :math:`\hat\pi(a|s,\theta)` is:
 
 .. math::
     :label: bootstrap
 
     X\ &=\ \phi(S_t)\\
-    \qquad y_a\ &=\ \hat{y}_a(S_t)\left(1 + \alpha\,\pi(a|S_t)\mathcal{A}(S_t,a)\right)
+    \qquad y_a\ &=\ \hat\pi(a|S_t,\theta)\left(1 + \alpha\,\hat\pi(a|S_t,\theta)\mathcal{A}(S_t,a)\right)
 
-where :math:`\hat{y}_a(s)=\hat{\pi}(a|s,\theta)` and :math:`\phi` is some
-feature preprocessor (called a :term:`transformer` throughout this package).
+where :math:`\phi` is some feature preprocessor (called a :term:`transformer`
+throughout this package). Just like before, we could also just sample the
+action :math:`a=A_t`, such that
+
+.. math::
+    :label: bootstrap_sampled
+
+    X\ &=\ \phi(S_t)\\
+    \qquad y_{A_t}\ &=\ \hat\pi(A_t|S_t,\theta)\left(1 + \alpha\mathcal{A}(S_t,A_t)\right)
+
+
 
 Essentially, what we're doing is gradient boosting for our log-policy. In fact,
 if we were to do actual gradient boosting, we would approximate the advantage
@@ -130,7 +146,7 @@ consider the following application of Jensen's inequality:
 
     1\ &=\ \int da\,\pi(a|s) \\
      \ &=\ \int da\,\exp\left( \ln\pi(a|s) \right) \\
-     \ &=\ \int da\,\exp\left( \ln\pi(a|s) + \Delta\ln\pi(a|s) \right) \\
+     \ &\equiv\ \int da\,\exp\left( \ln\pi(a|s) + \Delta\ln\pi(a|s) \right) \\
      \ &=\ \int da\,\pi(a|s)\,\exp\left( \Delta\ln\pi(a|s) \right) \\
      \ &=\ \mathbb{E}_\pi\left[\exp\left(\Delta\ln\pi(A|s)\right)\right] \\
      \ &\geq\ \exp\mathbb{E}_\pi\left[\Delta\ln\pi(A|s)\right]
