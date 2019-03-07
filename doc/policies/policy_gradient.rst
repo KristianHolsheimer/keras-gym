@@ -65,7 +65,7 @@ specific state is simply:
 
 .. math::
 
-    \Delta\ln\pi(a|S_t)\ =\ \alpha\,\mathcal{A}(S_t,a)
+    \Delta\ln\pi(a|S_t)\ =\ \alpha\,\pi(a|S_t)\,\mathcal{A}(S_t,a)
 
 We can satisfy preservation of normalization by picking :math:`V(s)=\int
 da\,\pi(a|s)Q(s,a)`, which can be seen via Jensen's inequality, see `Appendix`_
@@ -81,7 +81,7 @@ to our scikit-learn function approximator is:
     :label: bootstrap
 
     X\ &=\ \phi(S_t)\\
-    \qquad y_a\ &=\ \hat{y}_a(S_t)\left(1 + \alpha\,\mathcal{A}(S_t,a)\right)
+    \qquad y_a\ &=\ \hat{y}_a(S_t)\left(1 + \alpha\,\pi(a|S_t)\mathcal{A}(S_t,a)\right)
 
 where :math:`\hat{y}_a(s)=\hat{\pi}(a|s,\theta)` and :math:`\phi` is some
 feature preprocessor (called a :term:`transformer` throughout this package).
