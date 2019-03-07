@@ -1,12 +1,14 @@
 from abc import abstractmethod, ABC
+import sys
 
 import numpy as np
 import scipy.stats as st
 
 from gym.spaces.discrete import Discrete
 from sklearn.exceptions import NotFittedError
+from sklearn.multioutput import MultiOutputClassifier
 
-from ..utils import argmax, RandomStateMixin, feature_vector
+from ..utils import argmax, RandomStateMixin, feature_vector, one_hot_vector
 from ..errors import NonDiscreteActionSpaceError
 
 
@@ -206,11 +208,42 @@ class BasePolicy(ABC, RandomStateMixin):
         return (a, p) if return_propensity else a
 
 
-class BaseUpdateablePolicy(ABC, BasePolicy):
+class BaseUpdateablePolicy(BasePolicy):
+    """
+    Base class for updateable policy objects, which are objects that can be
+    updated directly, using e.g. policy-gradient type algorithms.
+
+    Parameters
+    ----------
+    env : gym environment spec
+        This is used to get information about the shape of the observation
+        space and action space.
+
+    classifier : sklearn classifier
+        This classifier must have a :term:`partial_fit` method.
+
+    transformer : sklearn transformer, optional
+        Unfortunately, there's no support for out-of-core fitting of
+        transformers in scikit-learn. We can, however, use stateless
+        transformers such as :py:class:`FunctionTransformer
+        <sklearn.preprocessing.FunctionTransformer>`. We can also use other
+        transformers that only learn the input shape at training time, such as
+        :py:class:`PolynomialFeatures
+        <sklearn.preprocessing.PolynomialFeatures>`. Note that these do require
+        us to set `attempt_fit_transformer=True`.
+
+    attempt_fit_transformer : bool, optional
+        Whether to attempt to pre-fit the transformer. Note: this is done on
+        only one data point. This works for transformers that only require the
+        input shape and/or dtype for fitting. In other words, this will *not*
+        work for more sophisticated transformers that require batch
+        aggregations.
+
+    """
     def __init__(self, env, classifier, transformer=None,
                  attempt_fit_transformer=False, random_seed=None):
 
-        super().__init__(env, random_seed)
+        BasePolicy.__init__(self, env, random_seed)
 
         self.classifier = classifier
         self.transformer = transformer
@@ -218,12 +251,46 @@ class BaseUpdateablePolicy(ABC, BasePolicy):
         self._init_model()
 
     @abstractmethod
-    def update(self, X, Y):
+    def batch_eval(self, X_s):
+        """
+        Given a batch of preprocessed states, get the associated probabilities.
+
+        .. note:: This has only been implemented for discrete action spaces.
+
+        Parameters
+        ----------
+        X_s : array of float, shape = [batch_size, num_features]
+            Preprocessed design matrix representing a batch of state
+            observations. It is what comes out of :func:`X`.
+
+        Returns
+        -------
+        params : 2d array, shape: [batch_size, num_params]
+            The parameters required to describe the probability distribution
+            over actions :math:`\\pi(a|s)`. For discrete action spaces,
+            `params` is the array of probabilities
+            :math:`(p_0, \\dots, p_{n-1})`, where :math:`p_i=P(a=i)`.
+
+        """
         pass
 
-    @abstractmethod
-    def batch_eval(self, *args):
-        pass
+    def update(self, X, Y):
+        """
+        Update the policy object function. This method will call
+        :term:`partial_fit` on the underlying sklearn classifier.
+
+        Parameters
+        ----------
+        X : 2d-array, shape = [batch_size, num_features]
+            A sklearn-style design matrix of a single data point.
+
+        Y : 1d- or 2d-array, depends on model type
+            A sklearn-style label array. The shape depends on the model type.
+            For a type-I model, the output shape is `[batch_size]` and for a
+            type-II model the shape is `[batch_size, num_actions]`.
+
+        """
+        self.classifier.partial_fit(X, Y)
 
     def X(self, s):
         """
@@ -268,7 +335,7 @@ class BaseUpdateablePolicy(ABC, BasePolicy):
     def _init_model(self):
         # n is needed to create dummy output Y
         try:
-            n = self.env.action_space.n
+            classes = np.arange(self.env.action_space.n, dtype='int')
         except AttributeError:
             raise NonDiscreteActionSpaceError()
 
@@ -278,10 +345,10 @@ class BaseUpdateablePolicy(ABC, BasePolicy):
             s = np.random.rand(*s.shape)  # otherwise we get overflow
 
         X = self.X(s)
-        Y = np.ones((1, n)) / n
+        Y = np.array([self.env.action_space.sample()])
 
         try:
-            self.classifier.partial_fit(X, Y)
+            self.classifier.partial_fit(X, Y, classes=classes)
         except ValueError as e:
             expected_failure = (
                 e.args[0].startswith("bad input shape") and  # Y has bad shape
@@ -290,4 +357,4 @@ class BaseUpdateablePolicy(ABC, BasePolicy):
             if not expected_failure:
                 raise
             self.classifier = MultiOutputClassifier(self.classifier)
-            self.classifier.partial_fit(X, Y)
+            self.classifier.partial_fit(X, Y, classes=classes)
