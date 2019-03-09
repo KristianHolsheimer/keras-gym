@@ -8,7 +8,7 @@ from gym.spaces.discrete import Discrete
 from sklearn.exceptions import NotFittedError
 from sklearn.multioutput import MultiOutputClassifier
 
-from ..utils import argmax, RandomStateMixin, feature_vector, one_hot_vector
+from ..utils import argmax, RandomStateMixin, feature_vector
 from ..errors import NonDiscreteActionSpaceError
 
 
@@ -51,6 +51,7 @@ class BasePolicy(ABC, RandomStateMixin):
         X_s = self.X(s)
         P = self.batch_eval(X_s)
         if isinstance(self.env.action_space, Discrete):
+            assert P.shape == (1, self.env.action_space.n), "bad shape: P"
             dist = st.multinomial(n=1, p=P[0], seed=self._random)
         else:
             raise NonDiscreteActionSpaceError()

@@ -4,15 +4,11 @@ Generic Value Functions
 .. autosummary::
     :nosignatures:
 
-    skgym.value_functions.GenericV
-    skgym.value_functions.GenericQ
-    skgym.value_functions.GenericQTypeI
-    skgym.value_functions.GenericQTypeII
+    keras_gym.value_functions.GenericV
+    keras_gym.value_functions.GenericQ
 
 
-.. automodule:: skgym.value_functions
+.. automodule:: keras_gym.value_functions
 
     .. autoclass:: GenericV
     .. autoclass:: GenericQ
-    .. autoclass:: GenericQTypeI
-    .. autoclass:: GenericQTypeII

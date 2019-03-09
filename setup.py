@@ -30,27 +30,29 @@ dev_status = {
 
 
 long_description = """
-Scikit-gym: Plug-n-play reinforcement learning with gym and sklearn.
+keras-gym: Plug-n-play reinforcement learning in python with OpenAI Gym and
+Keras. Other packages such as scikit-learn are supported too.
 
 For full documentation, go to:
 
-    https://scikit-gym.readthedocs.io
+    https://keras-gym.readthedocs.io
 
 You can find the source code at:
 
-    https://github.com/KristianHolsheimer/scikit-gym
+    https://github.com/KristianHolsheimer/keras-gym
 
 """
 
 # main setup kw args
 setup_kwargs = {
-    'name': 'scikit-gym',
+    'name': 'keras-gym',
     'version': version,
-    'description': "Plug-n-play reinforcement learning with gym and sklearn",
+    'description': "Plug-n-play reinforcement learning with OpenAI Gym and Keras",
     'long_description': long_description,
     'author': 'Kristian Holsheimer',
     'author_email': 'kristian.holsheimer@gmail.com',
-    'license': 'BSD',
+    'url': '',
+    'license': 'MIT',
     'install_requires': install_requires,
     'classifiers': [
         dev_status[majorminor],

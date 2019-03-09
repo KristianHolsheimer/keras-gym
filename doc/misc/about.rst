@@ -18,6 +18,6 @@ algorithm is as simple as possible and to make it completely separate from the
 code that does function approximation.
 
 If you have any bugs, questions or suggestions, please feel free to open an
-issue on `github <https://github.com/KristianHolsheimer/scikit-gym/>`_.
+issue on `github <https://github.com/KristianHolsheimer/keras-gym/>`_.
 
 -- Kristian Holsheimer

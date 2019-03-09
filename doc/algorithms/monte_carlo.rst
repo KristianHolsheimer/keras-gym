@@ -4,9 +4,11 @@ Monte Carlo Algorithms
 .. autosummary::
     :nosignatures:
 
-    skgym.algorithms.MonteCarlo
+    keras_gym.algorithms.MonteCarloV
+    keras_gym.algorithms.MonteCarloQ
 
 
-.. automodule:: skgym.algorithms
+.. automodule:: keras_gym.algorithms
 
-    .. autoclass:: MonteCarlo
+    .. autoclass:: MonteCarloV
+    .. autoclass:: MonteCarloQ

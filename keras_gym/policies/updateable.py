@@ -2,7 +2,7 @@ from .base import BaseUpdateablePolicy
 
 
 class SoftmaxPolicy(BaseUpdateablePolicy):
-    def update(self, X, Y):
+    def update(self, X, A, advantages):
         # TODO: implement weighted replication etc.
         raise NotImplementedError('update')
 

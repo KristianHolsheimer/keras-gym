@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 from gym.spaces import Discrete
 
 from .base import BasePolicy

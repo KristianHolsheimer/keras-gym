@@ -1,12 +1,38 @@
 import numpy as np
 from gym.spaces import Discrete
 
-from .base import BaseValueAlgorithm
+from .base import BaseVAlgorithm, BaseQAlgorithm
 from ..utils import idx
 from ..errors import NonDiscreteActionSpaceError
 
 
-class QLearning(BaseValueAlgorithm):
+class ValueTD0(BaseVAlgorithm):
+    """
+    Update the state value function with TD(0) updates, cf. Section 6.1 of
+    `Sutton & Barto <http://incompleteideas.net/book/the-book-2nd.html>`_. The
+    Q-function object can either be passed directly or implicitly by passing a
+    value-based policy object.
+
+    Parameters
+    ----------
+    value_function : value function object
+        A state-action value function :math:`Q(s, a)`.
+
+    gamma : float
+        Future discount factor, value between 0 and 1.
+
+    """
+    def update(self, s, r, s_next):
+        X, R, X_next = self.preprocess_transition(s, r, s_next)
+
+        # get TD target
+        V_next = self.value_function.batch_eval(X_next)  # bootstrap
+        Y = R + self.gamma * V_next
+
+        self.value_function.update(X, Y)
+
+
+class QLearning(BaseQAlgorithm):
     """
     Update the Q-function according to the Q-learning algorithm, cf.
     Section 6.5 of `Sutton & Barto
@@ -16,9 +42,8 @@ class QLearning(BaseValueAlgorithm):
 
     Parameters
     ----------
-    value_function_or_policy : value function or value-based policy
-        This can be either a state value function :math:`V(s)`, a state-action
-        value function :math:`Q(s, a)`, or a value-based policy.
+    value_function : state-action value function
+        A state-action value function :math:`Q(s, a)`.
 
     gamma : float
         Future discount factor, value between 0 and 1.
@@ -36,16 +61,19 @@ class QLearning(BaseValueAlgorithm):
         self.value_function.update(X, Y)
 
 
-class ExpectedSarsa(BaseValueAlgorithm):
+class ExpectedSarsa(BaseQAlgorithm):
     """
     Update the Q-function according to the Expected-SARSA algorithm, cf.
     Section 6.6 of `Sutton & Barto
     <http://incompleteideas.net/book/the-book-2nd.html>`_. This algorithm
     requires both a policy as well as a value function.
 
+    # FIXME: Use proper policy to compute action propensities. Perhaps just
+    epsilon greedy propensities.
+
     Parameters
     ----------
-    value_function : value function object
+    value_function : state-action value function
         A state-action value function :math:`Q(s, a)`.
 
     policy : policy object
@@ -78,7 +106,7 @@ class ExpectedSarsa(BaseValueAlgorithm):
         self.value_function.update(X, Y)
 
 
-class Sarsa(BaseValueAlgorithm):
+class Sarsa(BaseQAlgorithm):
     """
     Update the Q-function according to the SARSA algorithm, cf.
     Section 6.4 of `Sutton & Barto
@@ -88,9 +116,8 @@ class Sarsa(BaseValueAlgorithm):
 
     Parameters
     ----------
-    value_function_or_policy : value function or value-based policy
-        This can be either a state value function :math:`V(s)`, a state-action
-        value function :math:`Q(s, a)`, or a value-based policy.
+    value_function : state-action value function
+        A state-action value function :math:`Q(s, a)`.
 
     gamma : float
         Future discount factor, value between 0 and 1.

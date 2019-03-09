@@ -5,10 +5,10 @@ Value-Based Policies
 .. autosummary::
     :nosignatures:
 
-    skgym.policies.ValuePolicy
+    keras_gym.policies.ValuePolicy
 
 
-.. automodule:: skgym.policies
+.. automodule:: keras_gym.policies
 
     .. autoclass:: ValuePolicy
 

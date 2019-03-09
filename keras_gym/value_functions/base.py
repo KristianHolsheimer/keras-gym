@@ -1,9 +1,6 @@
-import sys
 from abc import ABC, abstractmethod
 
 import numpy as np
-from sklearn.multioutput import MultiOutputRegressor
-from sklearn.exceptions import NotFittedError
 
 from ..errors import NonDiscreteActionSpaceError
 
@@ -26,13 +23,10 @@ class BaseValueFunction(ABC):
     """
     MODELTYPES = (0, 1, 2)
 
-    def __init__(self, env, regressor, transformer=None,
-                 attempt_fit_transformer=False):
+    def __init__(self, env, model):
         self.env = env
-        self.regressor = regressor
-        self.transformer = transformer
-        self.attempt_fit_transformer = attempt_fit_transformer
-        self._init_model()
+        self.model = model
+        self._check_model()
 
     @abstractmethod
     def __call__(self, *args):
@@ -61,8 +55,8 @@ class BaseValueFunction(ABC):
     def X(self, *args):
         """
         Create a feature vector from a state observation or state-action pair.
-        This is the design matrix that is fed into the regressor, i.e. function
-        approximator.
+        This is the design matrix that is fed into the Keras model, i.e.
+        function approximator.
 
         Parameters
         ----------
@@ -79,8 +73,8 @@ class BaseValueFunction(ABC):
 
     def update(self, X, Y):
         """
-        Update the value function. This method will call :term:`partial_fit` on
-        the underlying sklearn regressor.
+        Update the value function. This method will call the `train_on_batch`
+        method on the underlying Keras model, i.e. function approximator.
 
         Parameters
         ----------
@@ -93,9 +87,9 @@ class BaseValueFunction(ABC):
             type-II model the shape is `[batch_size, num_actions]`.
 
         """
-        self.regressor.partial_fit(X, Y)
+        self.model.train_on_batch(X, Y)
 
-    def _init_model(self):
+    def _create_dummy_X_Y(self):
         # n is needed to create dummy output Y
         try:
             n = self.env.action_space.n
@@ -122,32 +116,40 @@ class BaseValueFunction(ABC):
         else:
             raise ValueError("bad MODELTYPE")
 
-        try:
-            self.regressor.partial_fit(X, Y)
-        except ValueError as e:
-            expected_failure = (
-                e.args[0].startswith("bad input shape") and  # Y has bad shape
-                self.MODELTYPE == 2 and                      # type II model
-                not isinstance(
-                    self.regressor, MultiOutputRegressor))   # not yet wrapped
-            if not expected_failure:
-                raise
-            self.regressor = MultiOutputRegressor(self.regressor)
-            self.regressor.partial_fit(X, Y)
+        # set some attributes for convenience
+        self.num_features = X.shape[1]
+        self.num_actions = n
 
-    def _transform(self, X):
-        if self.transformer is not None:
-            try:
-                X = self.transformer.transform(X)
-            except NotFittedError:
-                if not self.attempt_fit_transformer:
-                    raise NotFittedError(
-                        "transformer needs to be fitted; setting "
-                        "attempt_fit_transformer=True will fit the "
-                        "transformer on one data point")
-                print("attemting to fit transformer", file=sys.stderr)
-                X = self.transformer.fit_transform(X)
-        return X
+        return X, Y
+
+    def _check_model(self):
+        # get some dummy data
+        X, Y = self._create_dummy_X_Y()
+
+        weights_resettable = (
+            hasattr(self.model, 'get_weights') and
+            hasattr(self.model, 'set_weights'))
+
+        if weights_resettable:
+            weights = self.model.get_weights()
+
+        try:
+            self.model.train_on_batch(X, Y)
+            pred = self.batch_eval(X)
+            if self.MODELTYPE in (0, 1):
+                assert pred.shape == (1,), "bad shape"
+            elif self.MODELTYPE == 2:
+                assert pred.shape == (1, self.num_actions), "bad shape"
+            elif self.MODELTYPE == 3:
+                # num_params = ...  # params distr over continuous actions
+                # assert pred.shape == (num_params,), "bad model output shape"
+                raise NotImplementedError("MODELTYPE == 3")
+        except Exception as e:
+            # TODO: show informative error message
+            raise
+
+        if weights_resettable:
+            self.model.set_weights(weights)
 
 
 class BaseV(BaseValueFunction):

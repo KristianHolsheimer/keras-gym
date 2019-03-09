@@ -2,9 +2,7 @@ Blackjack Monte Carlo with Linear Model
 =======================================
 
 In this notebook we solve the `'Blackjack-v0'` environment using the
-:class:`Sarsa <skgym.algorithms.MonteCarlo>` algorithm, where our Q-function uses
-scikit-learn's :class:`SGDRegressor <sklearn.linear_model.SGDRegressor>` as its
-underlying function approximator.
+:class:`MonteCarloQ <keras_gym.algorithms.MonteCarloQ>` algorithm.
 
 
 GitHub version
@@ -13,7 +11,7 @@ GitHub version
 .. raw:: html
 
     <p>
-    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/scikit-gym/blob/master/notebooks/blackjack-linear-model-monte-carlo.ipynb" target="_blank" style="font-weight:bold">here</a>.
+    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/keras-gym/blob/master/notebooks/blackjack-linear-model-monte-carlo.ipynb" target="_blank" style="font-weight:bold">here</a>.
     </p>
 
 

@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>cartpole-linear-model-td0</title>
+<title>connect-four</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13113,167 +13113,9 @@ div#notebook {
   <div tabindex="-1" id="notebook" class="border-box-sizing">
     <div class="container" id="notebook-container">
 
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Table-Of-Contents">Table Of Contents<a class="anchor-link" href="#Table-Of-Contents">&#182;</a></h1><ul>
-<li><a href="#SARSA">SARSA</a></li>
-<li><a href="#SARSA-with-scikit-learn-function-approximator">SARSA with scikit-learn function approximator</a></li>
-<li><a href="#Q-learning">Q-learning</a></li>
-<li><a href="#Q-learning-with-custom-Keras-function-approximator">Q-learning with custom Keras function approximator</a></li>
-<li><a href="#Q-learning-with-type-II-model">Q-learning with type-II model</a></li>
-<li><a href="#Expected-SARSA">Expected-SARSA</a></li>
-</ul>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="SARSA">SARSA<a class="anchor-link" href="#SARSA">&#182;</a></h1>
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[1]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
-
-<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
-<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
-
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQ</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">Sarsa</span>
-
-
-
-<span class="c1"># the Gym environment</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
-
-
-<span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.08</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">Sarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-
-
-<span class="c1"># number of iterations</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">200</span>
-<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
-
-
-<span class="c1"># used for early stopping</span>
-<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-
-
-<span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
-    
-    <span class="c1"># init</span>
-    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-    <span class="n">a</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
-    
-    <span class="c1"># amount of random exploration</span>
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
-    
-    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-        <span class="n">a_next</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
-        
-        <span class="c1"># update or render</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
-            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span><span class="p">)</span>         
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-        
-        <span class="c1"># keep track of consecutive successes</span>
-        <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
-            <span class="k">break</span>
-    
-        <span class="c1"># prepare for next step</span>
-        <span class="n">s</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span>
-
-        
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="k">break</span>
-
-
-<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 12 steps
-failed after 43 steps
-failed after 17 steps
-failed after 24 steps
-failed after 11 steps
-failed after 53 steps
-failed after 134 steps
-failed after 39 steps
-failed after 80 steps
-failed after 108 steps
-failed after 177 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-failed after 187 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-num_consecutive_successes = 7
-num_consecutive_successes = 8
-num_consecutive_successes = 9
-num_consecutive_successes = 10
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="SARSA-with-scikit-learn-function-approximator">SARSA with scikit-learn function approximator<a class="anchor-link" href="#SARSA-with-scikit-learn-function-approximator">&#182;</a></h1>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
@@ -13281,300 +13123,90 @@ num_consecutive_successes = 10
 <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="k">import</span> <span class="n">SGDRegressor</span>
 <span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">FunctionTransformer</span>
 
+<span class="kn">from</span> <span class="nn">keras_gym.utils</span> <span class="k">import</span> <span class="n">reload_all</span>
+<span class="n">reload_all</span><span class="p">()</span>
+
 <span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">GenericQ</span>
 <span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">Sarsa</span>
-<span class="kn">from</span> <span class="nn">keras_gym.wrappers</span> <span class="k">import</span> <span class="n">SklearnModelWrapper</span>
-
-
-<span class="c1"># the Gym environment</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">MonteCarlo</span>
+<span class="kn">from</span> <span class="nn">keras_gym.environments</span> <span class="k">import</span> <span class="n">ConnectFour</span>
+<span class="kn">from</span> <span class="nn">keras_gym.errors</span> <span class="k">import</span> <span class="n">UnavailableActionError</span>                    
 
 
 <span class="c1"># define sklearn model for approximating Q-function</span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">SklearnModelWrapper</span><span class="p">(</span>
-    <span class="n">estimator</span><span class="o">=</span><span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.08</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">),</span>
-    <span class="n">transformer</span><span class="o">=</span><span class="n">FunctionTransformer</span><span class="p">(</span>
-        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">]),</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
-<span class="p">)</span>
+<span class="n">regressor</span> <span class="o">=</span> <span class="n">SGDRegressor</span><span class="p">(</span><span class="n">eta0</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">)</span>
+<span class="n">transformer</span> <span class="o">=</span> <span class="kc">None</span>
 
 
 <span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">Sarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="n">Q1</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">ConnectFour</span><span class="p">,</span> <span class="n">regressor</span><span class="p">,</span> <span class="n">transformer</span><span class="p">)</span>
+<span class="n">Q2</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">ConnectFour</span><span class="p">,</span> <span class="n">regressor</span><span class="p">,</span> <span class="n">transformer</span><span class="p">)</span>
+<span class="n">policy1</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q1</span><span class="p">)</span>
+<span class="n">policy2</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q2</span><span class="p">)</span>
+<span class="n">algo1</span> <span class="o">=</span> <span class="n">MonteCarlo</span><span class="p">(</span><span class="n">Q1</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+<span class="n">algo2</span> <span class="o">=</span> <span class="n">MonteCarlo</span><span class="p">(</span><span class="n">Q2</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
 
 
-<span class="c1"># number of iterations</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">200</span>
-<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
 
+<span class="n">env</span> <span class="o">=</span> <span class="n">ConnectFour</span><span class="p">()</span>
 
-<span class="c1"># used for early stopping</span>
-<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">swap_policies</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">100000</span>
+<span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.1</span>
 
-
-<span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
-    
-    <span class="c1"># init</span>
-    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-    <span class="n">a</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
-    
-    <span class="c1"># amount of random exploration</span>
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
-    
-    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-        <span class="n">a_next</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
-        
-        <span class="c1"># update or render</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
-            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span><span class="p">)</span>         
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-        
-        <span class="c1"># keep track of consecutive successes</span>
-        <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
-            <span class="k">break</span>
-    
-        <span class="c1"># prepare for next step</span>
-        <span class="n">s</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">a_next</span>
-
-        
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="k">break</span>
-
-
-<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 15 steps
-failed after 22 steps
-failed after 12 steps
-failed after 13 steps
-failed after 33 steps
-failed after 36 steps
-failed after 29 steps
-failed after 8 steps
-failed after 20 steps
-failed after 14 steps
-failed after 10 steps
-failed after 8 steps
-failed after 39 steps
-failed after 10 steps
-failed after 8 steps
-failed after 25 steps
-failed after 31 steps
-failed after 9 steps
-failed after 29 steps
-failed after 29 steps
-failed after 14 steps
-failed after 27 steps
-failed after 10 steps
-failed after 34 steps
-failed after 17 steps
-failed after 47 steps
-failed after 8 steps
-failed after 23 steps
-failed after 9 steps
-failed after 9 steps
-failed after 8 steps
-failed after 9 steps
-failed after 8 steps
-failed after 8 steps
-failed after 11 steps
-failed after 58 steps
-failed after 12 steps
-failed after 26 steps
-failed after 11 steps
-failed after 10 steps
-failed after 11 steps
-failed after 10 steps
-failed after 43 steps
-failed after 10 steps
-failed after 36 steps
-failed after 10 steps
-failed after 9 steps
-failed after 10 steps
-failed after 32 steps
-failed after 125 steps
-failed after 121 steps
-failed after 47 steps
-failed after 120 steps
-failed after 68 steps
-failed after 146 steps
-failed after 163 steps
-failed after 28 steps
-failed after 61 steps
-failed after 51 steps
-failed after 47 steps
-failed after 67 steps
-failed after 62 steps
-failed after 188 steps
-failed after 125 steps
-failed after 103 steps
-failed after 179 steps
-num_consecutive_successes = 1
-failed after 163 steps
-failed after 125 steps
-failed after 50 steps
-failed after 114 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-failed after 99 steps
-failed after 88 steps
-failed after 57 steps
-failed after 175 steps
-failed after 117 steps
-failed after 161 steps
-num_consecutive_successes = 1
-failed after 157 steps
-failed after 113 steps
-failed after 53 steps
-num_consecutive_successes = 1
-failed after 160 steps
-failed after 190 steps
-failed after 127 steps
-num_consecutive_successes = 1
-failed after 187 steps
-num_consecutive_successes = 1
-failed after 134 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-failed after 162 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-num_consecutive_successes = 7
-num_consecutive_successes = 8
-num_consecutive_successes = 9
-num_consecutive_successes = 10
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Q-learning">Q-learning<a class="anchor-link" href="#Q-learning">&#182;</a></h1>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[3]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
-
-<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
-<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
-
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQ</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">QLearning</span>
-
-
-<span class="c1"># the Gym environment</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
-
-
-<span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">decay</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">QLearning</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-
-
-<span class="c1"># number of iterations</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">100</span>
-<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
-
-
-<span class="c1"># used for early stopping</span>
-<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="c1"># compute avg return</span>
+<span class="n">total_return</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="n">num_observations</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="n">history</span> <span class="o">=</span> <span class="p">[]</span>
 
 
 <span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
-    
-    <span class="c1"># init</span>
-    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-    
-    <span class="c1"># amount of random exploration</span>
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">random_adversary</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">%</span> <span class="mi">11</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="n">epsilon</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">episode</span> <span class="o">/</span> <span class="p">(</span><span class="mf">0.9</span> <span class="o">*</span> <span class="n">num_episodes</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">swap_policies</span> <span class="ow">and</span> <span class="n">episode</span> <span class="o">%</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">adversary_policy</span> <span class="o">=</span> <span class="n">policy2</span>
+        <span class="n">policy</span> <span class="o">=</span> <span class="n">policy1</span>
+        <span class="n">algo</span> <span class="o">=</span> <span class="n">algo1</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
-    
-    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">adversary_policy</span> <span class="o">=</span> <span class="n">policy1</span>
+        <span class="n">policy</span> <span class="o">=</span> <span class="n">policy2</span>
+        <span class="n">algo</span> <span class="o">=</span> <span class="n">algo2</span>
+        
+    <span class="k">if</span> <span class="n">random_adversary</span><span class="p">:</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">adversary_policy</span> <span class="o">=</span> <span class="n">RandomPolicy</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">max_time_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
         <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">a</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">available_actions</span><span class="p">:</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">available_actions</span><span class="p">)</span>
+        
         <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-        
-        <span class="c1"># update or render</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>          
-            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">)</span>            
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-        
-        <span class="c1"># keep track of consecutive successes</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">random_adversary</span><span class="p">:</span>
+            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">random_adversary</span><span class="p">:</span>
+                <span class="n">total_return</span> <span class="o">+=</span> <span class="n">r</span>
+                <span class="n">num_observations</span> <span class="o">+=</span> <span class="mf">1.0</span>
+                <span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">total_return</span><span class="p">,</span> <span class="n">num_observations</span><span class="p">,</span> <span class="n">total_return</span> <span class="o">/</span> <span class="n">num_observations</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">episode</span><span class="p">)</span><span class="o">.</span><span class="n">is_integer</span><span class="p">()</span> <span class="ow">and</span> <span class="n">num_observations</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;episode=</span><span class="si">{}</span><span class="s2">, avg_return=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">episode</span><span class="p">,</span> <span class="n">total_return</span> <span class="o">/</span> <span class="n">num_observations</span><span class="p">))</span>
+                <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
             <span class="k">break</span>
-    
-        <span class="c1"># prepare for next step</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
-
         
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="k">break</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
+    
 
+<span class="c1"># import pickle</span>
 
-<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+<span class="c1"># with open(&quot;policy1.pkl&quot;, &#39;wb&#39;) as f:</span>
+<span class="c1">#     pickle.dump(policy1, f)</span>
+
+<span class="c1"># with open(&quot;policy2.pkl&quot;, &#39;wb&#39;) as f:</span>
+<span class="c1">#     pickle.dump(policy2, f)</span>
 </pre></div>
 
     </div>
@@ -13591,106 +13223,201 @@ num_consecutive_successes = 10
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 16 steps
-failed after 14 steps
-failed after 24 steps
-failed after 12 steps
-failed after 15 steps
-failed after 14 steps
-failed after 17 steps
-failed after 10 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 8 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 8 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 13 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 113 steps
-failed after 77 steps
-failed after 130 steps
-failed after 75 steps
-failed after 56 steps
-failed after 160 steps
-failed after 71 steps
-failed after 147 steps
-failed after 133 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 71 steps
-failed after 94 steps
-failed after 85 steps
-failed after 79 steps
-num_consecutive_successes = 1
-failed after 86 steps
-failed after 100 steps
-failed after 69 steps
-failed after 79 steps
-num_consecutive_successes = 1
-failed after 74 steps
-num_consecutive_successes = 1
-failed after 89 steps
-failed after 65 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-num_consecutive_successes = 7
-failed after 192 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-failed after 131 steps
-failed after 89 steps
-num_consecutive_successes = 1
-failed after 84 steps
-num_consecutive_successes = 1
-failed after 65 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-failed after 79 steps
-failed after 86 steps
-num_consecutive_successes = 1
-failed after 191 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-failed after 75 steps
-failed after 155 steps
-failed after 83 steps
-num_consecutive_successes = 1
-failed after 174 steps
-failed after 158 steps
-num_consecutive_successes = 1
-failed after 147 steps
-failed after 69 steps
-failed after 72 steps
-num_consecutive_successes = 1
-failed after 69 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 186 steps
-failed after 119 steps
+<pre>module reloaded: keras_gym.errors
+module reloaded: keras_gym.environments.adversarial
+module reloaded: keras_gym.environments
+episode=16, avg_return=-1.0
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   | ○ |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   | ○ |
++---+---+---+---+---+---+---+
+|   |   |   | ● |   |   | ○ |
++---+---+---+---+---+---+---+
+| ● |   |   | ● |   |   | ○ |
++---+---+---+---+---+---+---+
+
+episode=32, avg_return=-1.0
+              ▽              
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+| ● |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+| ● | ● |   | ○ |   | ● |   |
++---+---+---+---+---+---+---+
+| ○ | ○ |   | ● |   | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ● | ● | ● | ● | ● |
++---+---+---+---+---+---+---+
+| ○ | ○ | ● | ● | ○ | ○ | ● |
++---+---+---+---+---+---+---+
+
+episode=64, avg_return=-1.0
+                  ▽          
++---+---+---+---+---+---+---+
+| ● |   |   |   |   |   | ○ |
++---+---+---+---+---+---+---+
+| ○ |   |   |   |   |   | ● |
++---+---+---+---+---+---+---+
+| ● |   |   |   | ○ |   | ○ |
++---+---+---+---+---+---+---+
+| ○ |   |   |   | ○ |   | ○ |
++---+---+---+---+---+---+---+
+| ● |   |   |   | ○ |   | ● |
++---+---+---+---+---+---+---+
+| ○ | ● | ● | ● | ○ |   | ● |
++---+---+---+---+---+---+---+
+
+episode=128, avg_return=-0.2727272727272727
+                  ▽          
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   | ● |   |   |   |
++---+---+---+---+---+---+---+
+| ● |   |   | ● |   |   |   |
++---+---+---+---+---+---+---+
+| ● |   |   | ○ | ○ |   | ○ |
++---+---+---+---+---+---+---+
+| ● | ○ |   | ○ | ○ |   | ○ |
++---+---+---+---+---+---+---+
+| ● | ● | ● | ○ | ● |   | ○ |
++---+---+---+---+---+---+---+
+
+episode=256, avg_return=-0.30434782608695654
+              ▽              
++---+---+---+---+---+---+---+
+|   |   |   |   | ● | ● | ○ |
++---+---+---+---+---+---+---+
+| ○ | ○ |   |   | ● | ● | ○ |
++---+---+---+---+---+---+---+
+| ○ | ● | ● |   | ● | ○ | ● |
++---+---+---+---+---+---+---+
+| ● | ● | ○ |   | ○ | ○ | ○ |
++---+---+---+---+---+---+---+
+| ● | ○ | ○ | ○ | ● | ● | ○ |
++---+---+---+---+---+---+---+
+| ○ | ● | ● | ● | ○ | ○ | ● |
++---+---+---+---+---+---+---+
+
+episode=512, avg_return=-0.043478260869565216
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   | ○ |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● | ○ |
++---+---+---+---+---+---+---+
+|   |   | ● |   |   | ○ | ○ |
++---+---+---+---+---+---+---+
+| ○ | ● | ● |   |   | ● | ○ |
++---+---+---+---+---+---+---+
+| ● | ○ | ○ |   | ● | ○ | ● |
++---+---+---+---+---+---+---+
+
+episode=1024, avg_return=-0.053763440860215055
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   | ○ |   | ● | ○ |
++---+---+---+---+---+---+---+
+|   |   |   | ○ |   | ○ | ○ |
++---+---+---+---+---+---+---+
+| ● |   |   | ● | ● | ● | ● |
++---+---+---+---+---+---+---+
+| ○ | ● |   | ○ | ○ | ● | ● |
++---+---+---+---+---+---+---+
+
+episode=2048, avg_return=-0.03225806451612903
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   | ○ |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   | ○ |   |   |   |
++---+---+---+---+---+---+---+
+|   | ● | ● | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+|   | ○ | ● | ○ | ● | ○ | ○ |
++---+---+---+---+---+---+---+
+
+episode=4096, avg_return=-0.09543010752688172
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   | ○ |
++---+---+---+---+---+---+---+
+|   |   |   |   | ● |   | ○ |
++---+---+---+---+---+---+---+
+|   |   |   |   | ● |   | ○ |
++---+---+---+---+---+---+---+
+|   | ● |   | ● | ● |   | ● |
++---+---+---+---+---+---+---+
+| ● | ○ |   | ○ | ● | ● | ○ |
++---+---+---+---+---+---+---+
+| ● | ○ | ○ | ● | ○ | ○ | ○ |
++---+---+---+---+---+---+---+
+
+episode=8192, avg_return=-0.02217741935483871
+          ▽                  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   | ○ |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   | ● |
++---+---+---+---+---+---+---+
+|   |   | ○ | ○ | ● |   | ○ |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ | ● |   | ○ |
++---+---+---+---+---+---+---+
+| ● | ● | ● | ● | ○ | ○ | ● |
++---+---+---+---+---+---+---+
+
+episode=16384, avg_return=-0.0047011417058428475
+  ▽                          
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● |   |   |   |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ○ |   |   |   |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ● | ● | ● | ● |   |
++---+---+---+---+---+---+---+
+
+episode=32768, avg_return=-0.010577568838146407
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   | ○ |
++---+---+---+---+---+---+---+
+| ○ |   |   | ● |   |   | ○ |
++---+---+---+---+---+---+---+
+| ● |   | ● | ● | ○ |   | ○ |
++---+---+---+---+---+---+---+
+| ● |   | ● | ○ | ● |   | ○ |
++---+---+---+---+---+---+---+
+| ● |   | ○ | ○ | ● |   | ● |
++---+---+---+---+---+---+---+
+| ○ | ● | ○ | ● | ○ |   | ○ |
++---+---+---+---+---+---+---+
+
 </pre>
 </div>
 </div>
@@ -13699,101 +13426,47 @@ failed after 119 steps
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Q-learning-with-custom-Keras-function-approximator">Q-learning with custom Keras function approximator<a class="anchor-link" href="#Q-learning-with-custom-Keras-function-approximator">&#182;</a></h1>
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[4]:</div>
+<div class="prompt input_prompt">In&nbsp;[36]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">RandomPolicy</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
 
-<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
-<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
+    <span class="k">def</span> <span class="nf">greedy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
 
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">GenericQ</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">QLearning</span>
-
-
-<span class="c1"># the Gym environment</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">thompson</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
 
 
-<span class="c1"># custom function apprixmator (linear regression)  </span>
-<span class="n">model</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="n">layers</span><span class="o">=</span><span class="p">[</span>
-    <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">K</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span> <span class="o">**</span> <span class="mi">2</span><span class="p">])),</span>
-    <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span>
-<span class="p">])</span>
-<span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
-    <span class="n">optimizer</span><span class="o">=</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
-    <span class="n">loss</span><span class="o">=</span><span class="n">keras</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">mean_squared_error</span><span class="p">)</span>
+<span class="n">env</span><span class="o">.</span><span class="n">adversary_policy</span> <span class="o">=</span> <span class="n">RandomPolicy</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">policy1</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">algo1</span>
 
 
-<span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">GenericQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">QLearning</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-
-
-<span class="c1"># number of iterations</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">100</span>
-<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
-
-
-<span class="c1"># used for early stopping</span>
-<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">avg_return</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">1024</span>
 
 
 <span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
-    
-    <span class="c1"># init</span>
     <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-    
-    <span class="c1"># amount of random exploration</span>
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
-    
-    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
-        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-        
-        <span class="c1"># update or render</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
-            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">)</span>            
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-        
-        <span class="c1"># keep track of consecutive successes</span>
+
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">max_time_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">a</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">available_actions</span><span class="p">:</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">available_actions</span><span class="p">)</span>
+
+        <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
+            <span class="n">avg_return</span> <span class="o">+=</span> <span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="n">avg_return</span><span class="p">)</span> <span class="o">/</span> <span class="n">episode</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">episode</span><span class="p">)</span><span class="o">.</span><span class="n">is_integer</span><span class="p">():</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;episode=</span><span class="si">{}</span><span class="s2">, avg_return=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">episode</span><span class="p">,</span> <span class="n">avg_return</span><span class="p">))</span>
+                <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
             <span class="k">break</span>
-    
-        <span class="c1"># prepare for next step</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
-
-        
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="k">break</span>
-
-
-<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </pre></div>
 
     </div>
@@ -13810,74 +13483,182 @@ failed after 119 steps
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 15 steps
-failed after 12 steps
-failed after 13 steps
-failed after 11 steps
-failed after 18 steps
-failed after 12 steps
-failed after 9 steps
-failed after 11 steps
-failed after 12 steps
-failed after 28 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 18 steps
-failed after 157 steps
-failed after 113 steps
-failed after 195 steps
-num_consecutive_successes = 1
-failed after 86 steps
-failed after 73 steps
-failed after 132 steps
-failed after 105 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 162 steps
-failed after 86 steps
-failed after 91 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 159 steps
-failed after 129 steps
-failed after 132 steps
-failed after 193 steps
-failed after 117 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 111 steps
-failed after 156 steps
-failed after 125 steps
-failed after 95 steps
-num_consecutive_successes = 1
-failed after 66 steps
-failed after 115 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 124 steps
-failed after 80 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 144 steps
-failed after 97 steps
-num_consecutive_successes = 1
-failed after 108 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 119 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-num_consecutive_successes = 7
-num_consecutive_successes = 8
-num_consecutive_successes = 9
-num_consecutive_successes = 10
+<pre>episode=1, avg_return=1.0
+              ▽              
++---+---+---+---+---+---+---+
+|   |   | ○ |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ○ |   | ○ | ● | ● | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ● | ● | ○ | ○ | ○ |   |
++---+---+---+---+---+---+---+
+| ● | ● | ○ | ● | ● | ● | ● |
++---+---+---+---+---+---+---+
+| ○ | ● | ● | ○ | ○ | ● | ○ |
++---+---+---+---+---+---+---+
+
+episode=2, avg_return=1.0
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+|   |   | ○ | ● |   | ● |   |
++---+---+---+---+---+---+---+
+| ○ |   | ● | ● | ● | ○ | ○ |
++---+---+---+---+---+---+---+
+| ● |   | ● | ● | ○ | ○ | ○ |
++---+---+---+---+---+---+---+
+| ○ |   | ○ | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+episode=4, avg_return=0.5
+          ▽                  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   | ○ |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ○ | ○ |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ | ○ |   |   |
++---+---+---+---+---+---+---+
+| ● |   | ● | ● | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ● |   | ● | ○ | ● | ○ | ○ |
++---+---+---+---+---+---+---+
+
+episode=8, avg_return=0.25
+                      ▽      
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   | ● |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   | ● |   | ○ |   |
++---+---+---+---+---+---+---+
+| ○ |   |   | ● | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ○ |   | ● | ● | ○ | ● | ○ |
++---+---+---+---+---+---+---+
+
+episode=16, avg_return=0.125
+                      ▽      
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ |   | ● |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ● | ○ |   | ● |   |
++---+---+---+---+---+---+---+
+| ○ | ● | ● | ● |   | ○ |   |
++---+---+---+---+---+---+---+
+| ● | ○ | ● | ● | ○ | ○ |   |
++---+---+---+---+---+---+---+
+
+episode=32, avg_return=0.0625
+      ▽                      
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   | ○ |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   | ○ |   |   |   |   |   |
++---+---+---+---+---+---+---+
+| ● | ○ |   |   | ● | ● |   |
++---+---+---+---+---+---+---+
+| ● | ○ | ● | ○ | ○ | ● |   |
++---+---+---+---+---+---+---+
+
+episode=64, avg_return=0.1875
+      ▽                      
++---+---+---+---+---+---+---+
+|   |   |   | ● |   |   |   |
++---+---+---+---+---+---+---+
+| ● |   |   | ○ |   |   |   |
++---+---+---+---+---+---+---+
+| ○ |   | ○ | ● | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ○ |   | ● | ○ | ○ | ○ |   |
++---+---+---+---+---+---+---+
+| ● |   | ○ | ● | ○ | ● | ● |
++---+---+---+---+---+---+---+
+| ● | ○ | ● | ○ | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+episode=128, avg_return=0.31249999999999994
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ○ |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● |   |   |   | ○ |
++---+---+---+---+---+---+---+
+| ○ | ○ | ● | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+| ● | ○ | ○ | ○ | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+episode=256, avg_return=0.33593749999999994
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ○ | ● |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ○ | ○ |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ | ● | ○ | ○ |
++---+---+---+---+---+---+---+
+
+episode=512, avg_return=0.27734375
+      ▽                      
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   | ○ |   |   | ○ |   |
++---+---+---+---+---+---+---+
+|   | ○ | ○ |   | ○ | ● |   |
++---+---+---+---+---+---+---+
+|   | ○ | ● |   | ○ | ● |   |
++---+---+---+---+---+---+---+
+|   | ○ | ● | ● | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ● | ○ | ● | ● | ● | ○ |   |
++---+---+---+---+---+---+---+
+
+episode=1024, avg_return=0.2929687499999998
+                  ▽          
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ○ |   | ○ |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ● | ● | ● |   |
++---+---+---+---+---+---+---+
+|   | ○ | ● | ○ | ○ | ● | ○ |
++---+---+---+---+---+---+---+
+
 </pre>
 </div>
 </div>
@@ -13886,92 +13667,27 @@ num_consecutive_successes = 10
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Q-learning-with-type-II-model">Q-learning with type-II model<a class="anchor-link" href="#Q-learning-with-type-II-model">&#182;</a></h1>
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[5]:</div>
+<div class="prompt input_prompt">In&nbsp;[38]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 
-<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
-<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
-
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQ</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">QLearning</span>
-
-
-<span class="c1"># the Gym environment</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
-
-
-<span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">QLearning</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-
-
-<span class="c1"># number of iterations</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">100</span>
-<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
-
-
-<span class="c1"># used for early stopping</span>
-<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-
-
-<span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
+<span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">max_time_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">a</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">available_actions</span><span class="p">:</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">available_actions</span><span class="p">)</span>
     
-    <span class="c1"># init</span>
-    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-    
-    <span class="c1"># amount of random exploration</span>
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
-    
-    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
-        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+    <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
-        
-        <span class="c1"># update or render</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
-            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">)</span>         
-        <span class="k">else</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
+        <span class="n">avg_return</span> <span class="o">+=</span> <span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="n">avg_return</span><span class="p">)</span> <span class="o">/</span> <span class="n">episode</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">episode</span><span class="p">)</span><span class="o">.</span><span class="n">is_integer</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;episode=</span><span class="si">{}</span><span class="s2">, avg_return=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">episode</span><span class="p">,</span> <span class="n">avg_return</span><span class="p">))</span>
             <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-        
-        <span class="c1"># keep track of consecutive successes</span>
-        <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
-            <span class="k">break</span>
-    
-        <span class="c1"># prepare for next step</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
-
-        
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
         <span class="k">break</span>
-
-
-<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </pre></div>
 
     </div>
@@ -13988,451 +13704,176 @@ num_consecutive_successes = 10
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 30 steps
-failed after 20 steps
-failed after 12 steps
-failed after 10 steps
-failed after 16 steps
-failed after 10 steps
-failed after 10 steps
-failed after 8 steps
-failed after 14 steps
-failed after 9 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 15 steps
-failed after 24 steps
-failed after 94 steps
-failed after 72 steps
-failed after 42 steps
-failed after 49 steps
-failed after 85 steps
-failed after 105 steps
-failed after 24 steps
-failed after 38 steps
-failed after 50 steps
-failed after 55 steps
-failed after 47 steps
-failed after 168 steps
-failed after 63 steps
-failed after 52 steps
-failed after 123 steps
-failed after 60 steps
-failed after 44 steps
-failed after 137 steps
-failed after 63 steps
-failed after 93 steps
-failed after 61 steps
-failed after 128 steps
-failed after 56 steps
-failed after 75 steps
-failed after 148 steps
-failed after 77 steps
-failed after 76 steps
-failed after 175 steps
-failed after 67 steps
-failed after 71 steps
-failed after 127 steps
-failed after 166 steps
-failed after 9 steps
-failed after 46 steps
-failed after 69 steps
-failed after 106 steps
-failed after 68 steps
-failed after 48 steps
-failed after 80 steps
-failed after 54 steps
-failed after 49 steps
-failed after 64 steps
-failed after 71 steps
-failed after 72 steps
-failed after 102 steps
-failed after 67 steps
-failed after 68 steps
-failed after 87 steps
-failed after 79 steps
-failed after 71 steps
-failed after 96 steps
-failed after 63 steps
-failed after 63 steps
-failed after 64 steps
-failed after 178 steps
-failed after 76 steps
-failed after 82 steps
-failed after 67 steps
-failed after 102 steps
-failed after 83 steps
-failed after 92 steps
-failed after 88 steps
-failed after 99 steps
-failed after 89 steps
-failed after 102 steps
-failed after 69 steps
-failed after 119 steps
-failed after 127 steps
-failed after 59 steps
-failed after 90 steps
-failed after 127 steps
-failed after 70 steps
-failed after 136 steps
-failed after 78 steps
-failed after 114 steps
-failed after 84 steps
-failed after 68 steps
-failed after 108 steps
-failed after 82 steps
-failed after 111 steps
-failed after 99 steps
-failed after 79 steps
+<pre>                             
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+
+      ▽                      
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   | ○ |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+
+                      ▽      
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+|   | ○ |   | ● |   | ● |   |
++---+---+---+---+---+---+---+
+
+                          ▽  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+|   | ○ |   | ● |   | ● | ○ |
++---+---+---+---+---+---+---+
+
+  ▽                          
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ |   | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+          ▽                  
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ○ | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+              ▽              
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   |   | ○ | ● | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ○ | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+                  ▽          
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   |   |   | ○ | ● |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ | ● | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ○ | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+  ▽                          
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   | ● |   | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ○ |   | ● | ○ | ● | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ○ | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+              ▽              
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ○ |   | ● | ○ | ● | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ○ | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
+episode=1024, avg_return=0.294348996132612
+              ▽              
++---+---+---+---+---+---+---+
+|   |   |   |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● |   |   |   |   |
++---+---+---+---+---+---+---+
+|   |   | ● |   |   | ● |   |
++---+---+---+---+---+---+---+
+|   |   | ● | ○ | ○ | ● |   |
++---+---+---+---+---+---+---+
+| ○ |   | ● | ○ | ● | ○ |   |
++---+---+---+---+---+---+---+
+| ○ | ○ | ○ | ● | ● | ● | ○ |
++---+---+---+---+---+---+---+
+
 </pre>
 </div>
 </div>
 
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Expected-SARSA">Expected SARSA<a class="anchor-link" href="#Expected-SARSA">&#182;</a></h1>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[6]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">gym</span>
-
-<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
-<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
-
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQ</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">ExpectedSarsa</span>
-
-
-
-<span class="c1"># the Gym environment</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
-
-
-<span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">ExpectedSarsa</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">policy</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-
-
-<span class="c1"># number of iterations</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">200</span>
-<span class="n">max_episode_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">_max_episode_steps</span>
-
-
-<span class="c1"># used for early stopping</span>
-<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-
-
-<span class="k">for</span> <span class="n">episode</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_episodes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">last_episode</span> <span class="o">=</span> <span class="n">episode</span> <span class="o">==</span> <span class="n">num_episodes</span> <span class="ow">or</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">9</span>
-    
-    <span class="c1"># init</span>
-    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-    
-    <span class="c1"># amount of random exploration</span>
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-    <span class="k">elif</span> <span class="n">episode</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.5</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.01</span>
-    
-    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_episode_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
-        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
-        
-        <span class="c1"># update or render</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">last_episode</span><span class="p">:</span>
-            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">)</span>            
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
-        
-        <span class="c1"># keep track of consecutive successes</span>
-        <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">max_episode_steps</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;num_consecutive_successes = </span><span class="si">{num_consecutive_successes}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;failed after </span><span class="si">{t}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
-            <span class="k">break</span>
-    
-        <span class="c1"># prepare for next step</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
-
-        
-    <span class="k">if</span> <span class="n">last_episode</span><span class="p">:</span>
-        <span class="k">break</span>
-
-
-<span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</pre></div>
-
-    </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 27 steps
-failed after 21 steps
-failed after 28 steps
-failed after 17 steps
-failed after 11 steps
-failed after 11 steps
-failed after 15 steps
-failed after 13 steps
-failed after 9 steps
-failed after 12 steps
-failed after 13 steps
-failed after 10 steps
-failed after 8 steps
-failed after 11 steps
-failed after 10 steps
-failed after 11 steps
-failed after 10 steps
-failed after 10 steps
-failed after 8 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 8 steps
-failed after 9 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 8 steps
-failed after 11 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 8 steps
-failed after 9 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 8 steps
-failed after 9 steps
-failed after 11 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 8 steps
-failed after 9 steps
-failed after 9 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 8 steps
-failed after 9 steps
-failed after 8 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 10 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 11 steps
-failed after 8 steps
-failed after 13 steps
-failed after 9 steps
-failed after 8 steps
-failed after 10 steps
-failed after 14 steps
-failed after 10 steps
-failed after 36 steps
-failed after 39 steps
-failed after 33 steps
-failed after 41 steps
-failed after 49 steps
-failed after 79 steps
-failed after 96 steps
-failed after 101 steps
-failed after 104 steps
-failed after 57 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 55 steps
-failed after 57 steps
-failed after 69 steps
-failed after 69 steps
-failed after 84 steps
-failed after 133 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 73 steps
-num_consecutive_successes = 1
-failed after 84 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-failed after 125 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 66 steps
-failed after 82 steps
-failed after 65 steps
-num_consecutive_successes = 1
-failed after 70 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 67 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-failed after 141 steps
-num_consecutive_successes = 1
-failed after 57 steps
-failed after 95 steps
-failed after 89 steps
-failed after 114 steps
-num_consecutive_successes = 1
-failed after 157 steps
-num_consecutive_successes = 1
-failed after 103 steps
-failed after 116 steps
-failed after 111 steps
-failed after 157 steps
-failed after 86 steps
-failed after 89 steps
-failed after 126 steps
-num_consecutive_successes = 1
-failed after 133 steps
-failed after 82 steps
-failed after 189 steps
-failed after 165 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-failed after 136 steps
-failed after 179 steps
-failed after 85 steps
-failed after 67 steps
-failed after 189 steps
-failed after 96 steps
-failed after 86 steps
-failed after 85 steps
-failed after 80 steps
-failed after 88 steps
-failed after 158 steps
-failed after 158 steps
-num_consecutive_successes = 1
-failed after 96 steps
-failed after 78 steps
-failed after 188 steps
-failed after 130 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 104 steps
-failed after 191 steps
-num_consecutive_successes = 1
-failed after 101 steps
-failed after 87 steps
-failed after 132 steps
-failed after 95 steps
-failed after 121 steps
-failed after 191 steps
-num_consecutive_successes = 1
-failed after 177 steps
-failed after 188 steps
-failed after 102 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 112 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 77 steps
-failed after 180 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Record-Video">Record Video<a class="anchor-link" href="#Record-Video">&#182;</a></h1>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># env = gym.make(&#39;CartPole-v1&#39;)</span>
-<span class="c1"># env = gym.wrappers.Monitor(env, os.path.join(&#39;data&#39;, &#39;video&#39;, &#39;cartpole-linear-model-sarsa&#39;), force=True)</span>
-<span class="c1"># s = env.reset()</span>
-<span class="c1"># env.render()</span>
-<span class="c1"># done = False</span>
-
-<span class="c1"># while not done:</span>
-<span class="c1">#     a = policy.greedy(s)</span>
-<span class="c1">#     s, _, done, _ = env.step(a)</span>
-<span class="c1">#     env.render()</span>
-    
-<span class="c1"># env.close()</span>
-</pre></div>
-
-    </div>
 </div>
 </div>
 

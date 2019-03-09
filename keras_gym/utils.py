@@ -4,6 +4,33 @@ from gym.spaces import Tuple, Discrete, Box, MultiDiscrete, MultiBinary
 from .errors import ArrayDequeOverflowError, NoExperienceCacheError
 
 
+def reload_all():
+    from importlib import import_module, reload
+    modules = (
+        'keras_gym.errors',
+        'keras_gym.utils',
+        'keras_gym.wrappers.sklearn',
+        'keras_gym.wrappers',
+        'keras_gym.value_functions.base',
+        'keras_gym.value_functions.generic',
+        'keras_gym.value_functions.predefined',
+        'keras_gym.value_functions',
+        'keras_gym.policies.base',
+        'keras_gym.policies.value_based',
+        'keras_gym.policies.updateable',
+        'keras_gym.policies',
+        'keras_gym.environments.adversarial',
+        'keras_gym.environments',
+        'keras_gym.algorithms.base',
+        'keras_gym.algorithms.td0',
+        'keras_gym.algorithms.monte_carlo',
+        'keras_gym.algorithms.nstep_bootstrap',
+        'keras_gym.algorithms',
+    )
+    for m in modules:
+        reload(import_module(m))
+
+
 def feature_vector(x, space):
     if isinstance(space, Tuple):
         x = np.concatenate([

@@ -1,4 +1,4 @@
-scikit-gym
+keras-gym
 ==========
 
 *Plug-n-play Reinforcement Learning in Python*
@@ -12,8 +12,8 @@ scikit-gym
     </video></div>
 
 
-Create simple, reproducible RL solutions with scikit-learn style function
-approximators.
+Create simple, reproducible RL solutions with OpenAI gym environments and Keras
+function approximators. Also, compatibility wrappers for scikit-learn are included.
 
 
 Documentation
@@ -27,6 +27,7 @@ Documentation
     policies/index
     algorithms/index
     environments/index
+    wrappers/index
     misc/utils
     misc/about
     misc/release_notes
@@ -52,29 +53,19 @@ approximator for Q(s, a):
 
 .. code:: python
 
-    import numpy as np
     import gym
 
-    from skgym.value_functions import GenericQ
-    from skgym.policies import ValuePolicy
-    from skgym.algorithms import Sarsa
-
-    from sklearn.linear_model import SGDRegressor
-    from sklearn.preprocessing import FunctionTransformer
+    from keras_gym.value_functions import LinearQ
+    from keras_gym.policies import ValuePolicy
+    from keras_gym.algorithms import Sarsa
 
 
     # the Gym environment
     env = gym.make('CartPole-v0')
 
 
-    # define sklearn model for approximating Q-function
-    regressor = SGDRegressor(eta0=0.05, learning_rate='constant')
-    transformer = FunctionTransformer(
-        lambda x: np.hstack((x, x ** 2)), validate=False)
-
-
     # define Q, its induced policy and update algorithm
-    Q = GenericQ(env, regressor, transformer)
+    Q = LinearQ(env, lr=0.08, interaction='elementwise_quadratic')
     policy = ValuePolicy(Q)
     algo = Sarsa(Q, gamma=0.8)
 

@@ -3,11 +3,11 @@ Cartpole TD(0) with Linear Function Approximator
 
 In this notebook we solve the `CartPole-v0 <https://gym.openai.com/envs/CartPole-v0/>`_ environment using the following TD(0) algorithms:
 
-- :class:`skgym.algorithms.QLearning`
-- :class:`skgym.algorithms.Sarsa`
-- :class:`skgym.algorithms.ExpectedSarsa`
+- :class:`keras_gym.algorithms.QLearning`
+- :class:`keras_gym.algorithms.Sarsa`
+- :class:`keras_gym.algorithms.ExpectedSarsa`
 
-Our Q-function uses scikit-learn's :class:`SGDRegressor <sklearn.linear_model.SGDRegressor>` as its underlying function approximator.
+Our Q-function uses a Keras implementation of a linear regression model as its underlying function approximator.
 
 .. note::
 
@@ -22,7 +22,7 @@ GitHub version
 .. raw:: html
 
     <p>
-    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/scikit-gym/blob/master/notebooks/cartpole-linear-model-td0.ipynb" target="_blank" style="font-weight:bold">here</a>.
+    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/keras-gym/blob/master/notebooks/cartpole-linear-model-td0.ipynb" target="_blank" style="font-weight:bold">here</a>.
     </p>
 
 

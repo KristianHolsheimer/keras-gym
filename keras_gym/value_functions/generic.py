@@ -22,25 +22,11 @@ class GenericV(BaseV):
         This is used to get information about the shape of the observation
         space and action space.
 
-    regressor : sklearn regressor
-        This regressor must have a :term:`partial_fit` method.
-
-    transformer : sklearn transformer, optional
-        Unfortunately, there's no support for out-of-core fitting of
-        transformers in scikit-learn. We can, however, use stateless
-        transformers such as
-        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
-        We can also use other transformers that only learn the input shape at
-        training time, such as
-        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
-        Note that these do require us to set `attempt_fit_transformer=True`.
-
-    attempt_fit_transformer : bool, optional
-        Whether to attempt to pre-fit the transformer. Note: this is done on
-        only one data point. This works for transformers that only require the
-        input shape and/or dtype for fitting. In other words, this will *not*
-        work for more sophisticated transformers that require batch
-        aggregations.
+    model : keras.Model
+        A Keras function approximator. The input shape can be inferred from the
+        data, but the output shape must be set to `[1]`. Check out the
+        :mod:`keras_gym.wrappers` module for wrappers that allow you to use
+        e.g. scikit-learn function approximators instead.
 
     """
     MODELTYPE = 0
@@ -60,7 +46,7 @@ class GenericV(BaseV):
             A single value representing :math:`V(s)`.
 
         """
-        X_s = self.preprocess(s)
+        X_s = self.X(s)
         V_s = self.batch_eval(X_s)
         return V_s[0]
 
@@ -81,7 +67,6 @@ class GenericV(BaseV):
         """
         X_s = feature_vector(s, self.env.observation_space)
         X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
-        X_s = self._transform(X_s)  # apply transformer if provided
         return X_s
 
     def batch_eval(self, X_s):
@@ -101,7 +86,9 @@ class GenericV(BaseV):
             A batch of state values.
 
         """
-        return self.regressor.predict(X_s)
+        V_s = self.model.predict_on_batch(X_s)  # shape: [batch_size, 1]
+        assert V_s.ndim == 2 and V_s.shape[1] == 1, "bad shape"
+        return np.squeeze(V_s, axis=1)  # shape: [batch_size]
 
 
 class GenericQTypeI(BaseQ):
@@ -119,25 +106,11 @@ class GenericQTypeI(BaseQ):
         This is used to get information about the shape of the observation
         space and action space.
 
-    regressor : sklearn regressor
-        This regressor must have a :term:`partial_fit` method.
-
-    transformer : sklearn transformer, optional
-        Unfortunately, there's no support for out-of-core fitting of
-        transformers in scikit-learn. We can, however, use stateless
-        transformers such as
-        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
-        We can also use other transformers that only learn the input shape at
-        training time, such as
-        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
-        Note that these do require us to set `attempt_fit_transformer=True`.
-
-    attempt_fit_transformer : bool, optional
-        Whether to attempt to pre-fit the transformer. Note: this is done on
-        only one data point. This works for transformers that only require the
-        input shape and/or dtype for fitting. In other words, this will *not*
-        work for more sophisticated transformers that require batch
-        aggregations.
+    model : keras.Model
+        A Keras function approximator. The input shape can be inferred from the
+        data, but the output shape must be set to `[1]`. Check out the
+        :mod:`keras_gym.wrappers` module for wrappers that allow you to use
+        e.g. scikit-learn function approximators instead.
 
     state_action_combiner : {'cross', 'concatenate'} or func
         How to combine the feature vectors coming from `s` and `a`.
@@ -157,19 +130,15 @@ class GenericQTypeI(BaseQ):
 
     _STATEACTION_COMBINERS = {'cross': np.kron, 'concatenate': _concat}
 
-    def __init__(self, env, regressor, transformer=None,
-                 attempt_fit_transformer=False, state_action_combiner='cross'):
-
+    def __init__(self, env, model, state_action_combiner='cross'):
         self._init_combiner(state_action_combiner)
-        super(GenericQTypeI, self).__init__(
-            env=env, regressor=regressor, transformer=transformer,
-            attempt_fit_transformer=attempt_fit_transformer)
+        super(GenericQTypeI, self).__init__(env, model)
 
     def X(self, s, a):
         """
         Create a feature vector from a state-action pair. This is the design
-        matrix that is fed into the regressor, i.e. function approximator. This
-        is just an alias for :func:`preprocess_typeI`.
+        matrix that is fed into the Keras model, i.e. function approximator.
+        This is just an alias for :func:`preprocess_typeI`.
 
         Parameters
         ----------
@@ -211,7 +180,6 @@ class GenericQTypeI(BaseQ):
         X_sa = self._combiner(feature_vector(s, self.env.observation_space),
                               feature_vector(a, self.env.action_space))
         X_sa = np.expand_dims(X_sa, axis=0)  # add batch axis (batch_size == 1)
-        X_sa = self._transform(X_sa)  # apply transformer if provided
         return X_sa
 
     def preprocess_typeII(self, s):
@@ -270,12 +238,12 @@ class GenericQTypeI(BaseQ):
         """
         if not X_sa.ndim == 2:
             raise TypeError(
-                "bad input shape, expected a 3d array of shape: "
+                "bad input shape, expected a 2d array of shape: "
                 "[batch_size, num_features]")
 
-        Q_sa = self.regressor.predict(X_sa)
-        assert Q_sa.ndim == 1, "expected a 1d array"
-        return Q_sa
+        Q_sa = self.model.predict_on_batch(X_sa)  # shape: [batch_size, 1]
+        assert Q_sa.ndim == 2 and Q_sa.shape[1] == 1, f"bad shape: {Q_sa.shape}"
+        return np.squeeze(Q_sa, axis=1)  # shape: [batch_size]
 
     def batch_eval_typeII(self, X_s):
         """
@@ -344,25 +312,11 @@ class GenericQTypeII(BaseQ):
         This is used to get information about the shape of the observation
         space and action space.
 
-    regressor : sklearn regressor
-        This regressor must have a :term:`partial_fit` method.
-
-    transformer : sklearn transformer, optional
-        Unfortunately, there's no support for out-of-core fitting of
-        transformers in scikit-learn. We can, however, use stateless
-        transformers such as
-        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
-        We can also use other transformers that only learn the input shape at
-        training time, such as
-        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
-        Note that these do require us to set `attempt_fit_transformer=True`.
-
-    attempt_fit_transformer : bool, optional
-        Whether to attempt to pre-fit the transformer. Note: this is done on
-        only one data point. This works for transformers that only require the
-        input shape and/or dtype for fitting. In other words, this will *not*
-        work for more sophisticated transformers that require batch
-        aggregations.
+    model : keras.Model
+        A Keras function approximator. The input shape can be inferred from the
+        data, but the output shape must be set to `[num_actions]`. Check out
+        the :mod:`keras_gym.wrappers` module for wrappers that allow you to use
+        e.g. scikit-learn function approximators instead.
 
     """
     MODELTYPE = 2
@@ -370,8 +324,8 @@ class GenericQTypeII(BaseQ):
     def X(self, s):
         """
         Create a feature vector from a state observation. This is the design
-        matrix that is fed into the regressor, i.e. function approximator. This
-        is just an alias for :func:`preprocess_typeII`.
+        matrix that is fed into the Keras model, i.e. function approximator.
+        This is just an alias for :func:`preprocess_typeII`.
 
         Parameters
         ----------
@@ -428,7 +382,6 @@ class GenericQTypeII(BaseQ):
         """
         X_s = feature_vector(s, self.env.observation_space)
         X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
-        X_s = self._transform(X_s)  # apply transformer if provided
         return X_s
 
     def batch_eval(self, X_s):
@@ -495,16 +448,21 @@ class GenericQTypeII(BaseQ):
         Parameters
         ----------
         X_s : 2d-array, shape: [batch_size, num_features]
+
             An sklearn-style design matrix representing a batch of state-action
             pairs.
 
         Returns
         -------
         Q_s : 2d-array, shape: [batch_size, num_actions]
+
             A batch of type-II Q-values.
 
         """
-        Q_s = self.regressor.predict(X_s)
+        Q_s = self.model.predict_on_batch(X_s)
+        num_actions = self.env.action_space.n
+        assert Q_s.ndim == 2 and Q_s.shape[1] == num_actions,\
+            f"bad shape: {Q_s.shape}"
         return Q_s
 
 
@@ -516,36 +474,27 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
     Parameters
     ----------
     env : gym environment spec
+
         This is used to get information about the shape of the observation
         space and action space.
 
-    regressor : sklearn regressor
-        This regressor must have a :term:`partial_fit` method.
+    model : keras.Model
 
-    transformer : sklearn transformer, optional
-        Unfortunately, there's no support for out-of-core fitting of
-        transformers in scikit-learn. We can, however, use stateless
-        transformers such as
-        :py:class:`FunctionTransformer<sklearn.preprocessing.FunctionTransformer>`.
-        We can also use other transformers that only learn the input shape at
-        training time, such as
-        :py:class:`PolynomialFeatures<sklearn.preprocessing.PolynomialFeatures>`.
-        Note that these do require us to set `attempt_fit_transformer=True`.
+        A Keras function approximator. The input shape can be inferred from the
+        data, but the output shape must be set to `[1]` (type I) or
+        `[num_actions]` (type II). Check out the :mod:`keras_gym.wrappers`
+        module for wrappers that allow you to use e.g. scikit-learn function
+        approximators instead.
 
     model_type : {1, 2}, optional
+
         Specify the model type. This is important when modeling discrete action
         spaces. A type-I model (`model_type=1`) maps
         :math:`(s,a)\\mapsto Q(s,a)`, whereas a type-II model (`model_type=2`)
         maps :math:`s\\mapsto Q(s,.)`.
 
-    attempt_fit_transformer : bool, optional
-        Whether to attempt to pre-fit the transformer. Note: this is done on
-        only one data point. This works for transformers that only require the
-        input shape and/or dtype for fitting. In other words, this will *not*
-        work for more sophisticated transformers that require batch
-        aggregations.
-
     state_action_combiner : {'cross', 'concatenate'} or func
+
         How to combine the feature vectors coming from `s` and `a`.
         Here 'cross' means taking a flat cross product using
         :py:func:`numpy.kron`, which gives a 1d-array of length
@@ -555,22 +504,16 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         `dim_s + dim_a`. This option is more suitable for non-linear models.
 
     """
-    def __init__(self, env, regressor, transformer=None, model_type=1,
-                 attempt_fit_transformer=False, state_action_combiner='cross'):
+    def __init__(self, env, model, model_type=1,
+                 state_action_combiner='cross'):
 
         self.model_type = self.MODELTYPE = model_type
 
         if self.MODELTYPE == 1:
             GenericQTypeI.__init__(
-                self, env, regressor,
-                transformer=transformer,
-                attempt_fit_transformer=attempt_fit_transformer,
-                state_action_combiner=state_action_combiner)
+                self, env, model, state_action_combiner=state_action_combiner)
         elif self.MODELTYPE == 2:
-            GenericQTypeII.__init__(
-                self, env, regressor,
-                transformer=transformer,
-                attempt_fit_transformer=attempt_fit_transformer)
+            GenericQTypeII.__init__(self, env, model)
         elif self.MODELTYPE == 3:
             raise NotImplementedError("MODELTYPE == 3")
         else:
@@ -674,9 +617,9 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         ----------
         args : depends on model_type
             See :func:`GenericQTypeI.batch_eval_typeI
-            <skgym.value_functions.GenericQTypeI.batch_eval_typeI>`
+            <keras_gym.value_functions.GenericQTypeI.batch_eval_typeI>`
             or :func:`GenericQTypeII.batch_eval_typeI
-            <skgym.value_functions.GenericQTypeII.batch_eval_typeI>`
+            <keras_gym.value_functions.GenericQTypeII.batch_eval_typeI>`
             for the correct function signature.
 
         Returns
@@ -703,9 +646,9 @@ class GenericQ(GenericQTypeI, GenericQTypeII):
         ----------
         args : depends on model_type
             See :func:`GenericQTypeI.batch_eval_typeII
-            <skgym.value_functions.GenericQTypeI.batch_eval_typeII>`
+            <keras_gym.value_functions.GenericQTypeI.batch_eval_typeII>`
             or :func:`GenericQTypeII.batch_eval_typeII
-            <skgym.value_functions.GenericQTypeII.batch_eval_typeII>`
+            <keras_gym.value_functions.GenericQTypeII.batch_eval_typeII>`
             for the correct function signature.
 
         Returns

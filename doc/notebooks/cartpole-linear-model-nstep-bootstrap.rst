@@ -3,11 +3,10 @@ n-step Bootstrap with Linear Function Approximator
 
 In this notebook we solve the `'CartPole-v0'` environment using the following :math:`n`-step bootstrap algorithms:
 
-- :class:`skgym.algorithms.NStepQLearning`
-- :class:`skgym.algorithms.NStepSarsa`
-- :class:`skgym.algorithms.NStepExpectedSarsa`
+- :class:`keras_gym.algorithms.NStepQLearning`
+- :class:`keras_gym.algorithms.NStepSarsa`
 
-Our Q-function uses scikit-learn's :class:`SGDRegressor <sklearn.linear_model.SGDRegressor>` as its underlying function approximator.
+Our Q-function uses a Keras implementation of a linear regression model as its underlying function approximator.
 
 
 GitHub version
@@ -16,7 +15,7 @@ GitHub version
 .. raw:: html
 
     <p>
-    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/scikit-gym/blob/master/notebooks/cartpole-linear-model-nstep-bootstrap.ipynb"  target="_blank" style="font-weight:bold">here</a>.
+    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/keras-gym/blob/master/notebooks/cartpole-linear-model-nstep-bootstrap.ipynb"  target="_blank" style="font-weight:bold">here</a>.
     </p>
 
 

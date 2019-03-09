@@ -1,14 +1,13 @@
-# scikit-gym
+# keras-gym
 *Plug-n-Play Reinforcement Learning in Python*
 
 
-Create simple, reproducible RL solutions with scikit-learn style function
-approximators.
+Create simple, reproducible RL solutions with Keras function approximators.
 
 
 ## Documentation
 
-For the full documentation, go to [scikit-gym.readthedocs.io](https://scikit-gym.readthedocs.io/)
+For the full documentation, go to [keras-gym.readthedocs.io](https://keras-gym.readthedocs.io/)
 
 
 ## Install
@@ -16,12 +15,12 @@ For the full documentation, go to [scikit-gym.readthedocs.io](https://scikit-gym
 Install using pip:
 
 ```
-$ pip install -U scikit-gym
+$ pip install -U keras-gym
 ```
 or install from a fresh clone
 ```
-$ git clone https://github.com/KristianHolsheimer/scikit-gym.git
-$ pip install -e ./scikit-gym
+$ git clone https://github.com/KristianHolsheimer/keras-gym.git
+$ pip install -e ./keras-gym
 ```
 
 ## Examples
@@ -29,19 +28,22 @@ $ pip install -e ./scikit-gym
 Check out the [notebooks](notebooks/) for examples. These are also included in
 the documentation:
 
-* https://scikit-gym.readthedocs.io/notebooks/
+* https://keras-gym.readthedocs.io/notebooks/
 
 
 
-Here's one of the examples from the notebooks, in which we solve the `'CartPole-v0'` environment with the SARSA algorithm, using a linear function approximator for Q(s, a):
+Here's one of the examples from the notebooks, in which we solve the
+`'CartPole-v0'` environment with the SARSA algorithm, using a linear function
+approximator for Q(s, a):
+
 
 ```python
 import numpy as np
 import gym
 
-from skgym.value_functions import GenericQ
-from skgym.policies import ValuePolicy
-from skgym.algorithms import Sarsa
+from keras_gym.value_functions import GenericQ
+from keras_gym.policies import ValuePolicy
+from keras_gym.algorithms import Sarsa
 
 from sklearn.linear_model import SGDRegressor
 from sklearn.preprocessing import FunctionTransformer

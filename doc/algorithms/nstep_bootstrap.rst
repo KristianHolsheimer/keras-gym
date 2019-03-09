@@ -4,12 +4,12 @@ n-step Bootstrap
 .. autosummary::
     :nosignatures:
 
-    skgym.algorithms.NStepQLearning
-    skgym.algorithms.NStepSarsa
-    skgym.algorithms.NStepExpectedSarsa
+    keras_gym.algorithms.NStepQLearning
+    keras_gym.algorithms.NStepSarsa
+    keras_gym.algorithms.NStepExpectedSarsa
 
 
-.. automodule:: skgym.algorithms
+.. automodule:: keras_gym.algorithms
 
     .. autoclass:: NStepQLearning
     .. autoclass:: NStepSarsa

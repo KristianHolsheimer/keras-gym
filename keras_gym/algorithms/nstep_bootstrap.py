@@ -1,12 +1,12 @@
 import numpy as np
 from gym.spaces import Discrete
 
-from .base import BaseValueAlgorithm
+from .base import BaseQAlgorithm
 from ..utils import ExperienceCache, idx
 from ..errors import NonDiscreteActionSpaceError
 
 
-class NStepQLearning(BaseValueAlgorithm):
+class NStepQLearning(BaseQAlgorithm):
     """
     Update the Q-function according to the n-step Expected-SARSA algorithm, cf.
     Section 7.2 of `Sutton & Barto
@@ -88,7 +88,7 @@ class NStepQLearning(BaseValueAlgorithm):
             self.value_function.update(X, Y)
 
 
-class NStepExpectedSarsa(BaseValueAlgorithm):
+class NStepExpectedSarsa(BaseQAlgorithm):
     """
     Update the Q-function according to the n-step Expected-SARSA algorithm, cf.
     Section 7.2 of `Sutton & Barto
@@ -178,7 +178,7 @@ class NStepExpectedSarsa(BaseValueAlgorithm):
             self.value_function.update(X, Y)
 
 
-class NStepSarsa(BaseValueAlgorithm):
+class NStepSarsa(BaseQAlgorithm):
     """
     Update the Q-function according to the n-step SARSA algorithm, cf.
     Section 7.2 of `Sutton & Barto
