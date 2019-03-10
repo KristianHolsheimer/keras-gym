@@ -38,29 +38,19 @@ approximator for Q(s, a):
 
 
 ```python
-import numpy as np
 import gym
 
-from keras_gym.value_functions import GenericQ
+from keras_gym.value_functions import LinearQ
 from keras_gym.policies import ValuePolicy
 from keras_gym.algorithms import Sarsa
-
-from sklearn.linear_model import SGDRegressor
-from sklearn.preprocessing import FunctionTransformer
 
 
 # the Gym environment
 env = gym.make('CartPole-v0')
 
 
-# define sklearn model for approximating Q-function
-regressor = SGDRegressor(eta0=0.05, learning_rate='constant')
-transformer = FunctionTransformer(
-    lambda x: np.hstack((x, x ** 2)), validate=False)
-
-
 # define Q, its induced policy and update algorithm
-Q = GenericQ(env, regressor, transformer)
+Q = LinearQ(env, lr=0.08, interaction='elementwise_quadratic')
 policy = ValuePolicy(Q)
 algo = Sarsa(Q, gamma=0.8)
 
@@ -119,6 +109,7 @@ for episode in range(1, num_episodes + 1):
 
 
 env.close()
+
 ```
 
 The last episode is rendered, which shows something like this:
@@ -129,8 +120,7 @@ The last episode is rendered, which shows something like this:
 ## TODO
 
 * add support for continuous action spaces
-* ~check whether the above example still works~
-* ~implement experience cache for MC implement experience-replay type algorithms~
+* implement policy gradient algorithms
 * implement sparse one-hot vectors
 * implement `utils.feature_vector` for `gym.spaces.Dict` space.
 * fix slow monte-carlo algorithm (standalone benchmark in notebook is faster)
