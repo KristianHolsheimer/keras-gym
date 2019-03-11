@@ -317,12 +317,29 @@ class ArrayDeque:
 
         self.shape = tuple(shape)
         self.maxlen = maxlen
-        self.dtype = dtype
         self.overflow = overflow
+        self.dtype = dtype
 
         self._len = 0
+        self._maxlen = maxlen
         self._idx = -1 % self.maxlen
         self._array = np.empty([maxlen] + list(shape), dtype)
+
+    def clear(self, reset_maxlen=True):
+        """
+        Clear the deque and optionally reset maxlen to its original setting.
+
+        Parameters
+        ----------
+        reset_maxlen : bool, optional
+            Whether to reset maxlen to its original setting. This is only
+            applicable when `overflow` is set to `'grow'`.
+
+        """
+        maxlen_keep = self.maxlen
+        self.__init__(self.shape, self._maxlen, self.overflow, self.dtype)
+        if not reset_maxlen:
+            self.maxlen = maxlen_keep
 
     def __bool__(self):
         return bool(self._len)
@@ -462,15 +479,13 @@ class ExperienceCache(RandomStateMixin):
     def __bool__(self):
         return bool(self.X_)
 
-    def _check_fitted(self, raise_error=True):
-        fitted = all((
-            hasattr(self, 'X_'),
-            hasattr(self, 'A_'),
-            hasattr(self, 'R_'),
-            hasattr(self, 'X_next_')))
-        if raise_error and not fitted:
-            raise NoExperienceCacheError("no experience has yet been recorded")
-        return fitted
+    def clear(self):
+        if not self._check_fitted(raise_error=False):
+            return
+        self.X_.clear()
+        self.A_.clear()
+        self.R_.clear()
+        self.X_next_.clear()
 
     def append(self, X, A, R, X_next):
         """
@@ -628,3 +643,13 @@ class ExperienceCache(RandomStateMixin):
         self.X_next_.popleft()
 
         return X, A, R, X_next
+
+    def _check_fitted(self, raise_error=True):
+        fitted = all((
+            hasattr(self, 'X_'),
+            hasattr(self, 'A_'),
+            hasattr(self, 'R_'),
+            hasattr(self, 'X_next_')))
+        if raise_error and not fitted:
+            raise NoExperienceCacheError("no experience has yet been recorded")
+        return fitted

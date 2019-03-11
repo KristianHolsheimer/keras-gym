@@ -110,6 +110,19 @@ class TestArrayDeque:
         with pytest.raises(IndexError, match="pop from an empty deque"):
             d.popleft()
 
+    def test_clear(self):
+        d = ArrayDeque(shape=[], maxlen=2, overflow='grow')
+        d.append(1), d.append(2), d.append(3)
+        np.testing.assert_array_equal(d.array, [1, 2, 3])
+        assert d.maxlen > 2
+
+        d.clear(reset_maxlen=False)
+        np.testing.assert_array_equal(d.array, [])
+        assert d.maxlen > 2
+
+        d.clear()
+        assert d.maxlen == 2
+
 
 class TestExperienceCache:
 
@@ -194,3 +207,12 @@ class TestExperienceCache:
         np.testing.assert_array_almost_equal(
             R, [1.138333, -1.069344, 0.318789])
         np.testing.assert_array_almost_equal(A, [3])
+
+    def test_clear(self):
+        ec = self.create_obj(seed=13, length=7)
+        assert len(ec) == 7
+
+        ec.clear()
+        assert len(ec) == 0
+        assert not ec
+        np.testing.assert_array_equal(ec.A_, [])
