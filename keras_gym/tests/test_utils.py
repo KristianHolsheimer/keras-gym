@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from ..utils import ArrayDeque, ExperienceCache, softmax
+from ..utils import ArrayDeque, ExperienceCache, softmax, accumulate_rewards
 from ..errors import ArrayDequeOverflowError
 
 
@@ -24,6 +24,22 @@ def test_softmax():
     # check robustness by clipping
     assert not np.any(np.isnan(z))
     np.testing.assert_almost_equal(z.sum(axis=1), np.ones(3))
+
+
+def test_accumulate_rewards():
+    rnd = np.random.RandomState(13)
+
+    # compute expected values
+    R = 1.0 + rnd.randn(3) * 0.1
+    gamma = 0.6
+    G_expected = np.empty_like(R)
+    G_expected[0] = R[0] + gamma * R[1] + (gamma ** 2) * R[2]
+    G_expected[1] = R[1] + gamma * R[2]
+    G_expected[2] = R[2]
+
+    # compute and compare
+    G = accumulate_rewards(R, gamma=gamma)
+    np.testing.assert_array_almost_equal(G, G_expected)
 
 
 class TestArrayDeque:

@@ -6,6 +6,7 @@ Utilities
 
     keras_gym.utils.ArrayDeque
     keras_gym.utils.ExperienceCache
+    keras_gym.utils.accumulate_rewards
     keras_gym.utils.argmax
     keras_gym.utils.argmin
     keras_gym.utils.check_dtype
@@ -18,6 +19,7 @@ Utilities
 
     .. autoclass:: ArrayDeque
     .. autoclass:: ExperienceCache
+    .. autofunction:: accumulate_rewards
     .. autofunction:: argmax
     .. autofunction:: argmin
     .. autofunction:: check_dtype

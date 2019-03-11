@@ -233,6 +233,52 @@ def softmax(arr, axis=0):
     return arr
 
 
+def accumulate_rewards(R, gamma=1.0):
+    """
+    Accumulate individual rewards collected from an entire episode into
+    gamma-discounted returns.
+
+    Given an input array or rewards :math:`\\textbf{R} = [R_0, R_1, R_2,
+    \\dots, R_{n-1}]`, then the generated output will be :math:`\\textbf{G} =
+    [G_0, G_1, G_2, \\dots, G_{n-1}]`, where
+
+    .. math::
+
+        G_0 &= R_0+\\gamma R_1+\\gamma^2 R_2+\\dots+\\gamma^{n-1}R_{n-1}\\\\
+        G_1 &= R_1+\\gamma R_2+\\gamma^2 R_3+\\dots+\\gamma^{n-2}R_{n-2}\\\\
+        G_2 &= R_2+\\gamma R_3+\\gamma^2 R_4+\\dots+\\gamma^{n-3}R_{n-3}\\\\
+        &\\vdots \\\\
+        G_{n-3} &= R_{n-3}+\\gamma R_{n-2}+\\gamma^2 R_{n-1}\\\\
+        G_{n-2} &= R_{n-2}+\\gamma R_{n-1}\\\\
+        G_{n-1} &= R_{n-1}
+
+
+    Parameters
+    ----------
+    R : 1d-array of float
+        The individual rewards collected over an entire episode.
+
+    Returns
+    -------
+    G : 1d-array of float
+        The gamma-discounted cumulative rewards, i.e. returns, for the given
+        episode.
+
+    """
+    if not isinstance(R, np.ndarray):
+        R = np.array(R)
+    assert R.ndim == 1, "bad input shape"
+    if gamma == 1.0:
+        return np.cumsum(R[::-1])[::-1]  # much faster
+
+    # use a custom ufunc.accumulate
+    uadd = np.frompyfunc(lambda G, r: r + gamma * G, 2, 1)
+    R_rev = R[::-1].astype('O')
+    G_rev = uadd.accumulate(R_rev)
+    G = G_rev[::-1].astype('float')
+    return G
+
+
 class ArrayDeque:
     """
     A numpy array based deque, loosely based on the built-in class
