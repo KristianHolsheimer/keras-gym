@@ -202,7 +202,7 @@ class BasePolicyAlgorithm(BaseAlgorithm):
     """
     def __init__(self, policy, gamma=0.9):
         self.policy = policy
-        super(BaseAlgorithm, self).__init__(gamma=gamma)
+        super(BasePolicyAlgorithm, self).__init__(gamma=gamma)
 
     def preprocess_transition(self, s, a, r, s_next):
         """
@@ -231,12 +231,9 @@ class BasePolicyAlgorithm(BaseAlgorithm):
             `X_next` can be used to construct the corresponding target `Y`.
 
         """
-        X = self.value_function.X(s)
+        X = self.policy.X(s)            # shape: [batch_size, num_features]
         A = np.array([a])
         R = np.array([r])
-        X_next = self.value_function.preprocess_typeII(s_next)
-        # X.shape == [batch_size, num_features]
-        # R.shape == [batch_size]
-        # X_next.shape == [batch_size, num_features]
+        X_next = self.policy.X(s_next)  # shape: [batch_size, num_features]
 
         return X, A, R, X_next

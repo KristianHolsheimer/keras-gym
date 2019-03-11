@@ -1,12 +1,9 @@
 from abc import abstractmethod, ABC
-import sys
 
 import numpy as np
 import scipy.stats as st
 
 from gym.spaces.discrete import Discrete
-from sklearn.exceptions import NotFittedError
-from sklearn.multioutput import MultiOutputClassifier
 
 from ..utils import argmax, RandomStateMixin, feature_vector
 from ..errors import NonDiscreteActionSpaceError
@@ -15,6 +12,15 @@ from ..errors import NonDiscreteActionSpaceError
 class BasePolicy(ABC, RandomStateMixin):
     """
     Abstract base class for policy objects.
+
+    Parameters
+    ----------
+    env : gym environment spec
+        This is used to get information about the shape of the observation
+        space and action space.
+
+    random_seed : int, optional
+        Set a random state for reproducible randomization.
 
     """
     def __init__(self, env, random_seed=None):
@@ -220,36 +226,22 @@ class BaseUpdateablePolicy(BasePolicy):
         This is used to get information about the shape of the observation
         space and action space.
 
-    classifier : sklearn classifier
-        This classifier must have a :term:`partial_fit` method.
+    model : keras.Model
+        A Keras function approximator. The input shape can be inferred from the
+        data, but the output shape must be set to `[1]`. Check out the
+        :mod:`keras_gym.wrappers` module for wrappers that allow you to use
+        e.g. scikit-learn function approximators instead.
 
-    transformer : sklearn transformer, optional
-        Unfortunately, there's no support for out-of-core fitting of
-        transformers in scikit-learn. We can, however, use stateless
-        transformers such as :py:class:`FunctionTransformer
-        <sklearn.preprocessing.FunctionTransformer>`. We can also use other
-        transformers that only learn the input shape at training time, such as
-        :py:class:`PolynomialFeatures
-        <sklearn.preprocessing.PolynomialFeatures>`. Note that these do require
-        us to set `attempt_fit_transformer=True`.
-
-    attempt_fit_transformer : bool, optional
-        Whether to attempt to pre-fit the transformer. Note: this is done on
-        only one data point. This works for transformers that only require the
-        input shape and/or dtype for fitting. In other words, this will *not*
-        work for more sophisticated transformers that require batch
-        aggregations.
+    random_seed : int, optional
+        Set a random state for reproducible randomization.
 
     """
-    def __init__(self, env, classifier, transformer=None,
-                 attempt_fit_transformer=False, random_seed=None):
+    MODELTYPES = (2, 3)
 
+    def __init__(self, env, model, random_seed=None):
         BasePolicy.__init__(self, env, random_seed)
-
-        self.classifier = classifier
-        self.transformer = transformer
-        self.attempt_fit_transformer = attempt_fit_transformer
-        self._init_model()
+        self.model = model
+        self._check_model()
 
     @abstractmethod
     def batch_eval(self, X_s):
@@ -266,7 +258,7 @@ class BaseUpdateablePolicy(BasePolicy):
 
         Returns
         -------
-        params : 2d array, shape: [batch_size, num_params]
+        params : 2d array, shape = [batch_size, num_params]
             The parameters required to describe the probability distribution
             over actions :math:`\\pi(a|s)`. For discrete action spaces,
             `params` is the array of probabilities
@@ -275,7 +267,7 @@ class BaseUpdateablePolicy(BasePolicy):
         """
         pass
 
-    def update(self, X, Y):
+    def update(self, X, A, advantages):
         """
         Update the policy object function. This method will call
         :term:`partial_fit` on the underlying sklearn classifier.
@@ -285,13 +277,16 @@ class BaseUpdateablePolicy(BasePolicy):
         X : 2d-array, shape = [batch_size, num_features]
             A sklearn-style design matrix of a single data point.
 
+        A : 1d-array, shape = [batch_size]
+            A batch of actions taken.
+
         Y : 1d- or 2d-array, depends on model type
             A sklearn-style label array. The shape depends on the model type.
             For a type-I model, the output shape is `[batch_size]` and for a
             type-II model the shape is `[batch_size, num_actions]`.
 
         """
-        self.classifier.partial_fit(X, Y)
+        self.model.train_on_batch([X, advantages], A)
 
     def X(self, s):
         """
@@ -316,46 +311,55 @@ class BaseUpdateablePolicy(BasePolicy):
         """
         X_s = feature_vector(s, self.env.observation_space)
         X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
-        X_s = self._transform(X_s)  # apply transformer if provided
         return X_s
 
-    def _transform(self, X):
-        if self.transformer is not None:
-            try:
-                X = self.transformer.transform(X)
-            except NotFittedError:
-                if not self.attempt_fit_transformer:
-                    raise NotFittedError(
-                        "transformer needs to be fitted; setting "
-                        "attempt_fit_transformer=True will fit the "
-                        "transformer on one data point")
-                print("attemting to fit transformer", file=sys.stderr)
-                X = self.transformer.fit_transform(X)
-        return X
-
-    def _init_model(self):
+    def _create_dummy_data(self):
         # n is needed to create dummy output Y
         try:
-            classes = np.arange(self.env.action_space.n, dtype='int')
+            n = self.env.action_space.n
         except AttributeError:
             raise NonDiscreteActionSpaceError()
 
-        # create dummy input X
+        # sample a state observation from the environment
         s = self.env.observation_space.sample()
         if isinstance(s, np.ndarray):
             s = np.random.rand(*s.shape)  # otherwise we get overflow
 
         X = self.X(s)
-        Y = np.array([self.env.action_space.sample()])
+        A = np.array([self.random()])
+        advantages = np.zeros(1)
+
+        # set some attributes for convenience
+        # N.B. value_functions.predefined.Linear{V,Q} require these to be set
+        self.num_features = X.shape[1]
+        self.num_actions = n
+
+        return X, A, advantages
+
+    def _check_model(self):
+        # get some dummy data
+        X, A, advantages = self._create_dummy_data()
+
+        weights_resettable = (
+            hasattr(self.model, 'get_weights') and  # noqa: W504
+            hasattr(self.model, 'set_weights'))
+
+        if weights_resettable:
+            weights = self.model.get_weights()
 
         try:
-            self.classifier.partial_fit(X, Y, classes=classes)
-        except ValueError as e:
-            expected_failure = (
-                e.args[0].startswith("bad input shape") and  # Y has bad shape
-                not isinstance(
-                    self.classifier, MultiOutputClassifier))  # not yet wrapped
-            if not expected_failure:
-                raise
-            self.classifier = MultiOutputClassifier(self.classifier)
-            self.classifier.partial_fit(X, Y, classes=classes)
+            self.update(X, A, advantages)
+            pred = self.batch_eval(X)
+            if self.MODELTYPE == 2:
+                assert pred.shape == (1, self.num_actions), "bad shape"
+                assert pred.sum() == 1.0, "niet normaaaaal"
+            elif self.MODELTYPE == 3:
+                # num_params = ...  # params distr over continuous actions
+                # assert pred.shape == (num_params,), "bad model output shape"
+                raise NotImplementedError("MODELTYPE == 3")
+        except Exception as e:
+            # TODO: show informative error message
+            raise e
+
+        if weights_resettable:
+            self.model.set_weights(weights)
