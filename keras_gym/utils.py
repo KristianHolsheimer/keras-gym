@@ -563,10 +563,10 @@ class ExperienceCache(RandomStateMixin):
             corresponds to the look-ahead timestep :math:`\\tau+n=t+1`. `R`
             contains all the observed rewards between timestep :math:`\\tau+1`
             and :math:`\\tau+n` (inclusive), i.e. `R` represents the sequence
-            :math:`(R_\\tau, R_{\\tau+1}, \dots, R_{\\tau+n})`. This sequence
+            :math:`(R_\\tau, R_{\\tau+1}, \\dots, R_{\\tau+n})`. This sequence
             is truncated to a size smaller than :math:`n` as we approach the
             end of the episode, where :math:`t>T-n`. The sequence becomes
-            :math:`(R_\\tau, R_{\\tau+1}, \dots, R_{T})`. In this phase of the
+            :math:`(R_\\tau, R_{\\tau+1}, \\dots, R_{T})`. In this phase of the
             replay, we can longer do a bootstrapping type look-ahead, which
             means that `X_next=None` until the end of the episode.
 

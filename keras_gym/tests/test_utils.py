@@ -117,7 +117,7 @@ class TestExperienceCache:
         X, A, R, X_next = ec.pop()
         assert len(ec) == 6
         np.testing.assert_array_almost_equal(
-            X, [[6.0, -0.072247,  0.122339, -0.126747, -0.735211]])
+            X, [[6.0, -0.072247, 0.122339, -0.126747, -0.735211]])
         np.testing.assert_array_almost_equal(R, [0.318789])
         np.testing.assert_array_almost_equal(A, [0])
         np.testing.assert_array_almost_equal(

@@ -242,7 +242,7 @@ class GenericQTypeI(BaseQ):
                 "[batch_size, num_features]")
 
         Q_sa = self.model.predict_on_batch(X_sa)  # shape: [batch_size, 1]
-        assert Q_sa.ndim == 2 and Q_sa.shape[1] == 1, f"bad shape: {Q_sa.shape}"
+        assert Q_sa.ndim == 2 and Q_sa.shape[1] == 1, "bad shape"
         return np.squeeze(Q_sa, axis=1)  # shape: [batch_size]
 
     def batch_eval_typeII(self, X_s):
