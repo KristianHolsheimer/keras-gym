@@ -96,7 +96,7 @@ class BaseValueFunction(ABC):
         except AttributeError:
             raise NonDiscreteActionSpaceError()
 
-        # create dummy input X
+        # sample a state observation from the environment
         s = self.env.observation_space.sample()
         if isinstance(s, np.ndarray):
             s = np.random.rand(*s.shape)  # otherwise we get overflow
@@ -117,6 +117,7 @@ class BaseValueFunction(ABC):
             raise ValueError("bad MODELTYPE")
 
         # set some attributes for convenience
+        # N.B. value_functions.predefined.Linear{V,Q} require these to be set
         self.num_features = X.shape[1]
         self.num_actions = n
 
@@ -127,7 +128,7 @@ class BaseValueFunction(ABC):
         X, Y = self._create_dummy_X_Y()
 
         weights_resettable = (
-            hasattr(self.model, 'get_weights') and
+            hasattr(self.model, 'get_weights') and  # noqa: W504
             hasattr(self.model, 'set_weights'))
 
         if weights_resettable:
@@ -146,7 +147,7 @@ class BaseValueFunction(ABC):
                 raise NotImplementedError("MODELTYPE == 3")
         except Exception as e:
             # TODO: show informative error message
-            raise
+            raise e
 
         if weights_resettable:
             self.model.set_weights(weights)
