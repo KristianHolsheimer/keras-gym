@@ -9,6 +9,7 @@ def reload_all():
     modules = (
         'keras_gym.errors',
         'keras_gym.utils',
+        'keras_gym.metrics',
         'keras_gym.wrappers.sklearn',
         'keras_gym.wrappers',
         'keras_gym.value_functions.base',
