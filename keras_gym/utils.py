@@ -19,6 +19,7 @@ def reload_all():
         'keras_gym.policies.base',
         'keras_gym.policies.value_based',
         'keras_gym.policies.updateable',
+        'keras_gym.policies.predefined',
         'keras_gym.policies',
         'keras_gym.environments.adversarial',
         'keras_gym.environments',
