@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>sandbox</title>
+<title>frozenlake-reinforce</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13115,13 +13115,249 @@ div#notebook {
 
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span> 
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">gym.envs.toy_text.frozen_lake</span> <span class="k">import</span> <span class="n">FrozenLakeEnv</span><span class="p">,</span> <span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">LEFT</span><span class="p">,</span> <span class="n">RIGHT</span>
+
+<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
+<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
+
+<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQ</span>
+<span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">MonteCarloQ</span><span class="p">,</span> <span class="n">Reinforce</span>
+<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span><span class="p">,</span> <span class="n">SoftmaxPolicy</span>
+<span class="kn">from</span> <span class="nn">keras_gym.metrics</span> <span class="k">import</span> <span class="n">SoftmaxPolicyLossWithLogits</span>
+<span class="kn">from</span> <span class="nn">keras_gym.utils</span> <span class="k">import</span> <span class="n">feature_vector</span>
+
+
+<span class="n">env</span> <span class="o">=</span> <span class="n">FrozenLakeEnv</span><span class="p">(</span><span class="n">is_slippery</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+
+<span class="c1"># behavior policy</span>
+<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">behavior_policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+<span class="n">behavior_algo</span> <span class="o">=</span> <span class="n">MonteCarloQ</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+
+
+<span class="c1"># need this to create function approximator</span>
+<span class="n">num_features</span> <span class="o">=</span> <span class="n">feature_vector</span><span class="p">(</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="o">.</span><span class="n">sample</span><span class="p">(),</span>
+    <span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="p">)</span><span class="o">.</span><span class="n">size</span>
+<span class="n">num_actions</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">n</span>
+
+
+<span class="c1"># function approximator for our policy</span>
+<span class="k">def</span> <span class="nf">create_model</span><span class="p">():</span>
+    <span class="c1"># inputs</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">num_features</span><span class="p">])</span>
+    <span class="n">advantages</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    
+    <span class="c1"># computation graph</span>
+    <span class="n">dense</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">num_actions</span><span class="p">,</span> <span class="n">kernel_initializer</span><span class="o">=</span><span class="s1">&#39;zeros&#39;</span><span class="p">)</span>
+    <span class="n">logits</span> <span class="o">=</span> <span class="n">dense</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    
+    <span class="c1"># loss</span>
+    <span class="n">loss_function</span> <span class="o">=</span> <span class="n">SoftmaxPolicyLossWithLogits</span><span class="p">(</span><span class="n">advantages</span><span class="p">)</span>
+    
+    <span class="c1"># the final model</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">Model</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">X</span><span class="p">,</span> <span class="n">advantages</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="n">logits</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+        <span class="n">loss</span><span class="o">=</span><span class="n">loss_function</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="o">=</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">))</span>
+    
+    <span class="k">return</span> <span class="n">model</span>
+
+
+<span class="c1"># this is the algo we&#39;ll develop</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">create_model</span><span class="p">()</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">SoftmaxPolicy</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">Reinforce</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
+
+
+
+<span class="k">def</span> <span class="nf">display_proba</span><span class="p">(</span><span class="n">behavior_policy</span><span class="p">,</span> <span class="n">policy</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+    <span class="n">actions</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">UP</span><span class="p">,</span> <span class="s1">&#39;up&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">DOWN</span><span class="p">,</span> <span class="s1">&#39;down&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">LEFT</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">RIGHT</span><span class="p">,</span> <span class="s1">&#39;right&#39;</span><span class="p">)])</span>
+    
+    <span class="n">proba</span> <span class="o">=</span> <span class="n">behavior_policy</span><span class="o">.</span><span class="n">proba</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">p</span>
+    <span class="n">pmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">proba</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">b(a|s=</span><span class="si">{}</span><span class="s1">):&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{2}</span><span class="s2"> </span><span class="si">{1:.3f}</span><span class="s2"> - </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">actions</span><span class="p">[</span><span class="n">a</span><span class="p">],</span> <span class="n">p</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span> <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="n">pmax</span> <span class="k">else</span> <span class="s1">&#39; &#39;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">proba</span><span class="p">)))</span>
+
+    <span class="n">proba</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">proba</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">p</span>
+    <span class="n">pmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">proba</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">pi(a|s=</span><span class="si">{}</span><span class="s1">):&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{2}</span><span class="s2"> </span><span class="si">{1:.3f}</span><span class="s2"> - </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">actions</span><span class="p">[</span><span class="n">a</span><span class="p">],</span> <span class="n">p</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span> <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="n">pmax</span> <span class="k">else</span> <span class="s1">&#39; &#39;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">proba</span><span class="p">)))</span>
+    <span class="nb">print</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">run_episode</span><span class="p">(</span><span class="n">use_new_policy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">render</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">render</span><span class="p">:</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+            <span class="n">display_proba</span><span class="p">(</span><span class="n">behavior_policy</span><span class="p">,</span> <span class="n">policy</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">use_new_policy</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">thompson</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">behavior_policy</span><span class="o">.</span><span class="n">epsilon_greedy</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">behavior_policy</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                
+        <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+            <span class="n">behavior_algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
+            <span class="n">algo</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">s_next</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
+    <span class="k">if</span> <span class="n">render</span><span class="p">:</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+
+
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">200</span><span class="p">):</span>
+    <span class="n">run_episode</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_new_policy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">run_episode</span><span class="p">(</span><span class="n">render</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_new_policy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 
     </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+<span class="ansi-red-bg">S</span>FFF
+FHFH
+FFFH
+HFFG
+
+b(a|s=0):
+  0.251 - left
+  0.247 - down
+  0.250 - right
+* 0.252 - up
+
+pi(a|s=0):
+  0.246 - left
+  0.254 - down
+* 0.255 - right
+  0.245 - up
+
+  (Right)
+S<span class="ansi-red-bg">F</span>FF
+FHFH
+FFFH
+HFFG
+
+b(a|s=1):
+  0.252 - left
+  0.247 - down
+* 0.252 - right
+  0.249 - up
+
+pi(a|s=1):
+  0.248 - left
+  0.252 - down
+* 0.256 - right
+  0.245 - up
+
+  (Right)
+SF<span class="ansi-red-bg">F</span>F
+FHFH
+FFFH
+HFFG
+
+b(a|s=2):
+  0.248 - left
+  0.251 - down
+  0.247 - right
+* 0.254 - up
+
+pi(a|s=2):
+  0.245 - left
+* 0.256 - down
+  0.251 - right
+  0.248 - up
+
+  (Down)
+SFFF
+FH<span class="ansi-red-bg">F</span>H
+FFFH
+HFFG
+
+b(a|s=6):
+  0.248 - left
+* 0.255 - down
+  0.248 - right
+  0.249 - up
+
+pi(a|s=6):
+  0.245 - left
+* 0.257 - down
+  0.252 - right
+  0.245 - up
+
+  (Down)
+SFFF
+FHFH
+FF<span class="ansi-red-bg">F</span>H
+HFFG
+
+b(a|s=10):
+  0.248 - left
+* 0.255 - down
+  0.248 - right
+  0.248 - up
+
+pi(a|s=10):
+  0.245 - left
+* 0.257 - down
+  0.252 - right
+  0.245 - up
+
+  (Down)
+SFFF
+FHFH
+FFFH
+HF<span class="ansi-red-bg">F</span>G
+
+b(a|s=14):
+  0.251 - left
+  0.247 - down
+* 0.256 - right
+  0.247 - up
+
+pi(a|s=14):
+  0.246 - left
+  0.253 - down
+* 0.256 - right
+  0.244 - up
+
+  (Right)
+SFFF
+FHFH
+FFFH
+HFF<span class="ansi-red-bg">G</span>
+</pre>
+</div>
+</div>
+
 </div>
 </div>
 
