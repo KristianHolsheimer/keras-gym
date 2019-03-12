@@ -7,6 +7,4 @@ Adversarial Environments
     keras_gym.environments.ConnectFour
 
 
-.. automodule:: keras_gym.environments
-
-    .. autoclass:: ConnectFour
+.. autoclass:: keras_gym.environments.ConnectFour

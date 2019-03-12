@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..metrics import masked_mse_loss
+from ..losses import masked_mse_loss
 from .generic import GenericV, GenericQ
 
 

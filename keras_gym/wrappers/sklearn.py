@@ -60,6 +60,23 @@ class SklearnModelWrapper:
         self.attempt_fit_label_encoder = attempt_fit_label_encoder
 
     def train_on_batch(self, X, Y, sample_weight=None):
+        """
+        Fit function approximator on a batch of recorded experiences.
+
+        Parameters
+        ----------
+        X : 2d-array, shape = [batch_size, num_features]
+            A sklearn-style design matrix of a single data point.
+
+        Y : 1d- or 2d-array, depends on model type
+            A sklearn-style label array. The shape depends on the model type.
+            For a type-I model, the output shape is `[batch_size]` and for a
+            type-II model the shape is `[batch_size, num_actions]`.
+
+        sample_weight : 1d-array, shape = [batch_size]
+            Sklearn-style sample weights.
+
+        """
         if Y.ndim == 2 and Y.shape[1] == 1:
             Y = np.ravel(Y)  # turn into 1d array
         X = self._transform(X)
@@ -67,6 +84,20 @@ class SklearnModelWrapper:
         self.estimator.partial_fit(X, Y, sample_weight=sample_weight)
 
     def predict_on_batch(self, X):
+        """
+        Predict on a batch of recorded experiences.
+
+        Parameters
+        ----------
+        X : 2d-array, shape = [batch_size, num_features]
+            A sklearn-style design matrix of a single data point.
+
+        Returns
+        -------
+        pred : 2d-array, shape = [batch_size, {1, num_actions}]
+            The size of the dimension along axis=1 depends on the model type.
+
+        """
         X = self._transform(X)
         if hasattr(self.estimator, 'predict_proba'):
             pred = self.estimator.predict_proba(X)

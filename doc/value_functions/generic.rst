@@ -8,7 +8,5 @@ Generic Value Functions
     keras_gym.value_functions.GenericQ
 
 
-.. automodule:: keras_gym.value_functions
-
-    .. autoclass:: GenericV
-    .. autoclass:: GenericQ
+.. autoclass:: keras_gym.value_functions.GenericV
+.. autoclass:: keras_gym.value_functions.GenericQ

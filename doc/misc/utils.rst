@@ -16,13 +16,4 @@ Utilities
 
 
 .. automodule:: keras_gym.utils
-
-    .. autoclass:: ArrayDeque
-    .. autoclass:: ExperienceCache
-    .. autofunction:: accumulate_rewards
-    .. autofunction:: argmax
-    .. autofunction:: argmin
-    .. autofunction:: check_dtype
-    .. autofunction:: idx
-    .. autofunction:: one_hot_vector
-    .. autofunction:: softmax
+    :members:

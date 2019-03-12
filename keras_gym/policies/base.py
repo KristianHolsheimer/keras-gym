@@ -16,10 +16,12 @@ class BasePolicy(ABC, RandomStateMixin):
     Parameters
     ----------
     env : gym environment spec
+
         This is used to get information about the shape of the observation
         space and action space.
 
     random_seed : int, optional
+
         Set a random state for reproducible randomization.
 
     """
@@ -43,12 +45,13 @@ class BasePolicy(ABC, RandomStateMixin):
         Parameters
         ----------
         s : state observation
-            Depending on the observation space, `s` may be an integer or an
-            array of floats.
+
+            A single observation (state).
 
         Returns
         -------
         dist : scipy.stats probability distribution
+
             Depending on the action space, this may be a discrete distribution
             (typically a Dirichlet distribution) or a continuous distribution
             (typically a normal distribution).
@@ -73,10 +76,12 @@ class BasePolicy(ABC, RandomStateMixin):
         Parameters
         ----------
         s : state observation
-            Depending on the observation space, `s` may be an integer or an
-            array of floats.
+
+            A single observation (state).
+
 
         return_propensity : bool, optional
+
             Whether to return the propensity along with the drawn action. The
             propensity is the probability of picking the specific action to be
             returned.
@@ -84,10 +89,11 @@ class BasePolicy(ABC, RandomStateMixin):
         Returns
         -------
         a or (a, p) : action or action-propensity pair
-            The action `a` is drawn from the probability distribution
-            :math:`a\\sim\\pi(a|s)`. If `return_propensity=True`, the
-            propensity `p` is also returned, which is the probability of
-            picking action `a` under the current policy.
+
+            The action ``a`` is drawn from the probability distribution
+            :math:`a\\sim\\pi(a|s)`. If ``return_propensity=True``, the
+            propensity ``p`` is also returned, which is the probability of
+            picking action ``a`` under the current policy.
 
         """
         dist = self.proba(s)
@@ -110,10 +116,11 @@ class BasePolicy(ABC, RandomStateMixin):
         Parameters
         ----------
         s : state observation
-            Depending on the observation space, `s` may be an integer or an
-            array of floats.
+
+            A single observation (state).
 
         return_propensity : bool, optional
+
             Whether to return the propensity along with the drawn action. The
             propensity is the probability of picking the specific action to be
             returned.
@@ -121,10 +128,11 @@ class BasePolicy(ABC, RandomStateMixin):
         Returns
         -------
         a or (a, p) : action or action-propensity pair
-            The action `a` is drawn from the probability distribution
-            :math:`a\\sim\\pi(a|s)`. If `return_propensity=True`, the
-            propensity `p` is also returned, which is the probability of
-            picking action `a` under the current policy.
+
+            The action ``a`` is drawn from the probability distribution
+            :math:`a\\sim\\pi(a|s)`. If ``return_propensity=True``, the
+            propensity ``p`` is also returned, which is the probability of
+            picking action ``a`` under the current policy.
 
         """
         dist = self.proba(s)
@@ -144,6 +152,7 @@ class BasePolicy(ABC, RandomStateMixin):
         Parameters
         ----------
         return_propensity : bool, optional
+
             Whether to return the propensity along with the drawn action. The
             propensity is the probability of picking the specific action to be
             returned.
@@ -151,10 +160,11 @@ class BasePolicy(ABC, RandomStateMixin):
         Returns
         -------
         a or (a, p) : action or action-propensity pair
-            The action `a` is drawn from the probability distribution
-            :math:`a\\sim\\pi(a|s)`. If `return_propensity=True`, the
-            propensity `p` is also returned, which is the probability of
-            picking action `a` under the current policy.
+
+            The action ``a`` is drawn from the probability distribution
+            :math:`a\\sim\\pi(a|s)`. If ``return_propensity=True``, the
+            propensity ``p`` is also returned, which is the probability of
+            picking action ``a`` under the current policy.
 
         """
         if isinstance(self.env.action_space, Discrete):
@@ -174,12 +184,15 @@ class BasePolicy(ABC, RandomStateMixin):
         Parameters
         ----------
         s : int or array
+
             A single observation (state).
 
         epsilon : float
+
             The expected probability of picking a random action.
 
         return_propensity : bool, optional
+
             Whether to return the propensity along with the drawn action. The
             propensity is the probability of picking the specific action to be
             returned.
@@ -187,10 +200,11 @@ class BasePolicy(ABC, RandomStateMixin):
         Returns
         -------
         a or (a, p) : action or action-propensity pair
-            The action `a` is drawn from the probability distribution
-            :math:`a\\sim\\pi(a|s)`. If `return_propensity=True`, the
-            propensity `p` is also returned, which is the probability of
-            picking action `a` under the current policy.
+
+            The action ``a`` is drawn from the probability distribution
+            :math:`a\\sim\\pi(a|s)`. If ``return_propensity=True``, the
+            propensity ``p`` is also returned, which is the probability of
+            picking action ``a`` under the current policy.
 
         """
         if isinstance(self.env.action_space, Discrete):
@@ -223,16 +237,19 @@ class BaseUpdateablePolicy(BasePolicy):
     Parameters
     ----------
     env : gym environment spec
+
         This is used to get information about the shape of the observation
         space and action space.
 
     model : keras.Model
+
         A Keras function approximator. The input shape can be inferred from the
-        data, but the output shape must be set to `[1]`. Check out the
+        data, but the output shape must be set to ``[1]``. Check out the
         :mod:`keras_gym.wrappers` module for wrappers that allow you to use
         e.g. scikit-learn function approximators instead.
 
     random_seed : int, optional
+
         Set a random state for reproducible randomization.
 
     """
@@ -253,15 +270,17 @@ class BaseUpdateablePolicy(BasePolicy):
         Parameters
         ----------
         X_s : array of float, shape = [batch_size, num_features]
+
             Preprocessed design matrix representing a batch of state
             observations. It is what comes out of :func:`X`.
 
         Returns
         -------
         params : 2d array, shape = [batch_size, num_params]
+
             The parameters required to describe the probability distribution
             over actions :math:`\\pi(a|s)`. For discrete action spaces,
-            `params` is the array of probabilities
+            ``params`` is the array of probabilities
             :math:`(p_0, \\dots, p_{n-1})`, where :math:`p_i=P(a=i)`.
 
         """
@@ -275,15 +294,18 @@ class BaseUpdateablePolicy(BasePolicy):
         Parameters
         ----------
         X : 2d-array, shape = [batch_size, num_features]
+
             A sklearn-style design matrix of a single data point.
 
         A : 1d-array, shape = [batch_size]
+
             A batch of actions taken.
 
         Y : 1d- or 2d-array, depends on model type
+
             A sklearn-style label array. The shape depends on the model type.
-            For a type-I model, the output shape is `[batch_size]` and for a
-            type-II model the shape is `[batch_size, num_actions]`.
+            For a type-I model, the output shape is ``[batch_size]`` and for a
+            type-II model the shape is ``[batch_size, num_actions]``.
 
         """
         self.model.train_on_batch([X, advantages], A)
@@ -301,12 +323,6 @@ class BaseUpdateablePolicy(BasePolicy):
         -------
         X_s : 2d-array, shape = [1, num_features]
             A sklearn-style design matrix of a single data point.
-
-        .. note::
-
-            This method is used for policy-gradient type updates. For
-            valuefunction updates, please use the value function's own methods
-            instead.
 
         """
         X_s = feature_vector(s, self.env.observation_space)

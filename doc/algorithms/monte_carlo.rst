@@ -1,14 +1,14 @@
-Monte Carlo Algorithms
-======================
+Monte Carlo
+===========
 
 .. autosummary::
     :nosignatures:
 
     keras_gym.algorithms.MonteCarloV
     keras_gym.algorithms.MonteCarloQ
+    keras_gym.algorithms.Reinforce
 
 
-.. automodule:: keras_gym.algorithms
-
-    .. autoclass:: MonteCarloV
-    .. autoclass:: MonteCarloQ
+.. autoclass:: keras_gym.algorithms.MonteCarloV
+.. autoclass:: keras_gym.algorithms.MonteCarloQ
+.. autoclass:: keras_gym.algorithms.Reinforce

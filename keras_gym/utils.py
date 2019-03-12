@@ -9,7 +9,7 @@ def reload_all():
     modules = (
         'keras_gym.errors',
         'keras_gym.utils',
-        'keras_gym.metrics',
+        'keras_gym.losses',
         'keras_gym.wrappers.sklearn',
         'keras_gym.wrappers',
         'keras_gym.value_functions.base',
@@ -18,7 +18,7 @@ def reload_all():
         'keras_gym.value_functions',
         'keras_gym.policies.base',
         'keras_gym.policies.value_based',
-        'keras_gym.policies.updateable',
+        'keras_gym.policies.generic',
         'keras_gym.policies.predefined',
         'keras_gym.policies',
         'keras_gym.environments.adversarial',

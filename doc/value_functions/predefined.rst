@@ -8,7 +8,5 @@ Predefined Value Functions
     keras_gym.value_functions.LinearQ
 
 
-.. automodule:: keras_gym.value_functions
-
-    .. autoclass:: LinearV
-    .. autoclass:: LinearQ
+.. autoclass:: keras_gym.value_functions.LinearV
+.. autoclass:: keras_gym.value_functions.LinearQ

@@ -28,6 +28,7 @@ Documentation
     algorithms/index
     environments/index
     wrappers/index
+    misc/losses
     misc/utils
     misc/about
     misc/release_notes

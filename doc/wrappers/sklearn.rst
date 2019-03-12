@@ -1,5 +1,5 @@
-Scikit-learn Model Wrappers
-===========================
+Scikit-learn
+============
 
 .. autosummary::
     :nosignatures:
@@ -7,6 +7,4 @@ Scikit-learn Model Wrappers
     keras_gym.wrappers.SklearnModelWrapper
 
 
-.. automodule:: keras_gym.wrappers
-
-    .. autoclass:: SklearnModelWrapper
+.. autoclass:: keras_gym.wrappers.SklearnModelWrapper

@@ -9,8 +9,6 @@ n-step Bootstrap
     keras_gym.algorithms.NStepExpectedSarsa
 
 
-.. automodule:: keras_gym.algorithms
-
-    .. autoclass:: NStepQLearning
-    .. autoclass:: NStepSarsa
-    .. autoclass:: NStepExpectedSarsa
+.. autoclass:: keras_gym.algorithms.NStepQLearning
+.. autoclass:: keras_gym.algorithms.NStepSarsa
+.. autoclass:: keras_gym.algorithms.NStepExpectedSarsa

@@ -8,13 +8,16 @@ from ..errors import NonDiscreteActionSpaceError
 
 class ValuePolicy(BasePolicy):
     """
-    Policies based on a state-action value function, i.e. it uses a Q-function
-    to figure out what actions to pick.
+    A simple policy derived from a state-action value function :math:`Q(s,a)`.
+
+    In other words, this policy uses a Q-function to figure out what actions to
+    pick.
 
     Parameters
     ----------
     value_function : Q-function object
-        This Q-function must be a `BaseQ`-derived object.
+
+        This Q-function must be a ``BaseQ``-derived object.
 
     random_seed : int, optional
         Set a random state for reproducible randomization.
@@ -41,9 +44,10 @@ class ValuePolicy(BasePolicy):
         Parameters
         ----------
         X_s : 2d or 3d array of float
+
             For a type-I value function the input shape is
-            `[batch_size, num_features]` and for a type-II value function the
-            input shape is `[num_actions, batch_size, num_features]`. It is
+            ``[batch_size, num_features]`` and for a type-II value function the
+            input shape is ``[num_actions, batch_size, num_features]``. It is
             what comes out of :func:`X`.
 
         Returns
@@ -77,11 +81,13 @@ class ValuePolicy(BasePolicy):
         Parameters
         ----------
         s : int or array of float
+
             A single state observation.
 
         Returns
         -------
-        X : 2d array
+        X_s : 2d array
+
             Scikit-learn style design matrix.
 
         """

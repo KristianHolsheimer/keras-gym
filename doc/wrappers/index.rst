@@ -1,8 +1,15 @@
-Function Approximator Wrappers
-==============================
+Wrappers
+========
 
-These are compatibility wrappers that allow you to use e.g. scikit-learn
-instead of Keras function approximator. A simple example might be:
+These are compatibility wrappers that allow you to use function approximators
+from other frameworks than just Keras.
+
+
+Scikit-learn
+------------
+
+Theis wrapper allows us to use scikit-learn function approximators. A simple
+example might be:
 
 .. code:: python
 
@@ -14,7 +21,7 @@ instead of Keras function approximator. A simple example might be:
 
 
     # the environment
-    env = gym.make('CartPole-v0')
+    env = gym.make(...)
 
     # define sklearn model for approximating Q-function
     estimator = SGDRegressor(eta0=0.08, learning_rate='constant')
@@ -31,9 +38,11 @@ instead of Keras function approximator. A simple example might be:
     ...
 
 
+References
+----------
 
 .. toctree::
     :maxdepth: 2
     :glob:
 
-    *
+    sklearn

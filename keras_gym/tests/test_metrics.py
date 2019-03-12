@@ -3,7 +3,7 @@ import tensorflow as tf
 import pytest
 
 from ..utils import softmax, idx
-from ..metrics import SoftmaxPolicyLossWithLogits, masked_mse_loss
+from ..losses import SoftmaxPolicyLossWithLogits, masked_mse_loss
 
 
 class TestMaskedMseLoss:

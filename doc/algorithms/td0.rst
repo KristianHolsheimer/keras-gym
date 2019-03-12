@@ -1,5 +1,5 @@
-TD(0) Algorithms
-================
+TD(0)
+=====
 
 .. autosummary::
     :nosignatures:
@@ -9,8 +9,6 @@ TD(0) Algorithms
     keras_gym.algorithms.Sarsa
 
 
-.. automodule:: keras_gym.algorithms
-
-    .. autoclass:: ExpectedSarsa
-    .. autoclass:: QLearning
-    .. autoclass:: Sarsa
+.. autoclass:: keras_gym.algorithms.ExpectedSarsa
+.. autoclass:: keras_gym.algorithms.QLearning
+.. autoclass:: keras_gym.algorithms.Sarsa
