@@ -45,7 +45,7 @@ class FeatureInteractionMixin:
         input shape is `[b, n]` and the output shape is
         `[b, (n + 1) * (n + 2) / 2 - 1]`.
 
-        .. note:: This method requires the `tensorflow` backend.
+        **Note:** This method requires the `tensorflow` backend.
 
         """
         ones = K.ones_like(K.expand_dims(x[:, 0], axis=1))
@@ -109,7 +109,7 @@ class LinearV(GenericV, LinearValueFunctionMixin):
                 for conciseness. The input shape is `[b, n]` and the output
                 shape is `[b, (n + 1) * (n + 2) / 2 - 1]`.
 
-                .. note:: This option requires the `tensorflow` backend.
+                **Note:** This option requires the `tensorflow` backend.
 
             interaction='elementwise_quadratic'
                 This option generates element-wise quadratic interactions,
@@ -191,7 +191,7 @@ class LinearQ(GenericQ, LinearValueFunctionMixin):
                 for conciseness. The input shape is `[b, n]` and the output
                 shape is `[b, (n + 1) * (n + 2) / 2 - 1]`.
 
-                .. note:: This option requires the `tensorflow` backend.
+                **Note:** This option requires the `tensorflow` backend.
 
             interaction='elementwise_quadratic'
                 This option generates element-wise quadratic interactions,

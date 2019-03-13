@@ -39,7 +39,7 @@ class ValuePolicy(BasePolicy):
         """
         Given a batch of preprocessed states, get the associated probabilities.
 
-        .. note:: This has only been implemented for discrete action spaces.
+        **Note:** This has only been implemented for discrete action spaces.
 
         Parameters
         ----------

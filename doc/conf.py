@@ -56,8 +56,8 @@ extensions = [
 # need to do this otherwise won't find numpy autodocs (yes, it's a shame)
 numpydoc_show_class_members = False
 
-autodoc_default_flags = ['members', 'inherited-members']
-autodoc_default_options = {'special-members': '__call__'}
+autodoc_default_flags = []  # ['members', 'inherited-members']
+autodoc_default_options = {}  # {'special-members': '__call__'}
 autodoc_member_order = 'alphabetical'
 
 # Add any paths that contain templates here, relative to this directory.
@@ -228,4 +228,4 @@ todo_include_todos = True
 # add custom css and javascript
 def setup(app):
     app.add_stylesheet('css/custom.css')
-    # app.add_javascript('js/custom.js')
+    app.add_javascript('js/custom.js')

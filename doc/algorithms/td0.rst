@@ -10,5 +10,32 @@ TD(0)
 
 
 .. autoclass:: keras_gym.algorithms.ExpectedSarsa
+
+    .. automethod:: update
+
+    .. admonition:: Other Methods
+
+        .. automethod:: Y
+        .. automethod:: preprocess_transition
+
+
+
 .. autoclass:: keras_gym.algorithms.QLearning
+
+    .. automethod:: update
+
+    .. admonition:: Other Methods
+
+        .. automethod:: Y
+        .. automethod:: preprocess_transition
+
+
+
 .. autoclass:: keras_gym.algorithms.Sarsa
+
+    .. automethod:: update
+
+    .. admonition:: Other Methods
+
+        .. automethod:: Y
+        .. automethod:: preprocess_transition

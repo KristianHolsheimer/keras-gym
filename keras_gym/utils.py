@@ -282,8 +282,8 @@ def accumulate_rewards(R, gamma=1.0):
 class ArrayDeque:
     """
     A numpy array based deque, loosely based on the built-in class
-    :py:class:`collections.deque`. Note that `ArrayDeque` has only partial
-    functionality compared its built-in counterpart.
+    :py:class:`collections.deque`. Note that this implementation has only
+    partial functionality compared its built-in counterpart.
 
     Parameters
     ----------
@@ -296,18 +296,22 @@ class ArrayDeque:
         strategy can be specified by the `overflow` argument.
 
     overflow : {'error', 'cycle', 'grow'}, optional
-        What to do when `maxlen` is reached: `'error'` means raise an error,
-        `'cycle'` means start overwriting old entries, and `'grow'` means grow
-        `maxlen` by a factor of 2.
+        What to do when `maxlen` is reached: ``'error'`` means raise an error,
+        ``'cycle'`` means start overwriting old entries, and ``'grow'`` means
+        grow ``maxlen`` by a factor of 2.
 
     dtype : str or datatype, optional
-        The datatype of the to-be-cached arrays. Default is `'float'`.
+        The datatype of the to-be-cached arrays. Default is ``'float'``.
 
     Attributes
     ----------
     array : numpy array
         Numpy array of stored values. The shape is
-        `[num_arrays, <array_shape>]`.
+        ``[num_arrays, <array_shape>]``.
+
+    maxlen : int
+        The size of the underlying numpy array. This value my increase if
+        ``overflow='grow'`` is set.
 
 
     """
@@ -324,22 +328,6 @@ class ArrayDeque:
         self._maxlen = maxlen
         self._idx = -1 % self.maxlen
         self._array = np.empty([maxlen] + list(shape), dtype)
-
-    def clear(self, reset_maxlen=True):
-        """
-        Clear the deque and optionally reset maxlen to its original setting.
-
-        Parameters
-        ----------
-        reset_maxlen : bool, optional
-            Whether to reset maxlen to its original setting. This is only
-            applicable when `overflow` is set to `'grow'`.
-
-        """
-        maxlen_keep = self.maxlen
-        self.__init__(self.shape, self._maxlen, self.overflow, self.dtype)
-        if not reset_maxlen:
-            self.maxlen = maxlen_keep
 
     def __bool__(self):
         return bool(self._len)
@@ -427,6 +415,22 @@ class ArrayDeque:
         value = self._array[i]
         return value
 
+    def clear(self, reset_maxlen=True):
+        """
+        Clear the deque and optionally reset maxlen to its original setting.
+
+        Parameters
+        ----------
+        reset_maxlen : bool, optional
+            Whether to reset maxlen to its original setting. This is only
+            applicable when `overflow` is set to `'grow'`.
+
+        """
+        maxlen_keep = self.maxlen
+        self.__init__(self.shape, self._maxlen, self.overflow, self.dtype)
+        if not reset_maxlen:
+            self.maxlen = maxlen_keep
+
 
 class RandomStateMixin:
     @property
@@ -479,21 +483,11 @@ class ExperienceCache(RandomStateMixin):
     def __bool__(self):
         return bool(self.X_)
 
-    def clear(self):
-        if not self._check_fitted(raise_error=False):
-            return
-        self.X_.clear()
-        self.A_.clear()
-        self.R_.clear()
-        self.X_next_.clear()
-
     def append(self, X, A, R, X_next):
         """
         Add a preprocessed transition to the experience cache.
 
-        .. note::
-
-            This method has only been implemented for `batch_size=1`.
+        **Note:** This method has only been implemented for `batch_size=1`.
 
         Parameters
         ----------
@@ -605,11 +599,9 @@ class ExperienceCache(RandomStateMixin):
         Pop the oldest cached transition and return the `R` and `X_next` that
         correspond to an n-step look-ahead.
 
-        .. note::
-
-            To understand of what's going in this method, have a look at
-            chapter 7 of `Sutton & Barto
-            <http://incompleteideas.net/book/the-book-2nd.html>`_.
+        **Note:** To understand of what's going in this method, have a look at
+        chapter 7 of `Sutton & Barto
+        <http://incompleteideas.net/book/the-book-2nd.html>`_.
 
         Parameters
         ----------
@@ -653,3 +645,22 @@ class ExperienceCache(RandomStateMixin):
         if raise_error and not fitted:
             raise NoExperienceCacheError("no experience has yet been recorded")
         return fitted
+
+    def clear(self, reset_maxlen=True):
+        """
+        Clear the experience cache and optionally reset the underlying
+        ArrayDeque's ``maxlen`` attribute to their original settings.
+
+        Parameters
+        ----------
+        reset_maxlen : bool, optional
+            Whether to reset maxlen to its original setting. This is only
+            applicable when `overflow` is set to `'grow'`.
+
+        """
+        if not self._check_fitted(raise_error=False):
+            return
+        self.X_.clear(reset_maxlen)
+        self.A_.clear(reset_maxlen)
+        self.R_.clear(reset_maxlen)
+        self.X_next_.clear(reset_maxlen)

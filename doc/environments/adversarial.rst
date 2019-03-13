@@ -8,3 +8,7 @@ Adversarial Environments
 
 
 .. autoclass:: keras_gym.environments.ConnectFour
+
+    .. automethod:: render
+    .. automethod:: reset
+    .. automethod:: step

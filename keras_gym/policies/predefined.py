@@ -71,7 +71,7 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearPolicyMixin):
                 shape is :math:`(b,n)` and the output shape is :math:`(b,
                 (n+1)(n+2)/2 - 1)`.
 
-                .. note:: This option requires the Tensorflow backend.
+                **Note:** This option requires the Tensorflow backend.
 
             interaction='elementwise_quadratic'
 

@@ -1,3 +1,6 @@
+.. automodule:: keras_gym.losses
+
+
 Loss Functions
 ==============
 
@@ -14,5 +17,11 @@ functions that are used throughout this package.
     keras_gym.losses.masked_mse_loss
 
 
-.. automodule:: keras_gym.losses
-    :members:
+
+.. autoclass:: keras_gym.losses.SoftmaxPolicyLossWithLogits
+
+    .. automethod:: __call__
+
+
+
+.. autofunction:: keras_gym.losses.masked_mse_loss

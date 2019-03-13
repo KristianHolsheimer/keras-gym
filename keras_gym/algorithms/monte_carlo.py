@@ -29,7 +29,7 @@ class MonteCarloV(BaseVAlgorithm):
 
     def update(self, s, a, r, s_next, done):
         """
-        Update the given policy and/or value function.
+        Update the value function.
 
         Parameters
         ----------
@@ -127,7 +127,7 @@ class MonteCarloQ(BaseQAlgorithm):
 
     def update(self, s, a, r, s_next, done):
         """
-        Update the given policy and/or value function.
+        Update the value function.
 
         Parameters
         ----------
@@ -224,7 +224,7 @@ class Reinforce(BasePolicyAlgorithm):
 
     def update(self, s, a, r, s_next, done):
         """
-        Update the given policy and/or value function.
+        Update the policy.
 
         Parameters
         ----------
@@ -292,4 +292,3 @@ class Reinforce(BasePolicyAlgorithm):
                 advantages = G
 
                 self.policy.update(X, A, advantages)
-

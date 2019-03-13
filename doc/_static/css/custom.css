@@ -35,3 +35,16 @@ video#cartpole {
 .rst-content dl:not(.docutils) dl dt span.classifier {
   padding-right: 6pt;
 }
+
+/* Make "Other Methods" admonition collapsible. See also custom.js */
+.admonition-other-methods p.admonition-title::before {
+  content: "▶";
+}
+
+.admonition-other-methods p.admonition-title.active::before {
+  transform: rotate(90deg);
+}
+
+.admonition-other-methods dl.method {
+  display: none;  /* hide by default */
+}
