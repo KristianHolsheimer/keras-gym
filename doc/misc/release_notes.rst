@@ -2,6 +2,17 @@ Release Notes
 =============
 
 
+v0.2.8
+------
+
+- implemented base class for updateable policy objects
+- implemented first example of updateable policy: :class:`GenericSoftmaxPolicy <keras_gym.policies.GenericSoftmaxPolicy>`
+- implemented predefined softmax policy: :class:`LinearSoftmaxPolicy <keras_gym.policies.LinearSoftmaxPolicy>`
+- added first policy gradient algorithm: :class:`Reinforce <keras_gym.algorithms.Reinforce>`
+- added REINFORCE example notebook
+- updated documentation
+
+
 v0.2.7
 ------
 
