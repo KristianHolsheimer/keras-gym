@@ -1,4 +1,8 @@
+from string import ascii_lowercase
+
 import numpy as np
+import tensorflow as tf
+from tensorflow.keras import backend as K
 from gym.spaces import Tuple, Discrete, Box, MultiDiscrete, MultiBinary
 
 from .errors import ArrayDequeOverflowError, NoExperienceCacheError
@@ -277,6 +281,31 @@ def accumulate_rewards(R, gamma=1.0):
     G_rev = uadd.accumulate(R_rev)
     G = G_rev[::-1].astype('float')
     return G
+
+
+def full_contraction(a, b):
+    """
+    Perform a full contraction of two tensors of the same shape.
+
+    Parameters
+    ----------
+    a : Tensor
+        A tensor of arbitrary shape.
+
+    b : Tensor
+        A tensor with the same shape as ``a``.
+
+    Returns
+    -------
+    out : 0d Tensor (scalar)
+        THe output is just a single scalar.
+
+    """
+    assert K.ndim(a) == K.ndim(b)
+    assert K.int_shape(a) == K.int_shape(b)
+    dims = ascii_lowercase[:K.ndim(a)]
+    contr = '{0},{0}->'.format(dims)
+    return tf.einsum(contr, a, b)
 
 
 class ArrayDeque:
