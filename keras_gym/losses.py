@@ -76,7 +76,6 @@ class SoftmaxPolicyLossWithLogits:
     advantages : 1d Tensor, dtype: float, shape: [batch_size]
         The advantages, one per time step.
 
-
     """
     def __init__(self, advantages):
         if K.ndim(advantages) == 2:
@@ -85,6 +84,59 @@ class SoftmaxPolicyLossWithLogits:
         assert K.ndim(advantages) == 1, "bad shape"
         self.advantages = K.stop_gradient(advantages)
 
+    @staticmethod
+    def logpi_surrogate(logits):
+        """
+        Construct a surrogate for :math:`\\log\\pi(a|s)` that has the property
+        that when we take its gradient it returns the true gradients
+        :math:`\\nabla\\log\\pi(a|s)`. In a softmax policy we predict the input
+        (or logit) :math:`h(s, a, \\theta)` of the softmax function, such that:
+
+        .. math::
+
+            \\pi_\\theta(a|s)\\ =\\ \\frac
+                {\\text{e}^{h_\\theta(s,a)}}
+                {\\sum_{a'}\\text{e}^{h_\\theta(s,a')}}
+
+        This means that gradient of the log-policy with respect to the model
+        weights :math:`\\theta` is:
+
+        .. math::
+
+            \\nabla\\log\\pi_\\theta(a|s)\\ =\\ \\nabla h_\\theta(s,a)
+            - \\sum_{a'}\\pi_\\theta(a'|s)\\,\\nabla h_\\theta(s,a')
+
+        Now this function will actually return the following surrogate for
+        :math:`\\log\\pi_\\theta(a|s)`:
+
+        .. math::
+
+            \\texttt{logpi_surrogate}\\ =\\ h_\\theta(s,a) -
+            \\sum_{a'}\\texttt{stop_gradient}(\\pi_\\theta(a'|s))\\,
+            h_\\theta(s,a')
+
+        This surrogate has the property that its gradient is the same as the
+        gradient of :math:`\\log\\pi_\\theta(a|s)`.
+
+
+        Parameters
+        ----------
+        logits : 2d Tensor, shape = [batch_size, num_actions]
+
+            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
+
+        Returns
+        -------
+        logpi_surrogate : Tensor, same shape as input
+
+            The
+
+        """
+        assert K.ndim(logits) == 2, "bad shape"
+        pi = K.stop_gradient(K.softmax(logits, axis=1))
+        mean_logits = tf.expand_dims(tf.einsum('ij,ij->i', pi, logits), axis=1)
+        return logits - mean_logits
+
     def __call__(self, A, logits):
         """
         Compute the policy-gradient surrogate loss.
@@ -92,6 +144,7 @@ class SoftmaxPolicyLossWithLogits:
         Parameters
         ----------
         A : 2d Tensor, dtype = int, shape = [batch_size, 1]
+
             This is a batch of actions that were actually taken. This argument
             of the loss function is usually reserved for ``y_true``, i.e. a
             prediction target. In this case, ``A`` doesn't act as a prediction
@@ -100,6 +153,7 @@ class SoftmaxPolicyLossWithLogits:
             feedback signal.
 
         logits : 2d Tensor, shape = [batch_size, num_actions]
+
             The predicted logits of the softmax policy, a.k.a. ``y_pred``.
 
         """
@@ -118,13 +172,7 @@ class SoftmaxPolicyLossWithLogits:
         assert K.int_shape(adv)[0] == K.int_shape(logits)[0], "bad shape"
 
         # construct the surrogate for logpi(.|s)
-        # *note* This surrogate is constructed in such a way that
-        #        its gradient is the same as that of logpi(.|s),
-        #        hence the stop_gradient in 'pi'.
-        pi = K.stop_gradient(K.softmax(logits, axis=1))
-        mean_logits = tf.expand_dims(
-            tf.einsum('ij,ij->i', logits, pi), axis=1)
-        logpi_all = logits - mean_logits  # shape: [batch_size, n_actions]
+        logpi_all = self.logpi_surrogate(logits)  # shape: [batch_size, n_actions]
 
         # project onto actions taken: logpi(.|s) --> logpi(a|s)
         # *note* Please let me know if there's a better way to do this.
