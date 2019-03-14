@@ -24,6 +24,7 @@ def reload_all():
         'keras_gym.policies.value_based',
         'keras_gym.policies.generic',
         'keras_gym.policies.predefined',
+        'keras_gym.policies.actor_critic',
         'keras_gym.policies',
         'keras_gym.environments.adversarial',
         'keras_gym.environments',

@@ -145,6 +145,36 @@ this example is gives us a model that's basically the same as the predefined
     ...
 
 
+Actor-Critics
+-------------
+
+This is a simple wrapper class that combines a policy (actor) with a
+value function (critic) into a single object.
+
+We don't strictly need this, as our actor-critic type algorithms can either
+take an actor-critic object or it can take the policy and value function as
+separate arguments without an issue. There are situations, however, in which it
+is very useful to have the policy and value function packaged together.
+
+One such example is a *two-headed* actor critic, in which the policy and value
+function share some common structure for feature extraction. In this case, it's
+natural to wrap the two keras models (function approximators) into a single
+object.
+
+Another example is the so-called *compatible* actor-critic, which have the
+property that the updates are linked in such a way that convergence is
+guaranteed. For these actor-critics, the function approximators of policy and
+gradient are intimately connected. We have a specific implementation in which
+the policy can use any function approximator you like, but the value function
+is must be parameterized as a vector in the space spanned by the score function
+:math:`\nabla\log\pi`. In other words, the critic is of the form:
+
+    .. math::
+
+        \hat{V}_{\!w}(S_t)\ =\ \sum_iw_i\frac{\partial}{\partial\theta_i}\log\hat{\pi}_\theta(A_t|S_t)
+
+
+
 Reference
 ---------
 
@@ -155,3 +185,4 @@ Reference
     value_based
     predefined
     generic
+    actor_critic
