@@ -185,3 +185,71 @@ class SoftmaxPolicyLossWithLogits:
         surrogate_loss = -K.mean(adv * logpi)
 
         return surrogate_loss
+
+
+class SemiGradientMeanSquaredErrorLoss:
+    """
+    Semi-gradient loss for bootstrapped MSE.
+
+    This loss function is primarily used for updating value function by
+    bootstrapping.
+
+    For instance, in n-step bootstrapping, we minimize the bootstrapped
+    MSE. The loss associated with a sampled sequence of states :math:`(S_t,
+    ..., S_{t+n})` can be written as:
+
+    .. math::
+
+        J_t\\ =\\ \\frac12\\left(
+            G^{(n)}_t + \\gamma^n\\,\\hat{v}(S_{t+n}) - \\hat{v}(S_t)\\right)^2
+
+    The n-step return is given by:
+
+    .. math::
+
+        G^{(n)}_t\\ =\\
+            R_{t+1}+\\gamma R_{t+2}+\\gamma^2 R_{t+3}+...
+            +\\gamma^{n-1}R_{t+n}
+
+
+    Parameters
+    ----------
+    bootstrapped_values : 1d Tensor, dtype: float, shape: [batch_size]
+
+        These values represent the bootstrapped values produced by the
+        function approximator itself (see discussion above).
+
+        .. math::
+
+            \\texttt{bootstrapped_values}\\ =\\ \\gamma^n\\,\\hat{v}(S_{t+n})
+
+
+
+    """
+    def __init__(self, bootstrapped_values):
+        self.bootstrapped_values = tf.stop_gradient(bootstrapped_values)
+
+    def __call__(self, Gn, y_pred):
+        """
+        The loss function :math:`J_t`.
+
+        Parameters
+        ----------
+        Gn : 1d Tensor, dtype: float, shape: [batch_size]
+
+            A tensor of partial returns :math:`G^{(n)}_t` (see discussion
+            above).
+
+        y_pred : 1d Tensor, dtype: float, shape: [batch_size]
+
+            The predicted values :math:`\\hat{v}(S_t)`.
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar), dtype: float
+
+            The bootstrapped MSE.
+
+        """
+        err = Gn + self.bootstrapped_value - y_pred
+        return K.mean(K.square(err))
