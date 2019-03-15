@@ -1,32 +1,39 @@
 
-class keras_gymBaseError(Exception):
+class KerasGymBaseError(Exception):
     pass
 
 
-class ArrayDequeOverflowError(keras_gymBaseError):
+class ArrayDequeOverflowError(KerasGymBaseError):
     pass
 
 
-class NoExperienceCacheError(keras_gymBaseError):
+class NoExperienceCacheError(KerasGymBaseError):
     pass
 
 
-class NoAdversaryError(keras_gymBaseError):
+class NoAdversaryError(KerasGymBaseError):
     pass
 
 
-class UnavailableActionError(keras_gymBaseError):
+class UnavailableActionError(KerasGymBaseError):
     pass
 
 
-class NonDiscreteActionSpaceError(keras_gymBaseError):
+class BadModelOuputShapeError(KerasGymBaseError):
+    def __init__(self, expected_shape, observed_shape):
+        super().__init__(
+            "expected: {}, but got: {}"
+            .format(list(expected_shape), list(observed_shape)))
+
+
+class NonDiscreteActionSpaceError(KerasGymBaseError):
     def __init__(self):
         super(NonDiscreteActionSpaceError, self).__init__(
             "I haven't yet implemented continuous action spaces;  please send "
             "me a message to let me know if this is holding you back. -Kris")
 
 
-class ValueBasedPolicyUpdateError(keras_gymBaseError):
+class ValueBasedPolicyUpdateError(KerasGymBaseError):
     def __init__(self):
         super(ValueBasedPolicyUpdateError, self).__init__(
             "A value-based policy cannot be updated through a policy object; "
