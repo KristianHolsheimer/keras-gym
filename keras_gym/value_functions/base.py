@@ -137,11 +137,11 @@ class BaseValueFunction(ABC):
 
         # check if weights can be reset
         weights_resettable = (
-            hasattr(self.bootstrap_model, 'get_weights') and  # noqa: W504
-            hasattr(self.bootstrap_model, 'set_weights'))
+            hasattr(self.model, 'get_weights') and  # noqa: W504
+            hasattr(self.model, 'set_weights'))
 
         if weights_resettable:
-            weights = self.bootstrap_model.get_weights()
+            weights = self.model.get_weights()
 
         if bootstrap:
             self.update_bootstrapped(X, G, X_next, I_next)
@@ -163,4 +163,4 @@ class BaseValueFunction(ABC):
             raise BadModelOuputShapeError((1,), pred.shape)
 
         if weights_resettable:
-            self.bootstrap_model.set_weights(weights)
+            self.model.set_weights(weights)
