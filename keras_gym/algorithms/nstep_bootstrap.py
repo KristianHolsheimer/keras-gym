@@ -1,11 +1,10 @@
 import numpy as np
 from gym.spaces import Discrete
 
-from ..utils import ExperienceCache, idx
+from ..utils import ExperienceCache
 from ..errors import NonDiscreteActionSpaceError
-from ..value_functions import GenericQ, GenericQTypeII
 
-from .base import BaseVAlgorithm, BaseQAlgorithm
+from .base import BaseVAlgorithm
 from .td0 import BaseQTD0Algorithm
 
 
