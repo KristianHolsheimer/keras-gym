@@ -70,7 +70,7 @@ class TestGenericQTypeII:
         model = keras.Model(inputs=[X, G], outputs=y)
         model.compile(
             loss=keras.losses.mse,
-            optimizer=keras.optimizers.SGD())
+            optimizer=keras.optimizers.SGD(lr=0.01))
         return model
 
     def test_output_dim(self):
@@ -86,4 +86,4 @@ class TestGenericQTypeII:
         s = self.env.observation_space.sample()
         np.testing.assert_array_almost_equal(
             Q(s),
-            [0.189891, -0.036312, -0.645451, 0.448175])
+            [0.198438, -0.037011, -0.644834, 0.448523])

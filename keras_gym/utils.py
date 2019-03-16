@@ -527,9 +527,9 @@ class ExperienceCache(RandomStateMixin):
 
     Attributes
     ----------
-    X_ : ArrayDeque
-        Dict of numpy arrays of stored values. The shape of each value is
-        `[num_arrays, <array_shape>]`.
+    deques_ : list of ArrayDeque
+
+        List of ArrayDeque's that comprise the experience cache.
 
     """
     def __init__(self, maxlen=512, overflow='cycle', random_seed=None):
@@ -539,12 +539,14 @@ class ExperienceCache(RandomStateMixin):
         self._len = 0
 
     def __len__(self):
-        return len(self.X_)
+        if not self._check_fitted(raise_error=False):
+            return 0
+        return len(self.deques_[0])
 
     def __bool__(self):
-        return bool(self.X_)
+        return bool(len(self))
 
-    def append(self, X, A, R, X_next):
+    def append(self, *arrays):
         """
         Add a preprocessed transition to the experience cache.
 
@@ -552,47 +554,34 @@ class ExperienceCache(RandomStateMixin):
 
         Parameters
         ----------
-        X : 2d-array, shape: [batch_size, num_features]
-            Scikit-learn style design matrix. This represents a batch of either
-            states or state-action pairs, depending on the model type.
+        arrays : ndarrays
 
-        A : 1d-array, shape: [batch_size]
-            A batch of actions taken.
-
-        R : 1d-array, shape: [batch_size]
-            A batch of observed rewards.
-
-        X_next : 2d-array, shape depends on model type
-            The preprocessed next-state feature vector.
+            The arrays to cache.
 
         """
-
-        # check imput shapes (batch_size == 1)
-        assert X.ndim > 0 and X.shape[0] == 1
-        assert A.ndim > 0 and A.shape[0] == 1
-        assert R.ndim > 0 and R.shape[0] == 1
-        assert X_next.ndim > 0 and X_next.shape[0] == 1
+        # some consistency checks
+        if len(arrays) == 0:
+            raise ValueError("expected at least 1 array to add to cache")
+        for arr in arrays:
+            if not isinstance(arr, np.ndarray):
+                raise TypeError("expected a numpy array")
+            if not (arr.ndim > 0 and arr.shape[0] == 1):
+                raise TypeError("expected array with batch_size=1")
 
         # create cache objects
         if not self._check_fitted(raise_error=False):
-            self.X_ = ArrayDeque(
-                shape=X.shape[1:], dtype=X.dtype,
-                overflow=self.overflow, maxlen=self.maxlen)
-            self.A_ = ArrayDeque(
-                shape=A.shape[1:], dtype=A.dtype,
-                overflow=self.overflow, maxlen=self.maxlen)
-            self.R_ = ArrayDeque(
-                shape=R.shape[1:], dtype=R.dtype,
-                overflow=self.overflow, maxlen=self.maxlen)
-            self.X_next_ = ArrayDeque(
-                shape=X_next.shape[1:], dtype=X_next.dtype,
-                overflow=self.overflow, maxlen=self.maxlen)
+            self.deques_ = []
+            for arr in arrays:
+                self.deques_.append(ArrayDeque(
+                    shape=arr.shape[1:], dtype=arr.dtype,
+                    overflow=self.overflow, maxlen=self.maxlen))
+        else:
+            if len(self.deques_) != len(arrays):
+                raise ValueError("inconsistent number of input arrays")
 
         # add to cache
-        self.X_.append(X[0])
-        self.A_.append(A[0])
-        self.R_.append(R[0])
-        self.X_next_.append(X_next[0])
+        for arr_cache, arr in zip(self.deques_, arrays):
+            arr_cache.append(arr[0])
 
     def sample(self, n=1):
         """
@@ -601,23 +590,22 @@ class ExperienceCache(RandomStateMixin):
         Parameters
         ----------
         n : int
+
             The sample size.
 
         Returns
         -------
-        X, A, R, X_next : arrays
-            A batch of preprocessed transitions. The size of the first axis of
-            each of the four arrays matches and are equal to `batch_size=n`.
+        *sample : tuple of arrays
+
+            The size of the first axis of each of the four arrays matches and
+            are equal to `batch_size=n`.
 
         """
         if not isinstance(n, (int, np.int_)) or n <= 0:
             raise TypeError("n must be a positive integer")
         idx = self._random.permutation(np.arange(len(self)))[:n]
-        X = self.X_.array[idx]
-        A = self.A_.array[idx]
-        R = self.R_.array[idx]
-        X_next = self.X_next_.array[idx]
-        return X, A, R, X_next
+        sample = tuple(d.array[idx] for d in self.deques_)
+        return sample
 
     def pop(self):
         """
@@ -625,17 +613,15 @@ class ExperienceCache(RandomStateMixin):
 
         Returns
         -------
-        X, A, R, X_next : arrays
-            A batch of preprocessed transitions. The size of the first axis of
-            each of the four arrays matches and are equal to `batch_size=1`.
+        *popped : tuple of arrays
+
+            The size of the first axis of each of the four arrays matches and
+            are equal to `batch_size=1`.
 
         """
         self._check_fitted()
-        X = np.expand_dims(self.X_.pop(), axis=0)
-        A = np.expand_dims(self.A_.pop(), axis=0)
-        R = np.expand_dims(self.R_.pop(), axis=0)
-        X_next = np.expand_dims(self.X_next_.pop(), axis=0)
-        return X, A, R, X_next
+        popped = tuple(np.expand_dims(d.pop(), axis=0) for d in self.deques_)
+        return popped
 
     def popleft(self):
         """
@@ -643,66 +629,19 @@ class ExperienceCache(RandomStateMixin):
 
         Returns
         -------
-        X, A, R, X_next : arrays
-            A batch of preprocessed transitions. The size of the first axis of
-            each of the four arrays matches and are equal to `batch_size=1`.
+        *popped : tuple of arrays
+
+            The size of the first axis of each of the four arrays matches and
+            are equal to `batch_size=1`.
 
         """
         self._check_fitted()
-        X = np.expand_dims(self.X_.popleft(), axis=0)
-        A = np.expand_dims(self.A_.popleft(), axis=0)
-        R = np.expand_dims(self.R_.popleft(), axis=0)
-        X_next = np.expand_dims(self.X_next_.popleft(), axis=0)
-        return X, A, R, X_next
-
-    def popleft_nstep(self, n=1):
-        """
-        Pop the oldest cached transition and return the `R` and `X_next` that
-        correspond to an n-step look-ahead.
-
-        **Note:** To understand of what's going in this method, have a look at
-        chapter 7 of `Sutton & Barto
-        <http://incompleteideas.net/book/the-book-2nd.html>`_.
-
-        Parameters
-        ----------
-        n : int
-            The number of steps in the n-step bootstrapping procedure.
-
-        Returns
-        -------
-        X, A, R, X_next : arrays
-            A batch of preprocessed transitions. `X` and `A` correspond to the
-            to-be-updated timestep :math:`\\tau=t-n+1`, while `X_next`
-            corresponds to the look-ahead timestep :math:`\\tau+n=t+1`. `R`
-            contains all the observed rewards between timestep :math:`\\tau+1`
-            and :math:`\\tau+n` (inclusive), i.e. `R` represents the sequence
-            :math:`(R_\\tau, R_{\\tau+1}, \\dots, R_{\\tau+n})`. This sequence
-            is truncated to a size smaller than :math:`n` as we approach the
-            end of the episode, where :math:`t>T-n`. The sequence becomes
-            :math:`(R_\\tau, R_{\\tau+1}, \\dots, R_{T})`. In this phase of the
-            replay, we can longer do a bootstrapping type look-ahead, which
-            means that `X_next=None` until the end of the episode.
-
-        """
-        self._check_fitted()
-        X = np.expand_dims(self.X_.popleft(), axis=0)
-        A = np.expand_dims(self.A_.popleft(), axis=0)
-
-        R = self.R_.array[:n]
-        self.R_.popleft()
-
-        X_next = self.X_next_.array[[-1]] if len(self.X_next_) >= n else None
-        self.X_next_.popleft()
-
-        return X, A, R, X_next
+        popped = tuple(
+            np.expand_dims(d.popleft(), axis=0) for d in self.deques_)
+        return popped
 
     def _check_fitted(self, raise_error=True):
-        fitted = all((
-            hasattr(self, 'X_'),
-            hasattr(self, 'A_'),
-            hasattr(self, 'R_'),
-            hasattr(self, 'X_next_')))
+        fitted = hasattr(self, 'deques_')
         if raise_error and not fitted:
             raise NoExperienceCacheError("no experience has yet been recorded")
         return fitted
@@ -715,13 +654,12 @@ class ExperienceCache(RandomStateMixin):
         Parameters
         ----------
         reset_maxlen : bool, optional
+
             Whether to reset maxlen to its original setting. This is only
             applicable when `overflow` is set to `'grow'`.
 
         """
         if not self._check_fitted(raise_error=False):
             return
-        self.X_.clear(reset_maxlen)
-        self.A_.clear(reset_maxlen)
-        self.R_.clear(reset_maxlen)
-        self.X_next_.clear(reset_maxlen)
+        for deque in self.deques_:
+            deque.clear(reset_maxlen)

@@ -136,29 +136,14 @@ class BaseQAlgorithm(BaseAlgorithm):
         else:
             raise ValueError("unexpected value-function type")
 
-    def preprocess_transition(self, s, a, r, s_next):
+    def _preprocess_X(self, s, a):
+        """ This is a little helper method to avoid duplication of code. """
         if isinstance(self.value_function, GenericQ):
-            X = self.value_function.X(s, a)
-            A = np.array([a])
-            R = np.array([r])
-            X_next = self.value_function.X_next(s_next)
-            assert X.shape == (1, self.value_function.input_dim), "bad shape"
-            assert A.shape == (1,), "bad shape"
-            assert R.shape == (1,), "bad shape"
-            assert X_next.shape == (1, self.value_function.num_actions, self.value_function.input_dim), "bad shape"  # noqa
+            return self.value_function.X(s, a)
         elif isinstance(self.value_function, GenericQTypeII):
-            X = self.value_function.X(s)
-            A = np.array([a])
-            R = np.array([r])
-            X_next = self.value_function.X_next(s_next)
-            assert X.shape == (1, self.value_function.input_dim), "bad shape"
-            assert A.shape == (1,), "bad shape"
-            assert R.shape == (1,), "bad shape"
-            assert X_next.shape == (1, self.value_function.input_dim), "bad shape"  # noqa
+            return self.value_function.X(s)
         else:
             raise ValueError("unexpected value-function type")
-
-        return X, A, R, X_next
 
 
 class BasePolicyAlgorithm(BaseAlgorithm):

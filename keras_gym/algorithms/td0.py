@@ -1,9 +1,11 @@
 import numpy as np
 from gym.spaces import Discrete
 
-from .base import BaseVAlgorithm, BaseQAlgorithm
 from ..utils import idx
 from ..errors import NonDiscreteActionSpaceError
+from ..value_functions import GenericQ, GenericQTypeII
+
+from .base import BaseVAlgorithm, BaseQAlgorithm
 
 
 class ValueTD0(BaseVAlgorithm):
@@ -32,7 +34,62 @@ class ValueTD0(BaseVAlgorithm):
         self.value_function.update(X, G)
 
 
-class QLearning(BaseQAlgorithm):
+class BaseQTD0Algorithm(BaseQAlgorithm):
+    def preprocess_transition(self, s, a, r, s_next):
+        """
+        Prepare a single transition to be used for policy updates or experience
+        caching.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        a : action
+
+            A single action a
+
+        r : float
+
+            Reward associated with the transition
+            :math:`(s, a)\\to s_\\text{next}`.
+
+        s_next : state observation
+
+            A single state observation. This is the state for which we will
+            compute the estimated future return, i.e. bootstrapping.
+
+        Returns
+        -------
+        X, A, R, X_next : arrays
+
+            Preprocessed versions of the inputs (s, a, r, s_next).
+
+        """
+        X = self._preprocess_X(s, a)
+        A = np.array([a])
+        R = np.array([r])
+        X_next = self.value_function.X_next(s_next)
+        assert X.shape == (1, self.value_function.input_dim), "bad shape"
+        assert A.shape == (1,), "bad shape"
+        assert R.shape == (1,), "bad shape"
+
+        if isinstance(self.value_function, GenericQ):
+            shape = (
+                1, self.value_function.num_actions,
+                self.value_function.input_dim)
+            assert X_next.shape == shape, "bad shape"
+        elif isinstance(self.value_function, GenericQTypeII):
+            shape = (1, self.value_function.input_dim)
+            assert X_next.shape == shape, "bad shape"
+        else:
+            raise ValueError("unexpected value-function type")
+
+        return X, A, R, X_next
+
+
+class QLearning(BaseQTD0Algorithm):
     """
     Update the Q-function according to the Q-learning algorithm, cf.
     Section 6.5 of `Sutton & Barto
@@ -60,7 +117,7 @@ class QLearning(BaseQAlgorithm):
         self._update_value_function(X, A, G)
 
 
-class ExpectedSarsa(BaseQAlgorithm):
+class ExpectedSarsa(BaseQTD0Algorithm):
     """
     Update the Q-function according to the Expected-SARSA algorithm, cf.
     Section 6.6 of `Sutton & Barto
@@ -101,7 +158,7 @@ class ExpectedSarsa(BaseQAlgorithm):
         self._update_value_function(X, A, G)
 
 
-class Sarsa(BaseQAlgorithm):
+class Sarsa(BaseQTD0Algorithm):
     """
     Update the Q-function according to the SARSA algorithm, cf.
     Section 6.4 of `Sutton & Barto

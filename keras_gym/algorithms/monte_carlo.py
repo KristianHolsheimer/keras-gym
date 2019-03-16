@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..utils import ExperienceCache, accumulate_rewards
 
 from .base import BaseVAlgorithm, BaseQAlgorithm, BasePolicyAlgorithm
@@ -28,7 +30,37 @@ class MonteCarloV(BaseVAlgorithm):
         self.experience_cache = ExperienceCache(overflow='grow')
         super(MonteCarloV, self).__init__(value_function, gamma=gamma)
 
-    def update(self, s, a, r, s_next, done):
+    def preprocess_transition(self, s, r):
+        """
+        Prepare a single transition to be used for policy updates or experience
+        caching.
+
+        Parameters
+        ----------
+        s : int or array
+
+            A single observation (state).
+
+        r : float
+
+            Reward associated with the transition
+            :math:`(s, a)\\to s_\\text{next}`.
+
+        Returns
+        -------
+        X, R : arrays
+
+            Preprocessed versions of the inputs (s, r).
+
+        """
+        X = self.value_function.X(s)
+        R = np.array([r])
+        assert X.shape == (1, self.value_function.input_dim), "bad shape"
+        assert R.shape == (1,)
+
+        return X, R
+
+    def update(self, s, r, done):
         """
         Update the value function.
 
@@ -38,18 +70,10 @@ class MonteCarloV(BaseVAlgorithm):
 
             A single observation (state).
 
-        a : int or array
-
-            A single action.
-
         r : float
 
             Reward associated with the transition
             :math:`(s, a)\\to s_\\text{next}`.
-
-        s_next : int or array
-
-            A single observation (state).
 
         done : bool
 
@@ -60,8 +84,8 @@ class MonteCarloV(BaseVAlgorithm):
             This is when the actual updates are made.
 
         """
-        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self.experience_cache.append(X, A, R, X_next)
+        X, R = self.preprocess_transition(s, r)
+        self.experience_cache.append(X, R)
 
         # break out of function if episode hasn't yet finished
         if not done:
@@ -70,16 +94,14 @@ class MonteCarloV(BaseVAlgorithm):
         if self.batch_update:
 
             # get data from cache
-            X = self.experience_cache.X_.array
-            A = self.experience_cache.A_.array
-            R = self.experience_cache.R_.array
+            X = self.experience_cache.deques_[0].array
+            R = self.experience_cache.deques_[1].array
 
             # create target
             G = accumulate_rewards(R, self.gamma)
-            Y = self.Y(X, A, G)
 
             # batch update (play batch in reverse)
-            self.value_function.update(X, Y)
+            self.value_function.update(X, G)
 
             # clear cache for next episode
             self.experience_cache.clear()
@@ -91,7 +113,7 @@ class MonteCarloV(BaseVAlgorithm):
 
             # replay episode in reverse order
             while self.experience_cache:
-                X, A, R, X_next = self.experience_cache.pop()
+                X, R = self.experience_cache.pop()
 
                 # gamma-discounted return
                 G = R + self.gamma * G
@@ -126,7 +148,43 @@ class MonteCarloQ(BaseQAlgorithm):
         self.experience_cache = ExperienceCache(overflow='grow')
         super(MonteCarloQ, self).__init__(value_function, gamma=gamma)
 
-    def update(self, s, a, r, s_next, done):
+    def preprocess_transition(self, s, a, r):
+        """
+        Prepare a single transition to be used for policy updates or experience
+        caching.
+
+        Parameters
+        ----------
+        s : int or array
+
+            A single observation (state).
+
+        a : int or array
+
+            A single action.
+
+        r : float
+
+            Reward associated with the transition
+            :math:`(s, a)\\to s_\\text{next}`.
+
+        Returns
+        -------
+        X, A, R : arrays
+
+            Preprocessed versions of the inputs (s, a, r).
+
+        """
+        X = self._preprocess_X(s, a)
+        A = np.array([a])
+        R = np.array([r])
+        assert X.shape == (1, self.value_function.input_dim), "bad shape"
+        assert R.shape == (1,)
+        assert A.shape == (1,)
+
+        return X, A, R
+
+    def update(self, s, a, r, done):
         """
         Update the value function.
 
@@ -145,10 +203,6 @@ class MonteCarloQ(BaseQAlgorithm):
             Reward associated with the transition
             :math:`(s, a)\\to s_\\text{next}`.
 
-        s_next : int or array
-
-            A single observation (state).
-
         done : bool
 
             Whether the episode is done. If ``done`` is ``False``, the input
@@ -158,8 +212,8 @@ class MonteCarloQ(BaseQAlgorithm):
             This is when the actual updates are made.
 
         """
-        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self.experience_cache.append(X, A, R, X_next)
+        X, A, R = self.preprocess_transition(s, a, r)
+        self.experience_cache.append(X, A, R)
 
         # break out of function if episode hasn't yet finished
         if not done:
@@ -168,9 +222,9 @@ class MonteCarloQ(BaseQAlgorithm):
         if self.batch_update:
 
             # get data from cache
-            X = self.experience_cache.X_.array
-            A = self.experience_cache.A_.array
-            R = self.experience_cache.R_.array
+            X = self.experience_cache.deques_[0].array
+            A = self.experience_cache.deques_[1].array
+            R = self.experience_cache.deques_[2].array
 
             # create target
             G = accumulate_rewards(R, self.gamma)
@@ -188,7 +242,7 @@ class MonteCarloQ(BaseQAlgorithm):
 
             # replay episode in reverse order
             while self.experience_cache:
-                X, A, R, X_next = self.experience_cache.pop()
+                X, A, R = self.experience_cache.pop()
 
                 # gamma-discounted return
                 G = R + self.gamma * G
@@ -223,7 +277,7 @@ class Reinforce(BasePolicyAlgorithm):
         self.experience_cache = ExperienceCache(overflow='grow')
         super(Reinforce, self).__init__(policy, gamma=gamma)
 
-    def update(self, s, a, r, s_next, done):
+    def update(self, s, a, r, done):
         """
         Update the policy.
 
@@ -242,10 +296,6 @@ class Reinforce(BasePolicyAlgorithm):
             Reward associated with the transition
             :math:`(s, a)\\to s_\\text{next}`.
 
-        s_next : int or array
-
-            A single observation (state).
-
         done : bool
 
             Whether the episode is done. If ``done`` is ``False``, the input
@@ -255,8 +305,8 @@ class Reinforce(BasePolicyAlgorithm):
             This is when the actual updates are made.
 
         """
-        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self.experience_cache.append(X, A, R, X_next)
+        X, A, R = self.preprocess_transition(s, a, r)
+        self.experience_cache.append(X, A, R)
 
         # break out of function if episode hasn't yet finished
         if not done:
@@ -265,9 +315,9 @@ class Reinforce(BasePolicyAlgorithm):
         if self.batch_update:
 
             # get data from cache
-            X = self.experience_cache.X_.array
-            A = self.experience_cache.A_.array
-            R = self.experience_cache.R_.array
+            X = self.experience_cache.deques_[0].array
+            A = self.experience_cache.deques_[1].array
+            R = self.experience_cache.deques_[2].array
 
             # use (non-centered) return G as recorded advantages
             G = accumulate_rewards(R, self.gamma)
@@ -286,7 +336,7 @@ class Reinforce(BasePolicyAlgorithm):
 
             # replay episode in reverse order
             while self.experience_cache:
-                X, A, R, X_next = self.experience_cache.pop()
+                X, A, R = self.experience_cache.pop()
 
                 # use (non-centered) return G as recorded advantages
                 G = R + self.gamma * G
