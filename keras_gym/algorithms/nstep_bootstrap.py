@@ -206,8 +206,8 @@ class BaseNStepQAlgorithm(BaseQTD0Algorithm):
             means that ``X_next=None`` until the end of the episode.
 
         """
-        self._check_fitted()
-        c = self.experience_c
+        c = self.experience_cache
+        c._check_fitted()
         n = self.n
 
         X = np.expand_dims(c.deques_[0].popleft(), axis=0)
@@ -222,7 +222,7 @@ class BaseNStepQAlgorithm(BaseQTD0Algorithm):
         return X, A, R, X_next
 
 
-class NStepQLearning(BaseQAlgorithm):
+class NStepQLearning(BaseNStepQAlgorithm):
     """
     Update the Q-function according to the n-step Expected-SARSA algorithm.
 
@@ -302,7 +302,7 @@ class NStepQLearning(BaseQAlgorithm):
             self._update_value_function(X, A, G)
 
 
-class NStepExpectedSarsa(BaseQAlgorithm):
+class NStepExpectedSarsa(BaseNStepQAlgorithm):
     """
     Update the Q-function according to the n-step Expected-SARSA algorithm.
 
@@ -328,7 +328,7 @@ class NStepExpectedSarsa(BaseQAlgorithm):
     def __init__(self, value_function, policy, n, gamma=0.9):
         if not isinstance(value_function.env.action_space, Discrete):
             raise NonDiscreteActionSpaceError()
-        super().__init__(self, value_function, n, gamma)
+        super().__init__(value_function, n, gamma)
         self.policy = policy
 
     def update(self, s, a, r, s_next, done):
@@ -390,7 +390,7 @@ class NStepExpectedSarsa(BaseQAlgorithm):
             self._update_value_function(X, A, G)
 
 
-class NStepSarsa(BaseQAlgorithm):
+class NStepSarsa(BaseNStepQAlgorithm):
     """
     Update the Q-function according to the n-step SARSA algorithm.
 
@@ -448,9 +448,8 @@ class NStepSarsa(BaseQAlgorithm):
             This is when the actual updates are made.
 
         """
-        X, A, R, X_next, A_next = self.preprocess_transition(
-            s, a, r, s_next, a_next)
-        self.experience_cache.append(X, A, R, X_next, A_next)
+        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+        self.experience_cache.append(X, A, R, X_next)
 
         # check if we need to start our updates
         if not done and len(self.experience_cache) < self.n:
@@ -459,9 +458,9 @@ class NStepSarsa(BaseQAlgorithm):
         # start updating if experience cache is saturated
         if not done:
             assert len(self.experience_cache) == self.n
-            X, A, R, X_next, A_next = self.popleft_nstep()
+            X, A, R, X_next = self.popleft_nstep()
             Q_next = self.value_function.batch_eval_next(X_next)
-            Q_next = Q_next[idx(A_next), A_next]  # the SARSA look-ahead
+            Q_next = Q_next[[0], [a_next]]  # the SARSA look-ahead
             G = self._gammas.dot(R) + np.power(self.gamma, self.n + 1) * Q_next
             self._update_value_function(X, A, G)
 
@@ -472,108 +471,3 @@ class NStepSarsa(BaseQAlgorithm):
             X, A, R, X_next = self.popleft_nstep()
             G = np.expand_dims(self._gammas[:len(R)].dot(R), axis=0)
             self._update_value_function(X, A, G)
-
-    def preprocess_transition(self, s, a, r, s_next, a_next):
-        """
-        Prepare a single transition to be used for policy updates or experience
-        caching.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        a : action
-
-            A single action a
-
-        r : float
-
-            Reward associated with the transition
-            :math:`(s, a)\\to s_\\text{next}`.
-
-        s_next : state observation
-
-            A single state observation. This is the state for which we will
-            compute the estimated future return, i.e. bootstrapping.
-
-        a_next : action
-
-            The next action, which is used to compute the estimated future
-            return, i.e. bootstrapping.
-
-        Returns
-        -------
-        X, A, R, X_next, A_next : arrays
-
-            Preprocessed versions of the inputs (s, a, r, s_next, a_next).
-
-        """
-        X = self._preprocess_X(s, a)
-        A = np.array([a])
-        R = np.array([r])
-        X_next = self.value_function.X_next(s_next)
-        A_next = np.array([a_next])
-        assert X.shape == (1, self.value_function.input_dim), "bad shape"
-        assert A.shape == (1,), "bad shape"
-        assert R.shape == (1,), "bad shape"
-        assert A_next.shape == (1,), "bad shape"
-
-        if isinstance(self.value_function, GenericQ):
-            shape = (
-                1, self.value_function.num_actions,
-                self.value_function.input_dim)
-            assert X_next.shape == shape, "bad shape"
-        elif isinstance(self.value_function, GenericQTypeII):
-            shape = (1, self.value_function.input_dim)
-            assert X_next.shape == shape, "bad shape"
-        else:
-            raise ValueError("unexpected value-function type")
-
-        return X, A, R, X_next, A_next
-
-    def popleft_nstep(self):
-        """
-        Pop the oldest cached transition and return the `R` and `X_next` that
-        correspond to an n-step look-ahead.
-
-        **Note:** To understand of what's going in this method, have a look at
-        chapter 7 of `Sutton & Barto
-        <http://incompleteideas.net/book/the-book-2nd.html>`_.
-
-        Returns
-        -------
-        X, A, R, X_next, A_next : arrays
-
-            A batch of preprocessed transitions. ``X`` and ``A`` correspond to
-            the to-be-updated timestep :math:`\\tau=t-n+1`, while ``X_next``
-            and ``A_next`` correspond to the look-ahead timestep
-            :math:`\\tau+n=t+1`. ``R`` contains all the observed rewards
-            between timestep :math:`\\tau+1` and :math:`\\tau+n` (inclusive),
-            i.e. ``R`` represents the sequence :math:`(R_\\tau, R_{\\tau+1},
-            \\dots, R_{\\tau+n})`. This sequence is truncated to a size smaller
-            than :math:`n` as we approach the end of the episode, where
-            :math:`t>T-n`. The sequence becomes :math:`(R_\\tau, R_{\\tau+1},
-            \\dots, R_{T})`. In this phase of the replay, we can longer do a
-            bootstrapping type look-ahead, which means that ``X_next=None``
-            until the end of the episode.
-
-        """
-        self._check_fitted()
-        c = self.experience_c
-        n = self.n
-
-        X = np.expand_dims(c.deques_[0].popleft(), axis=0)
-        A = np.expand_dims(c.deques_[1].popleft(), axis=0)
-
-        R = c.deques_[2].array[:n]
-        c.deques_[2].popleft()
-
-        X_next = c.deques_[3].array[[-1]] if len(c.deques_[3]) >= n else None
-        c.deques_[3].popleft()
-
-        A_next = c.deques_[4].array[[-1]] if len(c.deques_[4]) >= n else None
-        c.deques_[4].popleft()
-
-        return X, A, R, X_next, A_next
