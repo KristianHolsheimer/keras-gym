@@ -1,58 +1,8 @@
 import numpy as np
 import tensorflow as tf
-import pytest
 
 from ..utils import softmax, idx
-from ..losses import SoftmaxPolicyLossWithLogits, masked_mse_loss
-
-
-class TestMaskedMseLoss:
-    y_true = tf.placeholder(shape=[None, None], dtype=tf.float64)
-    y_pred = tf.placeholder(shape=[None, None], dtype=tf.float64)
-
-    # create feed_dict
-    rnd = np.random.RandomState(7)
-    batch_size = 5
-    num_actions = 3
-    y_true_numpy = rnd.randn(batch_size, num_actions)
-    y_pred_numpy = y_true_numpy.copy()
-    A = rnd.randint(num_actions, size=batch_size)
-    y_pred_numpy[idx(A), A] = rnd.randn(batch_size)
-    feed_dict = {y_true: y_true_numpy, y_pred: y_pred_numpy}
-
-    def _reference_implementation(self):
-        """ reference implementation in numpy """
-
-        # inputs
-        y_true = self.y_true_numpy
-        y_pred = self.y_pred_numpy
-
-        # residuals
-        err = y_pred - y_true
-
-        # bad implementation
-        mse_unmasked = np.mean(err ** 2)
-
-        # good implementation
-        mask = (y_pred != y_true)
-        mse_masked = np.mean(err[mask] ** 2)
-
-        np.testing.assert_almost_equal(mask.mean(), 1.0 / self.num_actions)
-        with pytest.raises(AssertionError):
-            np.testing.assert_almost_equal(mse_masked, mse_unmasked)
-
-        return mse_masked
-
-    def test_masked_mse_loss(self):
-        expected_loss = self._reference_implementation()
-
-        # tensorflow computation graph
-        loss_op = masked_mse_loss(self.y_true, self.y_pred)
-
-        with tf.Session() as s:
-            loss = s.run(loss_op, self.feed_dict)
-
-        np.testing.assert_almost_equal(loss, expected_loss)
+from ..losses import SoftmaxPolicyLossWithLogits
 
 
 class TestSoftmaxPolicyLossWithLogits:

@@ -301,11 +301,10 @@ class BaseUpdateablePolicy(BasePolicy):
 
             A batch of actions taken.
 
-        Y : 1d- or 2d-array, depends on model type
+        advantages : 1d-array, shape = [batch_size]
 
-            A sklearn-style label array. The shape depends on the model type.
-            For a type-I model, the output shape is ``[batch_size]`` and for a
-            type-II model the shape is ``[batch_size, num_actions]``.
+            This is the input that is either computed with a value function
+            (critic) or with Monte Carlo type averaging.
 
         """
         self.model.train_on_batch([X, advantages], A)

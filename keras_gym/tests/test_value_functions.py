@@ -5,7 +5,8 @@ from tensorflow import keras
 from gym.envs.toy_text.frozen_lake import FrozenLakeEnv
 
 from keras_gym.errors import BadModelOuputShapeError
-from keras_gym.value_functions.base import GenericV, GenericQ, GenericQTypeII
+from keras_gym.losses import QTypeIIMeanSquaredErrorLoss
+from keras_gym.value_functions import GenericV, GenericQ, GenericQTypeII
 
 
 class TestGenericV:
@@ -20,7 +21,7 @@ class TestGenericV:
 
     def test_call(self):
         s = self.env.observation_space.sample()
-        np.testing.assert_almost_equal(self.V(s), 0.23858608)
+        np.testing.assert_almost_equal(self.V(s), -0.26661164)
 
 
 class TestGenericQ:
@@ -37,33 +38,52 @@ class TestGenericQ:
     def test_call(self):
         s = self.env.observation_space.sample()
         a = self.env.action_space.sample()
-        np.testing.assert_almost_equal(self.Q(s, a), 0.4352397)
+        np.testing.assert_almost_equal(self.Q(s, a), -0.14895041)
 
 
 class TestGenericQTypeII:
     env = FrozenLakeEnv(is_slippery=False)
     env.observation_space.seed(13)
-    glorot_unif = keras.initializers.glorot_uniform(seed=13)
-    model = keras.Sequential(layers=[
-        keras.layers.Dense(13, kernel_initializer=glorot_unif),
-        keras.layers.Dense(4, kernel_initializer=glorot_unif)])
-    model.compile(loss=keras.losses.mse, optimizer=keras.optimizers.SGD())
-    Q = GenericQTypeII(env, model)
 
-    def test_output_dims(self):
-        assert self.Q.output_dims == self.env.action_space.n
+    @staticmethod
+    def create_model():
+        glorot_unif = keras.initializers.glorot_uniform(seed=13)
+        X = keras.Input(name='X', shape=[16])
+        G = keras.Input(name='G', shape=[1])
+        layer1 = keras.layers.Dense(13, kernel_initializer=glorot_unif)
+        layer2 = keras.layers.Dense(4, kernel_initializer=glorot_unif)
+        y = layer2(layer1(X))
+        model = keras.Model(inputs=[X, G], outputs=y)
+        model.compile(
+            loss=QTypeIIMeanSquaredErrorLoss(G),
+            optimizer=keras.optimizers.SGD())
+        return model
+
+    @staticmethod
+    def create_bad_shape_model():
+        glorot_unif = keras.initializers.glorot_uniform(seed=13)
+        X = keras.Input(name='X', shape=[16])
+        G = keras.Input(name='G', shape=[1])
+        layer1 = keras.layers.Dense(13, kernel_initializer=glorot_unif)
+        layer2 = keras.layers.Dense(1, kernel_initializer=glorot_unif)  # <---
+        y = layer2(layer1(X))
+        model = keras.Model(inputs=[X, G], outputs=y)
+        model.compile(
+            loss=keras.losses.mse,
+            optimizer=keras.optimizers.SGD())
+        return model
+
+    def test_output_dim(self):
+        Q = GenericQTypeII(self.env, self.create_model())
+        assert Q.output_dim == self.env.action_space.n
 
     def test_check_model_shape(self):
-        bad_shape_model = keras.Sequential(layers=[
-            keras.layers.Dense(13), keras.layers.Dense(1)])
-        bad_shape_model.compile(
-            loss=keras.losses.mse, optimizer=keras.optimizers.SGD())
-
         with pytest.raises(BadModelOuputShapeError):
-            GenericQTypeII(self.env, bad_shape_model)
+            GenericQTypeII(self.env, self.create_bad_shape_model())
 
     def test_call(self):
+        Q = GenericQTypeII(self.env, self.create_model())
         s = self.env.observation_space.sample()
         np.testing.assert_array_almost_equal(
-            self.Q(s),
-            [0.3343867, -0.0796784, 0.513001, 0.3949425])
+            Q(s),
+            [0.189891, -0.036312, -0.645451, 0.448175])

@@ -309,6 +309,37 @@ def full_contraction(a, b):
     return tf.einsum(contr, a, b)
 
 
+def project_onto_actions(Y, A):
+    """
+    Project tensor onto specific actions taken.
+
+    **Note**: This only applies to discrete action spaces.
+
+    Parameters
+    ----------
+    Y : 2d Tensor, shape: [batch_size, num_actions]
+
+        The tensor to project down.
+
+    A : 1d Tensor, shape: [batch_size]
+
+        The batch of actions used to project.
+
+    Returns
+    -------
+    Y_projected : 1d Tensor, shape: [batch_size]
+
+        The tensor projected onto the actions taken.
+
+    """
+    # *note* Please let me know if there's a better way to do this.
+    batch_size = tf.cast(K.shape(A)[0], tf.int64)
+    idx = tf.range(batch_size, dtype=A.dtype)
+    indices = tf.stack([idx, A], axis=1)
+    Y_projected = tf.gather_nd(Y, indices)  # shape: [batch_size]
+    return Y_projected
+
+
 class ArrayDeque:
     """
     A numpy array based deque, loosely based on the built-in class

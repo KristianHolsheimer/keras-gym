@@ -27,9 +27,9 @@ class ValueTD0(BaseVAlgorithm):
 
         # get TD target
         V_next = self.value_function.batch_eval(X_next)  # bootstrap
-        Y = R + self.gamma * V_next
+        G = R + self.gamma * V_next
 
-        self.value_function.update(X, Y)
+        self.value_function.update(X, G)
 
 
 class QLearning(BaseQAlgorithm):
@@ -53,12 +53,11 @@ class QLearning(BaseQAlgorithm):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
 
         # get target Q-value
-        Q_next = self.value_function.batch_eval_typeII(X_next)  # bootstrap
+        Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         G = R + self.gamma * np.max(Q_next, axis=1)  # target under Q-learning
 
-        # target for function approximator
-        Y = self.Y(X, A, G)
-        self.value_function.update(X, Y)
+        # update
+        self._update_value_function(X, A, G)
 
 
 class ExpectedSarsa(BaseQAlgorithm):
@@ -67,9 +66,6 @@ class ExpectedSarsa(BaseQAlgorithm):
     Section 6.6 of `Sutton & Barto
     <http://incompleteideas.net/book/the-book-2nd.html>`_. This algorithm
     requires both a policy as well as a value function.
-
-    # FIXME: Use proper policy to compute action propensities. Perhaps just
-    epsilon greedy propensities.
 
     Parameters
     ----------
@@ -87,7 +83,7 @@ class ExpectedSarsa(BaseQAlgorithm):
         if not isinstance(value_function.env.action_space, Discrete):
             raise NonDiscreteActionSpaceError()
 
-        super(ExpectedSarsa, self).__init__(value_function, gamma=gamma)
+        super().__init__(value_function, gamma=gamma)
         self.policy = policy
 
     def update(self, s, a, r, s_next):
@@ -97,13 +93,12 @@ class ExpectedSarsa(BaseQAlgorithm):
         P = self.policy.batch_eval(X_next)
 
         # get target Q-value
-        Q_next = self.value_function.batch_eval_typeII(X_next)  # bootstrap
+        Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b, n]
         G = R + self.gamma * np.einsum('bn,bn->b', P, Q_next)
 
-        # target for function approximator
-        Y = self.Y(X, A, G)
-        self.value_function.update(X, Y)
+        # update
+        self._update_value_function(X, A, G)
 
 
 class Sarsa(BaseQAlgorithm):
@@ -149,10 +144,9 @@ class Sarsa(BaseQAlgorithm):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
 
         # get target Q-value
-        Q_next = self.value_function.batch_eval_typeII(X_next)  # bootstrap
+        Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         Q_next = Q_next[idx(Q_next), [a_next]]  # project onto next action
         G = R + self.gamma * Q_next             # TD-target under SARSA
 
-        # target for function approximator
-        Y = self.Y(X, A, G)
-        self.value_function.update(X, Y)
+        # update
+        self._update_value_function(X, A, G)

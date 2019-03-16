@@ -1,5 +1,6 @@
-from .base import BaseVAlgorithm, BaseQAlgorithm, BasePolicyAlgorithm
 from ..utils import ExperienceCache, accumulate_rewards
+
+from .base import BaseVAlgorithm, BaseQAlgorithm, BasePolicyAlgorithm
 
 
 class MonteCarloV(BaseVAlgorithm):
@@ -92,10 +93,10 @@ class MonteCarloV(BaseVAlgorithm):
             while self.experience_cache:
                 X, A, R, X_next = self.experience_cache.pop()
 
-                G = R + self.gamma * G  # gamma-discounted return
-                Y = self.Y(X, A, G)     # target for function approximator
+                # gamma-discounted return
+                G = R + self.gamma * G
 
-                self.value_function.update(X, Y)
+                self.value_function.update(X, G)
 
 
 class MonteCarloQ(BaseQAlgorithm):
@@ -173,10 +174,9 @@ class MonteCarloQ(BaseQAlgorithm):
 
             # create target
             G = accumulate_rewards(R, self.gamma)
-            Y = self.Y(X, A, G)
 
-            # batch update (play batch in reverse)
-            self.value_function.update(X, Y)
+            # batch update
+            self._update_value_function(X, A, G)
 
             # clear cache for next episode
             self.experience_cache.clear()
@@ -190,10 +190,11 @@ class MonteCarloQ(BaseQAlgorithm):
             while self.experience_cache:
                 X, A, R, X_next = self.experience_cache.pop()
 
-                G = R + self.gamma * G  # gamma-discounted return
-                Y = self.Y(X, A, G)     # target for function approximator
+                # gamma-discounted return
+                G = R + self.gamma * G
 
-                self.value_function.update(X, Y)
+                # update
+                self._update_value_function(X, A, G)
 
 
 class Reinforce(BasePolicyAlgorithm):
