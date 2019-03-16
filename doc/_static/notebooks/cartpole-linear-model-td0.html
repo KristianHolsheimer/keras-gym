@@ -13900,7 +13900,7 @@ num_consecutive_successes = 10
 <span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
 <span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
 
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQ</span>
+<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQTypeII</span>
 <span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValuePolicy</span>
 <span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">QLearning</span>
 
@@ -13910,7 +13910,7 @@ num_consecutive_successes = 10
 
 
 <span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">model_type</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">)</span>
+<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQTypeII</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">)</span>
 <span class="n">policy</span> <span class="o">=</span> <span class="n">ValuePolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
 <span class="n">algo</span> <span class="o">=</span> <span class="n">QLearning</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
 
