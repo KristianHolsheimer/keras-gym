@@ -90,7 +90,7 @@ class BaseValueFunction(ABC):
         """
         assert X.ndim == 2, "bad shape"
         assert X.shape[1] == self.input_dim, "bad shape"
-        assert Gn.ndim == 1, "bad shape {}".format(Gn)
+        assert Gn.ndim == 1, "bad shape"
         assert X_next.ndim == 2, "bad shape"
         assert X_next.shape[1] == self.input_dim, "bad shape"
         assert I_next.ndim == 1, "bad shape"
