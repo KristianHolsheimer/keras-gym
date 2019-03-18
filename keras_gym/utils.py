@@ -546,6 +546,10 @@ class ExperienceCache(RandomStateMixin):
     def __bool__(self):
         return bool(len(self))
 
+    def __getitem__(self, i):
+        self._check_fitted()
+        return self.deques_[i]
+
     def append(self, *arrays):
         """
         Add a preprocessed transition to the experience cache.

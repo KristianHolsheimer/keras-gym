@@ -28,7 +28,9 @@ class GenericSoftmaxPolicy(BaseUpdateablePolicy):
         Set a random state for reproducible randomization.
 
     """
-    MODELTYPE = 2
+    @property
+    def output_dim(self):
+        return self.num_actions  # error if action space is not discrete
 
     def batch_eval(self, X_s):
         dummy_advantages = np.zeros(X_s.shape[0])

@@ -88,6 +88,13 @@ class BaseValueFunction(ABC):
             :math:`\\gamma^n` in the case of :math:`n`-step bootstrapping.
 
         """
+        assert X.ndim == 2, "bad shape"
+        assert X.shape[1] == self.input_dim, "bad shape"
+        assert Gn.ndim == 1, "bad shape {}".format(Gn)
+        assert X_next.ndim == 2, "bad shape"
+        assert X_next.shape[1] == self.input_dim, "bad shape"
+        assert I_next.ndim == 1, "bad shape"
+
         if self.bootstrap_model is None:
             raise TypeError(
                 "Cannot do bootstrap updates without a `bootstrap_model`.")

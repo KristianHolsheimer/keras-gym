@@ -277,6 +277,42 @@ class Reinforce(BasePolicyAlgorithm):
         self.experience_cache = ExperienceCache(overflow='grow')
         super(Reinforce, self).__init__(policy, gamma=gamma)
 
+    def preprocess_transition(self, s, a, r):
+        """
+        Prepare a single transition to be used for policy updates or experience
+        caching.
+
+        Parameters
+        ----------
+        s : int or array
+
+            A single observation (state).
+
+        a : int or array
+
+            A single action.
+
+        r : float
+
+            Reward associated with the transition
+            :math:`(s, a)\\to s_\\text{next}`.
+
+        Returns
+        -------
+        X, A, R : arrays
+
+            Preprocessed versions of the inputs (s, a, r).
+
+        """
+        X = self.policy.X(s)
+        A = np.array([a])
+        R = np.array([r])
+        assert X.shape == (1, self.policy.input_dim), "bad shape"
+        assert R.shape == (1,)
+        assert A.shape == (1,)
+
+        return X, A, R
+
     def update(self, s, a, r, done):
         """
         Update the policy.

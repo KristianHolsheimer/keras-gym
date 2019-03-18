@@ -1,12 +1,13 @@
 from abc import abstractmethod, ABC
 
+import gym
 import numpy as np
 import scipy.stats as st
 
 from gym.spaces.discrete import Discrete
 
 from ..utils import argmax, RandomStateMixin, feature_vector
-from ..errors import NonDiscreteActionSpaceError
+from ..errors import NonDiscreteActionSpaceError, BadModelOuputShapeError
 
 
 class BasePolicy(ABC, RandomStateMixin):
@@ -253,12 +254,18 @@ class BaseUpdateablePolicy(BasePolicy):
         Set a random state for reproducible randomization.
 
     """
-    MODELTYPES = (2, 3)
-
     def __init__(self, env, model, random_seed=None):
+        self._set_env_and_input_dim(env)
         BasePolicy.__init__(self, env, random_seed)
         self.model = model
         self._check_model()
+
+    @property
+    def num_actions(self):
+        if isinstance(self.env.action_space, gym.spaces.Discrete):
+            return self.env.action_space.n
+        else:
+            raise NonDiscreteActionSpaceError()
 
     @abstractmethod
     def batch_eval(self, X_s):
@@ -328,32 +335,33 @@ class BaseUpdateablePolicy(BasePolicy):
         X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
         return X_s
 
-    def _create_dummy_data(self):
-        # n is needed to create dummy output Y
-        try:
-            n = self.env.action_space.n
-        except AttributeError:
-            raise NonDiscreteActionSpaceError()
+    def _set_env_and_input_dim(self, env):
+        self.env = env
 
-        # sample a state observation from the environment
+        # create dummy X
         s = self.env.observation_space.sample()
-        if isinstance(s, np.ndarray):
-            s = np.random.rand(*s.shape)  # otherwise we get overflow
+        try:
+            X = self.X(s)
+        except TypeError as e:
+            if "X() missing 1 required positional argument: 'a'" == e.args[0]:
+                a = self.env.action_space.sample()
+                X = self.X(s, a)
+            else:
+                raise
 
-        X = self.X(s)
-        A = np.array([self.random()])
-        advantages = np.zeros(1)
+        # avoid overflow in model (space.sample can return very large numbers)
+        X = (X - X.min()) / (X.max() - X.min())
 
-        # set some attributes for convenience
-        # N.B. value_functions.predefined.Linear{V,Q} require these to be set
-        self.num_features = X.shape[1]
-        self.num_actions = n
+        # set attribute
+        self.input_dim = X.shape[1]
 
-        return X, A, advantages
+        return X
 
     def _check_model(self):
         # get some dummy data
-        X, A, advantages = self._create_dummy_data()
+        X = self._set_env_and_input_dim(self.env)
+        A = np.array([self.env.action_space.sample()])
+        advantages = np.zeros(1)
 
         weights_resettable = (
             hasattr(self.model, 'get_weights') and  # noqa: W504
@@ -362,19 +370,10 @@ class BaseUpdateablePolicy(BasePolicy):
         if weights_resettable:
             weights = self.model.get_weights()
 
-        try:
-            self.update(X, A, advantages)
-            pred = self.batch_eval(X)
-            if self.MODELTYPE == 2:
-                assert pred.shape == (1, self.num_actions), "bad shape"
-                assert pred.sum() == 1.0, "niet normaaaaal"
-            elif self.MODELTYPE == 3:
-                # num_params = ...  # params distr over continuous actions
-                # assert pred.shape == (num_params,), "bad model output shape"
-                raise NotImplementedError("MODELTYPE == 3")
-        except Exception as e:
-            # TODO: show informative error message
-            raise e
+        self.update(X, A, advantages)
+        pred = self.batch_eval(X)
+        if pred.shape != (1, self.output_dim):
+            raise BadModelOuputShapeError((1, self.output_dim), pred.shape)
 
         if weights_resettable:
             self.model.set_weights(weights)

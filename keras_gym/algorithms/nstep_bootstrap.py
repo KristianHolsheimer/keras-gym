@@ -25,15 +25,32 @@ class NStepBootstrapV(BaseVAlgorithm):
 
         Number of steps to delay bootstrap estimation.
 
+    experience_cache_size : positive int, optional
+
+        If provided, we populate a presisted experience cache that can be used
+        for (asynchronous) experience replay. If left unspecified, no
+        persisted_cache is created.
+
     gamma : float
 
         Future discount factor, value between 0 and 1.
 
+    Attributes
+    ----------
+    persisted_cache : ExperienceCache or None
+
+
+
     """
-    def __init__(self, value_function, n, gamma=0.9):
+    def __init__(self, value_function, n, experience_cache_size=None, gamma=0.9):
         super().__init__(value_function, gamma=gamma)
         self.n = n
-        self.experience_cache = ExperienceCache(maxlen=n, overflow='error')
+        self.nstep_cache = ExperienceCache(maxlen=n, overflow='error')
+        self.episode_cache = ExperienceCache(maxlen=n, overflow='grow')
+        self.persisted_cache = None
+        if experience_cache_size:
+            self.persisted_cache = ExperienceCache(
+                maxlen=experience_cache_size, overflow='cycle')
 
         # private
         self._gammas = np.power(self.gamma, np.arange(self.n))
@@ -75,46 +92,6 @@ class NStepBootstrapV(BaseVAlgorithm):
 
         return X, R, X_next
 
-    def popleft_nstep(self):
-        """
-        Pop the oldest cached transition and return the `R` and `X_next` that
-        correspond to an n-step look-ahead.
-
-        **Note:** To understand of what's going in this method, have a look at
-        chapter 7 of `Sutton & Barto
-        <http://incompleteideas.net/book/the-book-2nd.html>`_.
-
-        Returns
-        -------
-        X, R, X_next : arrays
-
-            A batch of preprocessed transitions. ``X`` corresponds to the
-            to-be-updated timestep :math:`\\tau=t-n+1`, while ``X_next``
-            corresponds to the look-ahead timestep :math:`\\tau+n=t+1`. ``R``
-            contains all the observed rewards between timestep :math:`\\tau+1`
-            and :math:`\\tau+n` (inclusive), i.e. ``R`` represents the sequence
-            :math:`(R_\\tau, R_{\\tau+1}, \\dots, R_{\\tau+n})`. This sequence
-            is truncated to a size smaller than :math:`n` as we approach the
-            end of the episode, where :math:`t>T-n`. The sequence becomes
-            :math:`(R_\\tau, R_{\\tau+1}, \\dots, R_{T})`. In this phase of the
-            replay, we can longer do a bootstrapping type look-ahead, which
-            means that ``X_next=None`` until the end of the episode.
-
-        """
-        self._check_fitted()
-        c = self.experience_c
-        n = self.n
-
-        X = np.expand_dims(c.deques_[0].popleft(), axis=0)
-
-        R = c.deques_[1].array[:n]
-        c.deques_[1].popleft()
-
-        X_next = c.deques_[2].array[[-1]] if len(c.deques_[2]) >= n else None
-        c.deques_[2].popleft()
-
-        return X, R, X_next
-
     def update(self, s, r, s_next, done):
         """
         Update the given value function.
@@ -145,28 +122,38 @@ class NStepBootstrapV(BaseVAlgorithm):
 
         """
         X, R, X_next = self.preprocess_transition(s, r, s_next)
-        self.experience_cache.append(X, R, X_next)
+        self.nstep_cache.append(X, R)
 
-        # check if we need to start our updates
-        if not done and len(self.experience_cache) < self.n:
-            return  # wait until episode terminates or cache saturates
+        if len(self.nstep_cache) < self.n:
+            # n-step window not yet saturated, so break out of function
+            return
 
-        # start updating if experience cache is saturated
-        if not done:
-            assert len(self.experience_cache) == self.n
-            X, R, X_next = self.popleft_nstep()
-            Q_next = self.value_function.batch_eval_next(X_next)
-            Q_next = np.max(Q_next, axis=1)  # the Q-learning look-ahead
-            G = self._gammas.dot(R) + np.power(self.gamma, self.n + 1) * Q_next
-            self.value_function.update(X, G)
+        # collect episode experience
+        if len(self.nstep_cache) == self.n:
+            Rn = self.nstep_cache.deques_[1].array  # Rn.shape: [n]
+            Gn = np.array([self._gammas.dot(Rn)])   # discounted partial return
+            I_next = np.array([self.gamma ** self.n])  # bootstrap discounter
+            X, _ = self.nstep_cache.popleft()
+            if self.persisted_cache is not None:
+                self.persisted_cache.append(X, Gn, X_next, I_next)
 
-            return  # wait until episode terminates
+            # bootstrapped update
+            if self.value_function.bootstrap_model is not None:
+                self.value_function.update_bootstrapped(
+                    X, Gn, X_next, I_next)
+            else:
+                V_next = self.value_function.batch_eval_next(X_next)
+                assert V_next.shape == (1,), "bad shape"
+                G = Gn + I_next * V_next
+                self.value_function.update(X, G)
 
-        # roll out remainder of episode
-        while self.experience_cache:
-            X, R, X_next = self.popleft_nstep()
-            G = np.expand_dims(self._gammas[:len(R)].dot(R), axis=0)
-            self.value_function.update(X, G)
+        if done:
+            # non-bootstrapped updates (unroll remainder in reverse order)
+            G = np.zeros(1)
+            while self.nstep_cache:
+                X, R = self.nstep_cache.pop()
+                G[0] = R + self.gamma * G[0]
+                self.value_function.update(X, G)
 
 
 class BaseNStepQAlgorithm(BaseQTD0Algorithm):
