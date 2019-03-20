@@ -2,6 +2,14 @@ Release Notes
 =============
 
 
+v0.2.9
+------
+
+- changed definitions of Q-functions to :class:`GenericQ <keras_gym.value_function.GenericQ>` and  :class:`GenericQTypeII <keras_gym.value_function.GenericQTypeII>`
+- added option for efficient bootstrapped updating (``bootstrap_model`` argument in value functions, see example usage: :class:`NStepBootstrapV <keras_gym.algorithms.NStepBootstrapV>`)
+- renamed :class:`ValuePolicy` to :class:`ValueBasedPolicy <keras_gym.policies.ValueBasedPolicy>`
+
+
 v0.2.8
 ------
 
