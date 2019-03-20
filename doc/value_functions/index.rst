@@ -23,7 +23,7 @@ approximator:
     import gym
 
     from keras_gym.value_functions import LinearQ
-    from keras_gym.policies import ValuePolicy
+    from keras_gym.policies import ValueBasedPolicy
     from keras_gym.algorithms import Sarsa
 
 
@@ -31,7 +31,7 @@ approximator:
 
     # define Q, its induced policy and update algorithm
     Q = LinearQ(env, lr=0.08, interaction='elementwise_quadratic')
-    policy = ValuePolicy(Q)
+    policy = ValueBasedPolicy(Q)
     algo = Sarsa(Q, gamma=0.8)
 
     # the rest of your code
@@ -54,7 +54,7 @@ example above:
     from tensorflow.keras import backend as K
 
     from keras_gym.value_functions import GenericQ
-    from keras_gym.policies import ValuePolicy
+    from keras_gym.policies import ValueBasedPolicy
     from keras_gym.algorithms import QLearning
 
 
@@ -72,7 +72,7 @@ example above:
 
     # define Q, its induced policy and update algorithm
     Q = GenericQ(env, model)
-    policy = ValuePolicy(Q)
+    policy = ValueBasedPolicy(Q)
     algo = QLearning(Q, gamma=0.8)
 
     # the rest of your code

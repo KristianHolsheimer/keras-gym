@@ -37,14 +37,14 @@ example below:
     import gym
 
     from keras_gym.value_functions import LinearQ
-    from keras_gym.policies import ValuePolicy
+    from keras_gym.policies import ValueBasedPolicy
     from keras_gym.algorithms import QLearning
 
     env = gym.make(...)
 
     # use linear function approximator for Q
     Q = LinearQ(env, lr=0.1)
-    policy = ValuePolicy(Q)
+    policy = ValueBasedPolicy(Q)
     algo = QLearning(Q)
 
     # get some dummy state observation

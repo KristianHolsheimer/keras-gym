@@ -30,7 +30,7 @@ algorithm is covered in Chapter 5 of `Sutton & Barto
 following Jupyter notebooks for some simple examples:
 
     - :doc:`../notebooks/blackjack-linear-model-monte-carlo`
-    - :doc:`../notebooks/frozenlake-linear-model-reinforce`
+    - :doc:`../notebooks/frozenlake-linear-model-montecarloq-and-reinforce`
 
 
 TD(0)

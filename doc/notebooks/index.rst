@@ -11,4 +11,4 @@ learning by example.
     cartpole-linear-model-td0.rst
     cartpole-linear-model-nstep-bootstrap.rst
     blackjack-linear-model-monte-carlo
-    frozenlake-linear-model-reinforce
+    frozenlake-linear-model-montecarloq-and-reinforce

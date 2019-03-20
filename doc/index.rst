@@ -57,7 +57,7 @@ approximator for Q(s, a):
     import gym
 
     from keras_gym.value_functions import LinearQ
-    from keras_gym.policies import ValuePolicy
+    from keras_gym.policies import ValueBasedPolicy
     from keras_gym.algorithms import Sarsa
 
 
@@ -67,7 +67,7 @@ approximator for Q(s, a):
 
     # define Q, its induced policy and update algorithm
     Q = LinearQ(env, lr=0.08, interaction='elementwise_quadratic')
-    policy = ValuePolicy(Q)
+    policy = ValueBasedPolicy(Q)
     algo = Sarsa(Q, gamma=0.8)
 
 

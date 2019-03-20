@@ -6,7 +6,7 @@ from ..utils import softmax
 from ..errors import NonDiscreteActionSpaceError
 
 
-class ValuePolicy(BasePolicy):
+class ValueBasedPolicy(BasePolicy):
     """
     A simple policy derived from a state-action value function :math:`Q(s,a)`.
 
@@ -19,21 +19,38 @@ class ValuePolicy(BasePolicy):
 
         This Q-function must be a ``BaseQ``-derived object.
 
+    boltzmann_temperature : float, optional
+
+        This setting only applies when we have a discrete action space. It is
+        used in constructing a Boltzmann distribution from the value function
+        :math:`Q(s,a)`:
+
+        .. math::
+
+            \\pi_\\text{Boltzmann}(a|s)\\ =\\
+            \\text{softmax}_a\\left( Q(s,a)/\\tau \\right) \\ =\\
+            \\frac{\\text{e}^{Q(s,a)/\\tau}}{\\sum_b\\text{e}^{Q(s,b)/\\tau}}
+
+        Here, :math:`\\tau` is the Boltzmann temperature. This setting affects
+        the output of :func:`batch_eval` and consequently :func:`thompson`.
+
     random_seed : int, optional
         Set a random state for reproducible randomization.
 
     """
 
-    def __init__(self, value_function, random_seed=None):
+    def __init__(self, value_function, boltzmann_temperature=1.0,
+                 random_seed=None):
         if not isinstance(value_function, (GenericQ, GenericQTypeII)):
             raise TypeError(
                 "value_function must be a subtype of BaseValueFunction")
         self.value_function = value_function
-        super(ValuePolicy, self).__init__(value_function.env, random_seed)
+        self.boltzmann_temperature = boltzmann_temperature
+        super(ValueBasedPolicy, self).__init__(value_function.env, random_seed)
 
     def __repr__(self):
         return (
-            "ValuePolicy(value_function={value_function}, "
+            "ValueBasedPolicy(value_function={value_function}, "
             "random_seed={_random_seed})".format(**self.__dict__))
 
     def batch_eval(self, X):
@@ -69,7 +86,8 @@ class ValuePolicy(BasePolicy):
 
         if isinstance(self.env.action_space, Discrete):
             Q = self.value_function.batch_eval_next(X)
-            params = softmax(Q, axis=1)
+            assert Q.ndim == 2, "bad shape"
+            params = softmax(Q / self.boltzmann_temperature, axis=1)
         else:
             raise NonDiscreteActionSpaceError()
 
