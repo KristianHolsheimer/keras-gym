@@ -1,5 +1,5 @@
-FrozenLake (non-slippery) REINFORCE with Linear Model
-=====================================================
+FrozenLake (non-slippery) with REINFORCE and value-based Monte Carlo
+====================================================================
 
 In this notebook we solve the (non-slippery) `FrozenLake` environment using the
 :class:`MonteCarloQ <keras_gym.algorithms.MonteCarloQ>` and
