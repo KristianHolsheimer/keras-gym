@@ -45,19 +45,20 @@ class ValueTD0(BaseVAlgorithm):
     """
     def update(self, s, a, r, s_next):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+        I_next = np.array([self.gamma])
 
         # keep experience
         if self.experience_cache is not None:
-            self.experience_cache.append(X, A, R, X_next, self.gamma)
+            self.experience_cache.append(X, A, R, X_next, I_next)
 
         # update
         if self.actor_critic is not None:
-            self.actor_critic.update(X, A, R, X_next, self.gamma)
+            self.actor_critic.update(X, A, R, X_next, I_next)
         elif self.value_function.bootstrap_model is not None:
-            self.value_function.update_bootstrapped(X, R, X_next, self.gamma)
+            self.value_function.update_bootstrapped(X, R, X_next, I_next)
         else:
             V_next = self.value_function.batch_eval(X_next)
-            G = R + self.gamma * V_next
+            G = R + I_next * V_next
             self.value_function.update(X, G)
 
 
@@ -102,10 +103,15 @@ class QLearning(BaseQAlgorithm):
     """
     def update(self, s, a, r, s_next):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+        I_next = np.array([self.gamma])
 
         # get target Q-value
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         G = R + self.gamma * np.max(Q_next, axis=1)  # target under Q-learning
+
+        # keep experience
+        if self.experience_cache is not None:
+            self.experience_cache.append(X, A, G, X_next, I_next)
 
         # update
         self._update_value_function(X, A, G)
@@ -162,6 +168,7 @@ class ExpectedSarsa(BaseQAlgorithm):
 
     def update(self, s, a, r, s_next):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+        I_next = np.array([self.gamma])
 
         # get probabilities over next actions from policy
         P = self.policy.batch_eval(X_next)
@@ -170,6 +177,10 @@ class ExpectedSarsa(BaseQAlgorithm):
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b, n]
         G = R + self.gamma * np.einsum('bn,bn->b', P, Q_next)
+
+        # keep experience
+        if self.experience_cache is not None:
+            self.experience_cache.append(X, A, G, X_next, I_next)
 
         # update
         self._update_value_function(X, A, G)
@@ -238,11 +249,16 @@ class Sarsa(BaseQAlgorithm):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
+        I_next = np.array([self.gamma])
 
         # get target Q-value
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         Q_next = Q_next[idx(Q_next), [a_next]]  # project onto next action
         G = R + self.gamma * Q_next             # TD-target under SARSA
+
+        # keep experience
+        if self.experience_cache is not None:
+            self.experience_cache.append(X, A, G, X_next, I_next)
 
         # update
         self._update_value_function(X, A, G)

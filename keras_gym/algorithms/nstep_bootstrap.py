@@ -54,9 +54,9 @@ class NStepBootstrapV(BaseVAlgorithm):
 
         super().__init__(value_function, gamma=gamma)
         self.n = n
-        self._nstep_cache = ExperienceCache(maxlen=n, overflow='error')
 
         # private
+        self._nstep_cache = ExperienceCache(maxlen=n, overflow='error')
         self._gammas = np.power(self.gamma, np.arange(self.n))
 
     def update(self, s, a, r, s_next, done):
@@ -113,7 +113,6 @@ class NStepBootstrapV(BaseVAlgorithm):
                     X, Gn, X_next, I_next)
             else:
                 V_next = self.value_function.batch_eval_next(X_next)
-                assert V_next.shape == (1,), "bad shape"
                 G = Gn + I_next * V_next
                 self.value_function.update(X, G)
 
@@ -174,14 +173,14 @@ class BaseNStepQAlgorithm(BaseQAlgorithm):
         c._check_fitted()
         n = self.n
 
-        X = np.expand_dims(c.deques_[0].popleft(), axis=0)
-        A = np.expand_dims(c.deques_[1].popleft(), axis=0)
+        X = np.expand_dims(c[0].popleft(), axis=0)
+        A = np.expand_dims(c[1].popleft(), axis=0)
 
-        R = c.deques_[2].array[:n]
-        c.deques_[2].popleft()
+        R = c[2].array[:n]
+        c[2].popleft()
 
-        X_next = c.deques_[3].array[[-1]] if len(c.deques_[3]) >= n else None
-        c.deques_[3].popleft()
+        X_next = c[3].array[[-1]] if len(c[3]) >= n else None
+        c[3].popleft()
 
         return X, A, R, X_next
 

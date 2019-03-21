@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..utils import ExperienceCache, accumulate_rewards
+from ..utils import ExperienceCache
 from ..policies import GenericActorCritic
 
 from .base import BasePolicyAlgorithm, BaseAlgorithm
@@ -16,11 +16,6 @@ class Reinforce(BasePolicyAlgorithm):
     policy : updateable policy
 
         An updateable policy object, see :mod:`keras_gym.policies`.
-
-    batch_update : bool, optional
-
-        Whether to perform the updates in batch (entire episode). If not, the
-        updates are processed one timestep at a time.
 
     gamma : float
 
@@ -47,10 +42,9 @@ class Reinforce(BasePolicyAlgorithm):
         experience-replay type updates.
 
     """
-    def __init__(self, policy, batch_update=False, gamma=0.9):
-        self.batch_update = batch_update
+    def __init__(self, policy, gamma=0.9, experience_cache_size=0):
         self._episode_cache = ExperienceCache(overflow='grow')
-        super().__init__(policy, gamma=gamma)
+        super().__init__(policy, gamma, experience_cache_size)
 
     def update(self, s, a, r, s_next, done):
         """
@@ -81,51 +75,29 @@ class Reinforce(BasePolicyAlgorithm):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self._episode_cache.append(X, A, R)
+        X_next = np.zeros_like(X_next)
+        I_next = np.zeros(1)
+        self._episode_cache.append(X, A, R, X_next)
 
         # break out of function if episode hasn't yet finished
         if not done:
             return
 
-        if self.batch_update:
+        # initialize return
+        G = 0
 
-            # get data from cache
-            X = self._episode_cache[0].array
-            A = self._episode_cache[1].array
-            R = self._episode_cache[2].array
+        # replay episode in reverse order
+        while self._episode_cache:
+            X, A, R, X_next = self._episode_cache.pop()
 
             # use (non-centered) return G as recorded advantages
-            G = accumulate_rewards(R, self.gamma)
-            advantages = G
+            G = R + self.gamma * G
 
             # keep experience
             if self.experience_cache is not None:
-                self.experience_cache.append(X, A, advantages)
+                self.experience_cache.append(X, A, G, X_next, I_next)
 
-            # batch update (play batch in reverse)
-            self.policy.update(X, A, advantages)
-
-            # clear cache for next episode
-            self._episode_cache.clear()
-
-        else:
-
-            # initialize return
-            G = 0
-
-            # replay episode in reverse order
-            while self._episode_cache:
-                X, A, R = self._episode_cache.pop()
-
-                # use (non-centered) return G as recorded advantages
-                G = R + self.gamma * G
-                advantages = G
-
-                # keep experience
-                if self.experience_cache is not None:
-                    self.experience_cache.append(X, A, advantages)
-
-                self.policy.update(X, A, advantages)
+            self.policy.update(X, A, G)
 
 
 class AdvantageActorCritic(BaseAlgorithm):
@@ -141,6 +113,10 @@ class AdvantageActorCritic(BaseAlgorithm):
 
     Parameters
     ----------
+    value_function_algo_class : value function algorithm
+
+        The algorithm to use for updating the value function :math:`V(s)`.
+
     actor_critic : actor-critic object, optional
 
         This is usually just a wrapper that bundles the policy and value
@@ -191,16 +167,10 @@ class AdvantageActorCritic(BaseAlgorithm):
 
 
     """
-    def __init__(self, actor_critic=None, policy=None, value_function=None,
-                 n=1, experience_cache_size=0, gamma=0.9):
+    def __init__(self, value_function_algo, actor_critic=None, policy=None,
+                 gamma=0.9, experience_cache_size=0):
 
-        self._set_actor_critic(actor_critic, policy, value_function)
-        self.n = n
-        self._nstep_cache = ExperienceCache(maxlen=n, overflow='error')
-        self.experience_cache = None
-        if experience_cache_size:
-            self.experience_cache = ExperienceCache(
-                maxlen=experience_cache_size, overflow='cycle')
+        self._set_actor_critic(actor_critic, policy, value_function_algo)
 
         # private
         self._gammas = np.power(self.gamma, np.arange(self.n))

@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..utils import ExperienceCache, accumulate_rewards
+from ..utils import ExperienceCache
 
 from .base import BaseVAlgorithm, BaseQAlgorithm
 
@@ -16,11 +16,6 @@ class MonteCarloV(BaseVAlgorithm):
     value_function_or_actor_critic : value function or actor-critic object
 
         Either a state value function :math:`V(s)` or an actor-critic object.
-
-    batch_update : bool, optional
-
-        Whether to perform the updates in batch (entire episode). If not, the
-        updates are processed one timestep at a time.
 
     gamma : float, optional
 
@@ -47,48 +42,40 @@ class MonteCarloV(BaseVAlgorithm):
         experience-replay type updates.
 
     """
-    def __init__(self, value_function_or_actor_critic, batch_update=False,
-                 gamma=0.9, experience_cache_size=0):
-        self.batch_update = batch_update
+    def __init__(self, value_function_or_actor_critic, gamma=0.9,
+                 experience_cache_size=0):
+
         self._episode_cache = ExperienceCache(overflow='grow')
         super().__init__(
             value_function_or_actor_critic, gamma, experience_cache_size)
 
     def update(self, s, a, r, s_next, done):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self._episode_cache.append(X, A, R)
+        X_next = np.zeros_like(X_next)
+        I_next = np.zeros(1)
+
+        self._episode_cache.append(X, A, R, X_next, I_next)
 
         # break out of function if episode hasn't yet finished
         if not done:
             return
 
-        if self.batch_update:
+        # initialize return
+        G = 0
 
-            # get data from cache
-            X = self._episode_cache[0].array
-            R = self._episode_cache[1].array
+        # replay episode in reverse order
+        while self._episode_cache:
+            X, A, R, X_next, I_next = self._episode_cache.pop()
+            G = R + self.gamma * G
 
-            # create target
-            G = accumulate_rewards(R, self.gamma)
+            # keep experience
+            if self.experience_cache is not None:
+                self.experience_cache.append(X, A, R, X_next, I_next)
 
-            # batch update (play batch in reverse)
-            self.value_function.update(X, G)
-
-            # clear cache for next episode
-            self._episode_cache.clear()
-
-        else:
-
-            # initialize return
-            G = 0
-
-            # replay episode in reverse order
-            while self._episode_cache:
-                X, R = self._episode_cache.pop()
-
-                # gamma-discounted return
-                G = R + self.gamma * G
-
+            # update
+            if self.actor_critic is not None:
+                self.actor_critic.update(X, A, G, X_next, I_next)
+            else:
                 self.value_function.update(X, G)
 
 
@@ -104,18 +91,12 @@ class MonteCarloQ(BaseQAlgorithm):
 
         A state value function :math:`Q(s, a)`.
 
-    batch_update : bool, optional
-
-        Whether to perform the updates in batch (entire episode). If not, the
-        updates are processed one timestep at a time.
-
     gamma : float
 
         Future discount factor, value between 0 and 1.
 
     """
-    def __init__(self, value_function, batch_update=False, gamma=0.9):
-        self.batch_update = batch_update
+    def __init__(self, value_function, gamma=0.9):
         self._episode_cache = ExperienceCache(overflow='grow')
         super(MonteCarloQ, self).__init__(value_function, gamma=gamma)
 
@@ -154,33 +135,17 @@ class MonteCarloQ(BaseQAlgorithm):
         if not done:
             return
 
-        if self.batch_update:
+        # initialize return
+        G = 0
 
-            # get data from cache
-            X = self._episode_cache[0].array
-            A = self._episode_cache[1].array
-            R = self._episode_cache[2].array
+        # replay episode in reverse order
+        while self._episode_cache:
+            X, A, R, X_next, I_next = self._episode_cache.pop()
+            G = R + self.gamma * G
 
-            # create target
-            G = accumulate_rewards(R, self.gamma)
+            # keep experience
+            if self.experience_cache is not None:
+                self.experience_cache.append(X, A, R, X_next, I_next)
 
-            # batch update
+            # update
             self._update_value_function(X, A, G)
-
-            # clear cache for next episode
-            self._episode_cache.clear()
-
-        else:
-
-            # initialize return
-            G = 0
-
-            # replay episode in reverse order
-            while self._episode_cache:
-                X, A, R = self._episode_cache.pop()
-
-                # gamma-discounted return
-                G = R + self.gamma * G
-
-                # update
-                self._update_value_function(X, A, G)
