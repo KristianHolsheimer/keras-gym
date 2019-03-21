@@ -230,7 +230,31 @@ class BasePolicy(ABC, RandomStateMixin):
         return (a, p) if return_propensity else a
 
 
-class BaseUpdateablePolicy(BasePolicy):
+class EnvironmentDimensionsMixin:
+    @property
+    def num_actions(self):
+        if isinstance(self.env.action_space, gym.spaces.Discrete):
+            return self.env.action_space.n
+        else:
+            raise NonDiscreteActionSpaceError()
+
+    def _set_env_and_input_dim(self, env):
+        self.env = env
+
+        # create dummy X
+        s = self.env.observation_space.sample()
+        X = self.X(s)
+
+        # avoid overflow in model (space.sample can return very large numbers)
+        X = (X - X.min()) / (X.max() - X.min())
+
+        # set attribute
+        self.input_dim = X.shape[1]
+
+        return X
+
+
+class BaseUpdateablePolicy(BasePolicy, EnvironmentDimensionsMixin):
     """
     Base class for updateable policy objects, which are objects that can be
     updated directly, using e.g. policy-gradient type algorithms.
@@ -259,13 +283,6 @@ class BaseUpdateablePolicy(BasePolicy):
         BasePolicy.__init__(self, env, random_seed)
         self.model = model
         self._check_model()
-
-    @property
-    def num_actions(self):
-        if isinstance(self.env.action_space, gym.spaces.Discrete):
-            return self.env.action_space.n
-        else:
-            raise NonDiscreteActionSpaceError()
 
     @abstractmethod
     def batch_eval(self, X_s):
@@ -340,14 +357,7 @@ class BaseUpdateablePolicy(BasePolicy):
 
         # create dummy X
         s = self.env.observation_space.sample()
-        try:
-            X = self.X(s)
-        except TypeError as e:
-            if "X() missing 1 required positional argument: 'a'" == e.args[0]:
-                a = self.env.action_space.sample()
-                X = self.X(s, a)
-            else:
-                raise
+        X = self.X(s)
 
         # avoid overflow in model (space.sample can return very large numbers)
         X = (X - X.min()) / (X.max() - X.min())
@@ -377,3 +387,75 @@ class BaseUpdateablePolicy(BasePolicy):
 
         if weights_resettable:
             self.model.set_weights(weights)
+
+
+class BaseActorCritic(EnvironmentDimensionsMixin):
+    def __init__(self, policy, value_function, train_model=None):
+        self.policy = policy
+        self.value_function = value_function
+        self.train_model = train_model
+        self._check_train_model()
+
+    def X(self, s):
+        """
+        Create a feature vector from a state-action pair.
+
+        Parameters
+        ----------
+        s : int or array of float
+            A single state observation.
+
+        Returns
+        -------
+        X_s : 2d-array, shape = [1, num_features]
+            A sklearn-style design matrix of a single data point.
+
+        """
+        X_s = feature_vector(s, self.env.observation_space)
+        X_s = np.expand_dims(X_s, axis=0)  # add batch axis (batch_size == 1)
+        return X_s
+
+    def update(self, X, A, Gn, X_next, I_next):
+        """
+        TODO: docs
+
+        """
+        if self.train_model is not None:
+            self.train_model.train_on_batch([X, Gn, X_next, I_next], A)
+        else:
+            V = self.value_function.batch_eval(X)
+            V_next = self.value_function.batch_eval_next(X_next)
+            G = Gn + I_next * V_next
+            advantages = G - V
+            self.value_function.update(X, G)
+            self.policy.update(X, A, advantages)
+
+    def _check_train_model(self):
+        if self.train_model is None:
+            return
+
+        # get some dummy data
+        X = self._set_env_and_input_dim(self.env)
+        A = np.array([self.env.action_space.sample()])
+        Gn = np.random.randn(1)
+        X_next = self._set_env_and_input_dim(self.env)
+        I_next = np.random.rand(1)
+
+        weights_resettable = (
+            hasattr(self.train_model, 'get_weights') and  # noqa: W504
+            hasattr(self.train_model, 'set_weights'))
+
+        if weights_resettable:
+            weights = self.train_model.get_weights()
+
+        self.update(X, A, Gn, X_next, I_next)
+        policy_pred = self.policy.batch_eval(X)
+        value_pred = self.value_function.batch_eval(X)
+        if policy_pred.shape != (1, self.output_dim):
+            raise BadModelOuputShapeError(
+                (1, self.output_dim), policy_pred.shape)
+        if value_pred.shape != (1,):
+            raise BadModelOuputShapeError((1,), value_pred.shape)
+
+        if weights_resettable:
+            self.train_model.set_weights(weights)

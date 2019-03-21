@@ -2,9 +2,9 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..losses import (
+from ...losses import (
     SemiGradientMeanSquaredErrorLoss, QTypeIIMeanSquaredErrorLoss)
-from .generic import GenericV, GenericQ, GenericQTypeII
+from ..generic import GenericV, GenericQ, GenericQTypeII
 
 
 class FeatureInteractionMixin:
@@ -156,9 +156,9 @@ class LinearV(GenericV, LinearValueFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD optimizer
-        is used, :class:`keras.optimizers.SGD`. See `keras documentation
-        <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla SGD
+        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
+        documentation <https://keras.io/optimizers/>`_ for more details.
 
     sgd_kwargs : keyword arguments
         Keyword arguments for :class:`keras.optimizers.SGD`:
@@ -239,9 +239,9 @@ class LinearQ(GenericQ, LinearValueFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD optimizer
-        is used, :class:`keras.optimizers.SGD`. See `keras documentation
-        <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla SGD
+        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
+        documentation <https://keras.io/optimizers/>`_ for more details.
 
     sgd_kwargs : keyword arguments
         Keyword arguments for :class:`keras.optimizers.SGD`:
@@ -327,9 +327,9 @@ class LinearQTypeII(GenericQTypeII, LinearValueFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD optimizer
-        is used, :class:`keras.optimizers.SGD`. See `keras documentation
-        <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla SGD
+        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
+        documentation <https://keras.io/optimizers/>`_ for more details.
 
     sgd_kwargs : keyword arguments
         Keyword arguments for :class:`keras.optimizers.SGD`:
@@ -352,9 +352,8 @@ class LinearQTypeII(GenericQTypeII, LinearValueFunctionMixin):
     """
     def __init__(self, env, interaction=None, optimizer=None, **sgd_kwargs):
         self._set_env_and_input_dim(env)
-        model, bootstrap_model = self._models(
-            interaction, optimizer, **sgd_kwargs)
-        GenericQTypeII.__init__(self, env, model, bootstrap_model)
+        model = self._models(interaction, optimizer, **sgd_kwargs)
+        GenericQTypeII.__init__(self, env, model)
 
     def _models(self, interaction, optimizer, **sgd_kwargs):
 
@@ -381,4 +380,4 @@ class LinearQTypeII(GenericQTypeII, LinearValueFunctionMixin):
             optimizer=self._optimizer(optimizer, **sgd_kwargs),
         )
 
-        return model, None
+        return model

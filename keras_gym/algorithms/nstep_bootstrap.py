@@ -4,8 +4,7 @@ from gym.spaces import Discrete
 from ..utils import ExperienceCache
 from ..errors import NonDiscreteActionSpaceError
 
-from .base import BaseVAlgorithm
-from .td0 import BaseQTD0Algorithm
+from .base import BaseVAlgorithm, BaseQAlgorithm
 
 
 class NStepBootstrapV(BaseVAlgorithm):
@@ -17,13 +16,17 @@ class NStepBootstrapV(BaseVAlgorithm):
 
     Parameters
     ----------
-    value_function : value function
+    value_function_or_actor_critic : value function or actor-critic object
 
-        A state-action value function :math:`V(s)`.
+        Either a state value function :math:`V(s)` or an actor-critic object.
 
     n : int
 
         Number of steps to delay bootstrap estimation.
+
+    gamma : float
+
+        Future discount factor, value between 0 and 1.
 
     experience_cache_size : positive int, optional
 
@@ -38,10 +41,6 @@ class NStepBootstrapV(BaseVAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    gamma : float
-
-        Future discount factor, value between 0 and 1.
-
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -50,56 +49,17 @@ class NStepBootstrapV(BaseVAlgorithm):
         experience-replay type updates.
 
     """
-    def __init__(self, value_function, n, experience_cache_size=0, gamma=0.9):
+    def __init__(self, value_function, n=1, gamma=0.9,
+                 experience_cache_size=0):
+
         super().__init__(value_function, gamma=gamma)
         self.n = n
         self._nstep_cache = ExperienceCache(maxlen=n, overflow='error')
-        self.experience_cache = None
-        if experience_cache_size:
-            self.experience_cache = ExperienceCache(
-                maxlen=experience_cache_size, overflow='cycle')
 
         # private
         self._gammas = np.power(self.gamma, np.arange(self.n))
 
-    def preprocess_transition(self, s, r, s_next):
-        """
-        Prepare a single transition to be used for policy updates or experience
-        caching.
-
-        Parameters
-        ----------
-        s : int or array
-
-            A single observation (state).
-
-        r : float
-
-            Reward associated with the transition
-            :math:`(s, a)\\to s_\\text{next}`.
-
-        s_next : state observation
-
-            A single state observation. This is the state for which we will
-            compute the estimated future return, i.e. bootstrapping.
-
-        Returns
-        -------
-        X, R, X_next : arrays
-
-            Preprocessed versions of the inputs (s, r, s_next).
-
-        """
-        X = self.value_function.X(s)
-        R = np.array([r])
-        X_next = self.value_function.X_next(s_next)
-        assert X.shape == (1, self.value_function.input_dim), "bad shape"
-        assert R.shape == (1,), "bad shape"
-        assert X_next.shape == (1, self.value_function.input_dim), "bad shape"
-
-        return X, R, X_next
-
-    def update(self, s, r, s_next, done):
+    def update(self, s, a, r, s_next, done):
         """
         Update the given value function.
 
@@ -128,7 +88,7 @@ class NStepBootstrapV(BaseVAlgorithm):
             This is when the actual updates are made.
 
         """
-        X, R, X_next = self.preprocess_transition(s, r, s_next)
+        X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
         self._nstep_cache.append(X, R)
 
         if len(self._nstep_cache) < self.n:
@@ -145,7 +105,10 @@ class NStepBootstrapV(BaseVAlgorithm):
                 self.experience_cache.append(X, Gn, X_next, I_next)
 
             # bootstrapped update
-            if self.value_function.bootstrap_model is not None:
+            if self.actor_critic is not None:
+                self.actor_critic.update(X, A, R, X_next, I_next)
+
+            elif self.value_function.bootstrap_model is not None:
                 self.value_function.update_bootstrapped(
                     X, Gn, X_next, I_next)
             else:
@@ -153,6 +116,11 @@ class NStepBootstrapV(BaseVAlgorithm):
                 assert V_next.shape == (1,), "bad shape"
                 G = Gn + I_next * V_next
                 self.value_function.update(X, G)
+
+        # set bootstrapping inputs to zero so that we can add non-bootstrapping
+        # observations to the experience cache
+        X_next = np.zeros_like(X_next)  # not so important
+        I_next = np.zeros_like(I_next)  # important
 
         if done:
             # non-bootstrapped updates (unroll remainder in reverse order)
@@ -162,13 +130,16 @@ class NStepBootstrapV(BaseVAlgorithm):
                 G[0] = R + self.gamma * G[0]
                 self.value_function.update(X, G)
 
+                if self.experience_cache is not None:
+                    self.experience_cache.append(X, G, X_next, I_next)
 
-class BaseNStepQAlgorithm(BaseQTD0Algorithm):
+
+class BaseNStepQAlgorithm(BaseQAlgorithm):
     """ inherit preprocess_trasition from BaseQTD0Algorithm """
     def __init__(self, value_function, n, gamma=0.9):
         super().__init__(value_function, gamma=gamma)
         self.n = n
-        self.experience_cache = ExperienceCache(maxlen=n, overflow='error')
+        self._episode_cache = ExperienceCache(maxlen=n, overflow='error')
 
         # private
         self._gammas = np.power(self.gamma, np.arange(self.n))
@@ -199,7 +170,7 @@ class BaseNStepQAlgorithm(BaseQTD0Algorithm):
             means that ``X_next=None`` until the end of the episode.
 
         """
-        c = self.experience_cache
+        c = self._episode_cache
         c._check_fitted()
         n = self.n
 
@@ -271,15 +242,15 @@ class NStepQLearning(BaseNStepQAlgorithm):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self.experience_cache.append(X, A, R, X_next)
+        self._episode_cache.append(X, A, R, X_next)
 
         # check if we need to start our updates
-        if not done and len(self.experience_cache) < self.n:
+        if not done and len(self._episode_cache) < self.n:
             return  # wait until episode terminates or cache saturates
 
         # start updating if experience cache is saturated
         if not done:
-            assert len(self.experience_cache) == self.n
+            assert len(self._episode_cache) == self.n
             X, A, R, X_next = self.popleft_nstep()
             Q_next = self.value_function.batch_eval_next(X_next)
             Q_next = np.max(Q_next, axis=1)  # the Q-learning look-ahead
@@ -289,7 +260,7 @@ class NStepQLearning(BaseNStepQAlgorithm):
             return  # wait until episode terminates
 
         # roll out remainder of episode
-        while self.experience_cache:
+        while self._episode_cache:
             X, A, R, X_next = self.popleft_nstep()
             G = np.expand_dims(self._gammas[:len(R)].dot(R), axis=0)
             self._update_value_function(X, A, G)
@@ -357,15 +328,15 @@ class NStepExpectedSarsa(BaseNStepQAlgorithm):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self.experience_cache.append(X, A, R, X_next)
+        self._episode_cache.append(X, A, R, X_next)
 
         # check if we need to start our updates
-        if not done and len(self.experience_cache) < self.n:
+        if not done and len(self._episode_cache) < self.n:
             return  # wait until episode terminates or cache saturates
 
         # start updating if experience cache is saturated
         if not done:
-            assert len(self.experience_cache) == self.n
+            assert len(self._episode_cache) == self.n
             X, A, R, X_next = self.popleft_nstep()
             Q_next = self.value_function.batch_eval_next(X_next)
             P = self.policy.batch_eval(X_next)
@@ -377,7 +348,7 @@ class NStepExpectedSarsa(BaseNStepQAlgorithm):
             return  # wait until episode terminates
 
         # roll out remainder of episode
-        while self.experience_cache:
+        while self._episode_cache:
             X, A, R, X_next = self.popleft_nstep()
             G = np.expand_dims(self._gammas[:len(R)].dot(R), axis=0)
             self._update_value_function(X, A, G)
@@ -442,15 +413,15 @@ class NStepSarsa(BaseNStepQAlgorithm):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self.experience_cache.append(X, A, R, X_next)
+        self._episode_cache.append(X, A, R, X_next)
 
         # check if we need to start our updates
-        if not done and len(self.experience_cache) < self.n:
+        if not done and len(self._episode_cache) < self.n:
             return  # wait until episode terminates or cache saturates
 
         # start updating if experience cache is saturated
         if not done:
-            assert len(self.experience_cache) == self.n
+            assert len(self._episode_cache) == self.n
             X, A, R, X_next = self.popleft_nstep()
             Q_next = self.value_function.batch_eval_next(X_next)
             Q_next = Q_next[[0], [a_next]]  # the SARSA look-ahead
@@ -460,7 +431,7 @@ class NStepSarsa(BaseNStepQAlgorithm):
             return  # wait until episode terminates
 
         # roll out remainder of episode
-        while self.experience_cache:
+        while self._episode_cache:
             X, A, R, X_next = self.popleft_nstep()
             G = np.expand_dims(self._gammas[:len(R)].dot(R), axis=0)
             self._update_value_function(X, A, G)

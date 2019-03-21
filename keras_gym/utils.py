@@ -18,13 +18,14 @@ def reload_all():
         'keras_gym.wrappers',
         'keras_gym.value_functions.base',
         'keras_gym.value_functions.generic',
+        'keras_gym.value_functions.predefined.linear_models',
         'keras_gym.value_functions.predefined',
         'keras_gym.value_functions',
         'keras_gym.policies.base',
         'keras_gym.policies.value_based',
         'keras_gym.policies.generic',
+        'keras_gym.policies.predefined.linear_models',
         'keras_gym.policies.predefined',
-        'keras_gym.policies.actor_critic',
         'keras_gym.policies',
         'keras_gym.environments.adversarial',
         'keras_gym.environments',
@@ -32,6 +33,7 @@ def reload_all():
         'keras_gym.algorithms.td0',
         'keras_gym.algorithms.monte_carlo',
         'keras_gym.algorithms.nstep_bootstrap',
+        'keras_gym.algorithms.policy_gradient',
         'keras_gym.algorithms',
     )
     for m in modules:
