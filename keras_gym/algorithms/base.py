@@ -116,7 +116,7 @@ class BaseAlgorithm(ABC):
             raise ValueError("unexpected value-function type")
 
     @abstractmethod
-    def update(self, s, a, r, s_next):
+    def update(self, s, a, r, s_next, done):
         """
         Update the given value function.
 
@@ -139,6 +139,10 @@ class BaseAlgorithm(ABC):
 
             A single state observation. This is the state for which we will
             compute the estimated future return, i.e. bootstrapping.
+
+        done : bool
+
+            Whether the episode has finished.
 
         """
         pass
