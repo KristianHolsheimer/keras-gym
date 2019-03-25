@@ -134,13 +134,93 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearPolicyMixin):
 
 class LinearSoftmaxActorCritic(BaseActorCritic, FeatureInteractionMixin):
     """
-    TODO: docs
+    A linear function approximator for an actor-critic object
+    :math:`(\\hat{\\pi}(a|s), V(s))`.
+
+    This implementation uses a :class:`keras.Model` under the hood. Some simple
+    feature interaction options are provided as well.
+
+    Parameters
+    ----------
+    env : gym environment spec
+
+        This is used to get information about the shape of the observation
+        space and action space.
+
+    tau : float > 0
+
+        Parameter that specifies the relative weight of the actor loss vs the
+        critic loss.
+
+            .. math::
+
+                J\\ =\\ J_\\text{critic} + \\tau\\, J_\\text{actor}
+
+    interaction : str or keras.layers.Layer, optional
+
+        The desired feature interactions that are fed to the linear regression
+        model. Available predefined preprocessors can be chosen by passing a
+        string, one of the following:
+
+            interaction='full_quadratic'
+
+                This option generates full-quadratic interactions, which
+                include all linear, bilinear and quadratic terms. It does *not*
+                include an intercept. Let :math:`b` and :math:`n` be
+                ``batch_size`` and ``num_features``, respectively. The input
+                shape is :math:`(b,n)` and the output shape is :math:`(b,
+                (n+1)(n+2)/2 - 1)`.
+
+                **Note:** This option requires the Tensorflow backend.
+
+            interaction='elementwise_quadratic'
+
+                This option generates element-wise quadratic interactions,
+                which only include linear and quadratic terms. It does *not*
+                include bilinear terms or an intercept. Let :math:`b` and
+                :math:`n` be ``batch_size`` and ``num_features``, respectively.
+                The input shape is :math:`(b,n)` and the output shape is
+                :math:`(b, 2n)`.
+
+        Otherwise, a custom interaction layer can be passed as well. If left
+        unspecified (``interaction=None``), the interaction layer is omitted
+        altogether.
+
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the plain vanilla SGD
+        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
+        documentation <https://keras.io/optimizers/>`_ for more details.
+
+    random_seed : int, optional
+
+        Set a random state for reproducible randomization.
+
+    sgd_kwargs : keyword arguments
+
+        Keyword arguments for :class:`keras.optimizers.SGD`:
+
+            lr : float >= 0
+                Learning rate.
+
+            momentum : float >= 0
+                Parameter that accelerates SGD in the relevant direction and
+                dampens oscillations.
+
+            decay : float >= 0
+                Learning rate decay over each update.
+
+            nesterov : boolean
+                Whether to apply Nesterov momentum.
+
+        See `keras docs <https://keras.io/optimizers/#sgd>`_ for more details.
 
     """
-    def __init__(self, env, interaction=None, optimizer=None, random_seed=None,
-                 **sgd_kwargs):
+    def __init__(self, env, tau=0.1, interaction=None, optimizer=None,
+                 random_seed=None, **sgd_kwargs):
 
         # need these dimensions to create function approximator
+        self.tau = tau
         self._set_env_and_input_dim(env)
         train_model, actor_model, critic_model = self._models(
             interaction, optimizer, **sgd_kwargs)
@@ -209,7 +289,7 @@ class LinearSoftmaxActorCritic(BaseActorCritic, FeatureInteractionMixin):
             """
             critic_loss = K.mean(K.square(advantages))
             actor_loss = SoftmaxPolicyLossWithLogits(advantages)(A, logits)
-            return actor_loss + critic_loss
+            return critic_loss + self.tau * actor_loss
 
         # the training model
         train_model = keras.Model(

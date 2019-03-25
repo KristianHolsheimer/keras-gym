@@ -403,11 +403,13 @@ class BaseActorCritic(EnvironmentDimensionsMixin):
         Parameters
         ----------
         s : int or array of float
+
             A single state observation.
 
         Returns
         -------
         X_s : 2d-array, shape = [1, num_features]
+
             A sklearn-style design matrix of a single data point.
 
         """
@@ -417,7 +419,34 @@ class BaseActorCritic(EnvironmentDimensionsMixin):
 
     def update(self, X, A, Gn, X_next, I_next):
         """
-        TODO: docs
+        Update both policy (actor) and value function (critic).
+
+        Parameters
+        ----------
+
+        X : 2d-array, shape = [batch_size, num_features]
+
+            Preprocessed state observation :math:`X=\phi(s)`.
+
+        A : 1d-array, shape = [batch_size]
+
+            Batch of chosen actions.
+
+        Gn : 1d-array, shape = [batch_size]
+
+            Batch of (partial) returns.
+
+        X_next : 2d-array, shape = [batch_size, num_features]
+
+            Preprocessed state observation
+            :math:`X_\\texttt{next}=\phi(s_\\texttt{next})`. This can be used
+            to compute a bootstrapped target.
+
+        I_next : 1d-array, shape [batch_size]
+
+            A batch of discount factors. For instance, in n-step bootstrapping
+            this is given by :math:`I_\\textt{next}=\\gamma^n`.
+
 
         """
         if self.train_model is not None:
