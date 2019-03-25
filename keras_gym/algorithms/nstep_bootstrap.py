@@ -99,7 +99,8 @@ class NStepBootstrap(BaseVAlgorithm):
         if len(self._nstep_cache) == self.n:
             Rn = self._nstep_cache[1].array         # Rn.shape: [n]
             Gn = np.array([self._gammas.dot(Rn)])   # discounted partial return
-            I_next = np.array([self.gamma ** self.n])  # bootstrap discounter
+            I_next = (
+                np.zero_like(1) if done else np.array([self.gamma ** self.n]))
             X, A, _ = self._nstep_cache.popleft()
 
             # keep experience
