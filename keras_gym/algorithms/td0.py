@@ -35,6 +35,11 @@ class ValueTD0(BaseVAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
+    experience_replay_batch_size : positive int, optional
+
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
+
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -50,6 +55,11 @@ class ValueTD0(BaseVAlgorithm):
         # keep experience
         if self.experience_cache is not None:
             self.experience_cache.append(X, A, R, X_next, I_next)
+
+        # draw from experience cache
+        if self.experience_replay_batch_size:
+            X, A, R, X_next, I_next = self.experience_cache.sample(
+                self.experience_replay_batch_size)
 
         # update
         self._update_value_function_or_actor_critic(X, A, R, X_next, I_next)
@@ -86,6 +96,11 @@ class QLearning(BaseQAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
+    experience_replay_batch_size : positive int, optional
+
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
+
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -102,9 +117,14 @@ class QLearning(BaseQAlgorithm):
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         G = R + I_next * np.max(Q_next, axis=1)  # target under Q-learning
 
-        # keep experience
+        # keep experience (cache precomputed G to have a more stable target)
         if self.experience_cache is not None:
             self.experience_cache.append(X, A, G, X_next, I_next)
+
+        # draw from experience cache
+        if self.experience_replay_batch_size:
+            X, A, G, X_next, I_next = self.experience_cache.sample(
+                self.experience_replay_batch_size)
 
         # update
         self._update_value_function(X, A, G)
@@ -144,6 +164,11 @@ class ExpectedSarsa(BaseQAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
+    experience_replay_batch_size : positive int, optional
+
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
+
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -171,9 +196,14 @@ class ExpectedSarsa(BaseQAlgorithm):
         assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b, n]
         G = R + I_next * np.einsum('bn,bn->b', P, Q_next)
 
-        # keep experience
+        # keep experience (cache precomputed G to have a more stable target)
         if self.experience_cache is not None:
             self.experience_cache.append(X, A, G, X_next, I_next)
+
+        # draw from experience cache
+        if self.experience_replay_batch_size:
+            X, A, G, X_next, I_next = self.experience_cache.sample(
+                self.experience_replay_batch_size)
 
         # update
         self._update_value_function(X, A, G)
@@ -209,6 +239,11 @@ class Sarsa(BaseQAlgorithm):
         end up with a sample that's insufficiently representative. So, the
         right value balances negative effects from remembering too much and
         forgetting too quickly.
+
+    experience_replay_batch_size : positive int, optional
+
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -249,9 +284,14 @@ class Sarsa(BaseQAlgorithm):
         Q_next = Q_next[idx(Q_next), [a_next]]  # project onto next action
         G = R + I_next * Q_next                 # TD-target under SARSA
 
-        # keep experience
+        # keep experience (cache precomputed G to have a more stable target)
         if self.experience_cache is not None:
             self.experience_cache.append(X, A, G, X_next, I_next)
+
+        # draw from experience cache
+        if self.experience_replay_batch_size:
+            X, A, G, X_next, I_next = self.experience_cache.sample(
+                self.experience_replay_batch_size)
 
         # update
         self._update_value_function(X, A, G)

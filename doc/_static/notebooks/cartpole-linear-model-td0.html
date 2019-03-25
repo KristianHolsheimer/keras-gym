@@ -13119,7 +13119,7 @@ div#notebook {
 <h1 id="Table-Of-Contents">Table Of Contents<a class="anchor-link" href="#Table-Of-Contents">&#182;</a></h1><ul>
 <li><a href="#SARSA">SARSA</a></li>
 <li><a href="#SARSA-with-scikit-learn-function-approximator">SARSA with scikit-learn function approximator</a></li>
-<li><a href="#Q-learning">Q-learning</a></li>
+<li><a href="#Q-learning-with-Experience-Replay">Q-learning with Experience Replay</a></li>
 <li><a href="#Q-learning-with-custom-Keras-function-approximator">Q-learning with custom Keras function approximator</a></li>
 <li><a href="#Q-learning-with-type-II-model">Q-learning with type-II model</a></li>
 <li><a href="#Expected-SARSA">Expected-SARSA</a></li>
@@ -13490,7 +13490,7 @@ num_consecutive_successes = 10
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Q-learning">Q-learning<a class="anchor-link" href="#Q-learning">&#182;</a></h1>
+<h1 id="Q-learning-with-Experience-Replay">Q-learning with Experience Replay<a class="anchor-link" href="#Q-learning-with-Experience-Replay">&#182;</a></h1>
 </div>
 </div>
 </div>
@@ -13504,6 +13504,9 @@ num_consecutive_successes = 10
 <span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
 <span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
 
+<span class="kn">from</span> <span class="nn">keras_gym.utils</span> <span class="k">import</span> <span class="n">reload_all</span>
+<span class="n">reload_all</span><span class="p">()</span>
+
 <span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQ</span>
 <span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">ValueBasedPolicy</span>
 <span class="kn">from</span> <span class="nn">keras_gym.algorithms</span> <span class="k">import</span> <span class="n">QLearning</span>
@@ -13514,9 +13517,9 @@ num_consecutive_successes = 10
 
 
 <span class="c1"># define Q, its induced policy and update algorithm</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">decay</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">interaction</span><span class="o">=</span><span class="s1">&#39;elementwise_quadratic&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">decay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
 <span class="n">policy</span> <span class="o">=</span> <span class="n">ValueBasedPolicy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
-<span class="n">algo</span> <span class="o">=</span> <span class="n">QLearning</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="n">algo</span> <span class="o">=</span> <span class="n">QLearning</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">experience_cache_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">experience_replay_batch_size</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 
 
 <span class="c1"># number of iterations</span>
@@ -13588,106 +13591,106 @@ num_consecutive_successes = 10
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>failed after 16 steps
-failed after 14 steps
-failed after 24 steps
-failed after 12 steps
-failed after 15 steps
-failed after 14 steps
-failed after 17 steps
-failed after 10 steps
-failed after 9 steps
-failed after 10 steps
-failed after 10 steps
-failed after 8 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 8 steps
-failed after 10 steps
-failed after 10 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 9 steps
-failed after 13 steps
-failed after 10 steps
-failed after 10 steps
-failed after 10 steps
-failed after 113 steps
-failed after 77 steps
-failed after 130 steps
+<pre>failed after 50 steps
+failed after 34 steps
+failed after 104 steps
+failed after 48 steps
+failed after 124 steps
+num_consecutive_successes = 1
+failed after 42 steps
 failed after 75 steps
-failed after 56 steps
-failed after 160 steps
-failed after 71 steps
-failed after 147 steps
-failed after 133 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 71 steps
-failed after 94 steps
-failed after 85 steps
-failed after 79 steps
-num_consecutive_successes = 1
-failed after 86 steps
-failed after 100 steps
-failed after 69 steps
-failed after 79 steps
-num_consecutive_successes = 1
-failed after 74 steps
-num_consecutive_successes = 1
-failed after 89 steps
-failed after 65 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-num_consecutive_successes = 7
+failed after 38 steps
+failed after 169 steps
 failed after 192 steps
+failed after 181 steps
+failed after 76 steps
+failed after 77 steps
+failed after 74 steps
+failed after 81 steps
 num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-failed after 131 steps
-failed after 89 steps
+failed after 50 steps
 num_consecutive_successes = 1
 failed after 84 steps
-num_consecutive_successes = 1
-failed after 65 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-num_consecutive_successes = 4
-num_consecutive_successes = 5
-num_consecutive_successes = 6
-failed after 79 steps
-failed after 86 steps
-num_consecutive_successes = 1
-failed after 191 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-num_consecutive_successes = 3
-failed after 75 steps
-failed after 155 steps
-failed after 83 steps
-num_consecutive_successes = 1
-failed after 174 steps
-failed after 158 steps
-num_consecutive_successes = 1
-failed after 147 steps
-failed after 69 steps
-failed after 72 steps
-num_consecutive_successes = 1
-failed after 69 steps
-num_consecutive_successes = 1
-num_consecutive_successes = 2
-failed after 186 steps
+failed after 61 steps
+failed after 135 steps
+failed after 122 steps
 failed after 119 steps
+failed after 39 steps
+failed after 117 steps
+failed after 97 steps
+failed after 51 steps
+failed after 98 steps
+failed after 81 steps
+failed after 189 steps
+failed after 75 steps
+failed after 90 steps
+failed after 137 steps
+failed after 83 steps
+failed after 61 steps
+num_consecutive_successes = 1
+failed after 86 steps
+failed after 55 steps
+failed after 127 steps
+failed after 132 steps
+failed after 55 steps
+failed after 61 steps
+failed after 70 steps
+failed after 72 steps
+failed after 117 steps
+failed after 92 steps
+failed after 121 steps
+failed after 159 steps
+failed after 66 steps
+num_consecutive_successes = 1
+failed after 70 steps
+num_consecutive_successes = 1
+failed after 130 steps
+failed after 68 steps
+failed after 194 steps
+failed after 119 steps
+failed after 87 steps
+failed after 83 steps
+failed after 153 steps
+failed after 106 steps
+failed after 123 steps
+failed after 199 steps
+failed after 166 steps
+num_consecutive_successes = 1
+failed after 176 steps
+failed after 74 steps
+failed after 139 steps
+failed after 132 steps
+failed after 102 steps
+failed after 106 steps
+failed after 73 steps
+failed after 116 steps
+failed after 134 steps
+failed after 85 steps
+failed after 115 steps
+failed after 171 steps
+failed after 51 steps
+num_consecutive_successes = 1
+failed after 175 steps
+failed after 182 steps
+failed after 58 steps
+failed after 137 steps
+failed after 151 steps
+failed after 179 steps
+num_consecutive_successes = 1
+failed after 108 steps
+failed after 65 steps
+failed after 114 steps
+failed after 147 steps
+failed after 111 steps
+failed after 146 steps
+num_consecutive_successes = 1
+failed after 50 steps
+failed after 85 steps
+failed after 134 steps
+failed after 111 steps
+failed after 61 steps
+failed after 155 steps
+failed after 122 steps
 </pre>
 </div>
 </div>

@@ -37,12 +37,19 @@ class BaseAlgorithm(ABC):
         experience-replay type updates.
 
     """
-    def __init__(self, gamma=0.9, experience_cache_size=0):
+    def __init__(self, gamma=0.9, experience_cache_size=0,
+                 experience_replay_batch_size=0):
+
         self.gamma = gamma
         self.experience_cache = None
+        self.experience_replay_batch_size = int(experience_replay_batch_size)
         if experience_cache_size:
             self.experience_cache = ExperienceCache(
-                maxlen=experience_cache_size, overflow='cycle')
+                maxlen=int(experience_cache_size), overflow='cycle')
+        if int(experience_cache_size) < self.experience_replay_batch_size:
+            raise ValueError(
+                "`experience_cache_size` must be at least at large as "
+                "`experience_replay_batch_size`")
 
     def preprocess_transition(self, s, a, r, s_next):
         """
@@ -176,6 +183,11 @@ class BaseVAlgorithm(BaseAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
+    experience_replay_batch_size : positive int, optional
+
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
+
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -185,7 +197,7 @@ class BaseVAlgorithm(BaseAlgorithm):
 
     """
     def __init__(self, value_function_or_actor_critic, gamma=0.9,
-                 experience_cache_size=0):
+                 experience_cache_size=0, experience_replay_batch_size=0):
 
         type_V = (
             isinstance(value_function_or_actor_critic, GenericV)
@@ -203,7 +215,8 @@ class BaseVAlgorithm(BaseAlgorithm):
             raise ValueError(
                 "expected a state value function or an actor-critic object")
 
-        super().__init__(gamma, experience_cache_size)
+        super().__init__(
+            gamma, experience_cache_size, experience_replay_batch_size)
 
     def _update_value_function_or_actor_critic(self, X, A, Gn, X_next, I_next):
         """ This is a little helper method to avoid duplication of code. """
@@ -247,6 +260,11 @@ class BaseQAlgorithm(BaseAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
+    experience_replay_batch_size : positive int, optional
+
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
+
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -255,11 +273,14 @@ class BaseQAlgorithm(BaseAlgorithm):
         experience-replay type updates.
 
     """
-    def __init__(self, value_function, gamma=0.9, experience_cache_size=0):
+    def __init__(self, value_function, gamma=0.9, experience_cache_size=0,
+                 experience_replay_batch_size=0):
+
         if not isinstance(value_function, (GenericQ, GenericQTypeII)):
             raise ValueError("expected a Q-type value function")
         self.value_function = value_function
-        super().__init__(gamma, experience_cache_size)
+        super().__init__(
+            gamma, experience_cache_size, experience_replay_batch_size)
 
     def _update_value_function(self, X, A, G):
         """ This is a little helper method to avoid duplication of code. """
@@ -299,6 +320,11 @@ class BasePolicyAlgorithm(BaseAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
+    experience_replay_batch_size : positive int, optional
+
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
+
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -307,8 +333,11 @@ class BasePolicyAlgorithm(BaseAlgorithm):
         experience-replay type updates.
 
     """
-    def __init__(self, policy, gamma=0.9, experience_cache_size=0):
+    def __init__(self, policy, gamma=0.9, experience_cache_size=0,
+                 experience_replay_batch_size=0):
+
         if not isinstance(policy, BaseUpdateablePolicy):
             raise TypeError("expected a policy object")
         self.policy = policy
-        super().__init__(gamma, experience_cache_size)
+        super().__init__(
+            gamma, experience_cache_size, experience_replay_batch_size)
