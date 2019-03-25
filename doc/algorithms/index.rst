@@ -57,6 +57,20 @@ Chapter 7 of `Sutton & Barto <http://incompleteideas.net/book/the-book-
     - :doc:`../notebooks/cartpole-linear-model-nstep-bootstrap`
 
 
+Policy Gradient
+---------------
+
+These are algorithms that update the policy directly. The underlying object
+that is updated is am updateable policy object, cf. :mod:`keras_gym.policies`.
+
+The most basic example is the implementation of the REINFORCE algorithm:
+:class:`Reinforce <keras_gym.algorithms.Reinforce>`. Another very broad class
+of algorithms is implemented in :class:`AdvantageActorCritic
+<keras_gym.algorithms.AdvantageActorCritic>`, which approxmates the advantage
+function not by sampling (as in REINFORCE) but by learning an auxiliary value
+function :math:`V(s)`.
+
+
 References
 ----------
 
@@ -67,3 +81,4 @@ References
     monte_carlo
     td0
     nstep_bootstrap
+    policy_gradient

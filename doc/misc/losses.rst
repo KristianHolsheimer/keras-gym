@@ -10,6 +10,7 @@ functions that are used throughout this package.
 .. autosummary::
     :nosignatures:
 
+    keras_gym.losses.BasePolicyLoss
     keras_gym.losses.SemiGradientMeanSquaredErrorLoss
     keras_gym.losses.SoftmaxPolicyLossWithLogits
 

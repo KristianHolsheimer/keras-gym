@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..utils import softmax
-from .base import BaseUpdateablePolicy, BaseActorCritic
+from .base import BaseUpdateablePolicy
 
 
 class GenericSoftmaxPolicy(BaseUpdateablePolicy):
@@ -38,19 +38,3 @@ class GenericSoftmaxPolicy(BaseUpdateablePolicy):
         assert logits.ndim == 2, "bad shape"  # [batch_size, num_actions]
         proba = softmax(logits, axis=1)
         return proba
-
-
-class GenericActorCritic(BaseActorCritic):
-    """
-    This is a simple wrapper class that combines a policy (actor) with a
-    value function (critic) into a sigle object.
-
-    We don't strictly need this, as our actor-critic type algorithms can take
-    the policy and value function as separate arguments without an issue. There
-    are situations, however, in which it is very useful to to have the policy
-    and value function packaged together.
-
-    TODO: class signature
-
-    """
-    pass

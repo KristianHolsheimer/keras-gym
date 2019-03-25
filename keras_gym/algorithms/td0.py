@@ -52,14 +52,7 @@ class ValueTD0(BaseVAlgorithm):
             self.experience_cache.append(X, A, R, X_next, I_next)
 
         # update
-        if self.actor_critic is not None:
-            self.actor_critic.update(X, A, R, X_next, I_next)
-        elif self.value_function.bootstrap_model is not None:
-            self.value_function.update_bootstrapped(X, R, X_next, I_next)
-        else:
-            V_next = self.value_function.batch_eval(X_next)
-            G = R + I_next * V_next
-            self.value_function.update(X, G)
+        self._update_value_function_or_actor_critic(X, A, R, X_next, I_next)
 
 
 class QLearning(BaseQAlgorithm):

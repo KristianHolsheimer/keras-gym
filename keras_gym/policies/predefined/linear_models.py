@@ -4,7 +4,8 @@ from tensorflow.keras import backend as K
 from ...value_functions.predefined.linear_models import FeatureInteractionMixin
 from ...value_functions.generic import GenericV
 from ...losses import SoftmaxPolicyLossWithLogits
-from ..generic import GenericSoftmaxPolicy, GenericActorCritic
+from ..base import BaseActorCritic
+from ..generic import GenericSoftmaxPolicy
 
 
 class LinearPolicyMixin(FeatureInteractionMixin):
@@ -131,7 +132,7 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearPolicyMixin):
         GenericSoftmaxPolicy.__init__(self, env, model, random_seed)
 
 
-class LinearSoftmaxActorCritic(GenericActorCritic, FeatureInteractionMixin):
+class LinearSoftmaxActorCritic(BaseActorCritic, FeatureInteractionMixin):
     """
     TODO: docs
 
@@ -149,7 +150,7 @@ class LinearSoftmaxActorCritic(GenericActorCritic, FeatureInteractionMixin):
         value_function = GenericV(self.env, critic_model)
 
         # constructor
-        GenericActorCritic.__init__(self, policy, value_function, train_model)
+        BaseActorCritic.__init__(self, policy, value_function, train_model)
 
     @property
     def output_dim(self):

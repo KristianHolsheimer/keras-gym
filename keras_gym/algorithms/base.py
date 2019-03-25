@@ -205,6 +205,19 @@ class BaseVAlgorithm(BaseAlgorithm):
 
         super().__init__(gamma, experience_cache_size)
 
+    def _update_value_function_or_actor_critic(self, X, A, Gn, X_next, I_next):
+        """ This is a little helper method to avoid duplication of code. """
+
+        if self.actor_critic is not None:
+            self.actor_critic.update(X, A, Gn, X_next, I_next)
+        # elif self.value_function.bootstrap_model is not None:
+        #     self.value_function.update_bootstrapped(
+        #         X, Gn, X_next, I_next)
+        else:
+            V_next = self.value_function.batch_eval_next(X_next)
+            G = Gn + I_next * V_next
+            self.value_function.update(X, G)
+
 
 class BaseQAlgorithm(BaseAlgorithm):
     """

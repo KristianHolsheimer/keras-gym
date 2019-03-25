@@ -73,10 +73,8 @@ class MonteCarloV(BaseVAlgorithm):
                 self.experience_cache.append(X, A, R, X_next, I_next)
 
             # update
-            if self.actor_critic is not None:
-                self.actor_critic.update(X, A, G, X_next, I_next)
-            else:
-                self.value_function.update(X, G)
+            self._update_value_function_or_actor_critic(
+                X, A, G, X_next, I_next)
 
 
 class MonteCarloQ(BaseQAlgorithm):
@@ -131,6 +129,10 @@ class MonteCarloQ(BaseQAlgorithm):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
         self._episode_cache.append(X, A, R)
 
+        # these are dummy variables (but expected by experience replay cache)
+        X_next = np.zeros_like(X_next)
+        I_next = np.zeros(1)
+
         # break out of function if episode hasn't yet finished
         if not done:
             return
@@ -140,12 +142,12 @@ class MonteCarloQ(BaseQAlgorithm):
 
         # replay episode in reverse order
         while self._episode_cache:
-            X, A, R, X_next, I_next = self._episode_cache.pop()
+            X, A, R = self._episode_cache.pop()
             G = R + self.gamma * G
 
             # keep experience
             if self.experience_cache is not None:
-                self.experience_cache.append(X, A, R, X_next, I_next)
+                self.experience_cache.append(X, A, G, X_next, I_next)
 
             # update
             self._update_value_function(X, A, G)

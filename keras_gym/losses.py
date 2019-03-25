@@ -1,13 +1,15 @@
+from abc import ABC, abstractmethod
+
+
 import tensorflow as tf
 from tensorflow.keras import backend as K
-
 
 from .utils import project_onto_actions
 
 
-class SoftmaxPolicyLossWithLogits:
+class BasePolicyLoss(ABC):
     """
-    Softmax-policy loss (with logits).
+    Abstract base class for policy loss functions.
 
     This class provides a stateful implementation of a keras-compatible loss
     function that requires more input than just ``y_true`` and ``y_pred``. The
@@ -21,13 +23,11 @@ class SoftmaxPolicyLossWithLogits:
     :math:`\\mathcal{A}(s, a)` is a proper advantage function with vanishing
     expectation value.
 
-    This loss function is actually a surrogate loss function defined in such a
-    way that its gradient is the same as what one would get by taking a true
-    policy gradient.
-
     Parameters
     ----------
+
     advantages : 1d Tensor, dtype: float, shape: [batch_size]
+
         The advantages, one per time step.
 
     """
@@ -38,6 +38,25 @@ class SoftmaxPolicyLossWithLogits:
         assert K.ndim(advantages) == 1, "bad shape"
         self.advantages = K.stop_gradient(advantages)
 
+    @abstractmethod
+    def __call__(self, y_true, y_pred):
+        pass
+
+
+class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
+    """
+    Softmax-policy loss (with logits).
+
+    This loss function is actually a surrogate loss function defined in such a
+    way that its gradient is the same as what one would get by taking a true
+    policy gradient.
+
+    Parameters
+    ----------
+    advantages : 1d Tensor, dtype: float, shape: [batch_size]
+        The advantages, one per time step.
+
+    """
     @staticmethod
     def logpi_surrogate(logits):
         """
@@ -132,7 +151,7 @@ class SoftmaxPolicyLossWithLogits:
         assert K.int_shape(adv)[0] == K.int_shape(logits)[0], "bad shape"
 
         # construct the surrogate for logpi(.|s)
-        logpi_all = self.logpi_surrogate(logits)  # shape: [batch_size, n_actions]
+        logpi_all = self.logpi_surrogate(logits)  # [batch_size, num_actions]
 
         # project onto actions taken: logpi(.|s) --> logpi(a|s)
         logpi = project_onto_actions(logpi_all, A)  # shape: [batch_size]

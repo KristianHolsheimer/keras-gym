@@ -7,7 +7,7 @@ from ..errors import NonDiscreteActionSpaceError
 from .base import BaseVAlgorithm, BaseQAlgorithm
 
 
-class NStepBootstrapV(BaseVAlgorithm):
+class NStepBootstrap(BaseVAlgorithm):
     """
     Update state value function according to the n-step bootstrap TD.
 
@@ -52,8 +52,8 @@ class NStepBootstrapV(BaseVAlgorithm):
     def __init__(self, value_function, n=1, gamma=0.9,
                  experience_cache_size=0):
 
-        super().__init__(value_function, gamma=gamma)
-        self.n = n
+        super().__init__(value_function, gamma, experience_cache_size)
+        self.n = int(n)
 
         # private
         self._nstep_cache = ExperienceCache(maxlen=n, overflow='error')
@@ -89,9 +89,9 @@ class NStepBootstrapV(BaseVAlgorithm):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        self._nstep_cache.append(X, R)
+        self._nstep_cache.append(X, A, R)
 
-        if len(self._nstep_cache) < self.n:
+        if not done and len(self._nstep_cache) < self.n:
             # n-step window not yet saturated, so break out of function
             return
 
@@ -100,37 +100,37 @@ class NStepBootstrapV(BaseVAlgorithm):
             Rn = self._nstep_cache[1].array         # Rn.shape: [n]
             Gn = np.array([self._gammas.dot(Rn)])   # discounted partial return
             I_next = np.array([self.gamma ** self.n])  # bootstrap discounter
-            X, _ = self._nstep_cache.popleft()
+            X, A, _ = self._nstep_cache.popleft()
+
+            # keep experience
             if self.experience_cache is not None:
-                self.experience_cache.append(X, Gn, X_next, I_next)
+                self.experience_cache.append(X, A, Gn, X_next, I_next)
 
-            # bootstrapped update
-            if self.actor_critic is not None:
-                self.actor_critic.update(X, A, R, X_next, I_next)
+            # update
+            self._update_value_function_or_actor_critic(
+                X, A, Gn, X_next, I_next)
 
-            elif self.value_function.bootstrap_model is not None:
-                self.value_function.update_bootstrapped(
-                    X, Gn, X_next, I_next)
-            else:
-                V_next = self.value_function.batch_eval_next(X_next)
-                G = Gn + I_next * V_next
-                self.value_function.update(X, G)
+        if not done:
+            return
 
         # set bootstrapping inputs to zero so that we can add non-bootstrapping
         # observations to the experience cache
         X_next = np.zeros_like(X_next)  # not so important
-        I_next = np.zeros_like(I_next)  # important
+        I_next = np.zeros_like(R)       # important
 
-        if done:
-            # non-bootstrapped updates (unroll remainder in reverse order)
-            G = np.zeros(1)
-            while self._nstep_cache:
-                X, R = self._nstep_cache.pop()
-                G[0] = R + self.gamma * G[0]
-                self.value_function.update(X, G)
+        # non-bootstrapped updates (unroll remainder in reverse order)
+        G = np.zeros(1)
+        while self._nstep_cache:
+            X, A, R = self._nstep_cache.pop()
+            G = R + self.gamma * G
 
-                if self.experience_cache is not None:
-                    self.experience_cache.append(X, G, X_next, I_next)
+            # keep experience
+            if self.experience_cache is not None:
+                self.experience_cache.append(X, A, G, X_next, I_next)
+
+            # update
+            self._update_value_function_or_actor_critic(
+                X, A, G, X_next, I_next)
 
 
 class BaseNStepQAlgorithm(BaseQAlgorithm):
