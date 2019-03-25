@@ -125,36 +125,8 @@ class AdvantageActorCritic(BaseActorCritic):
 
         A single model to update both the actor and the critic in one call to
         ``train_on_batch``. See :class:`LinearSoftmaxActorCritic
-        <keras_gym.predefined.linear.LinearSoftmaxActorCritic>` for an example
+        <keras_gym.policies.LinearSoftmaxActorCritic>` for an example
         implementation that uses a ``train_model``.
-
-    Examples
-    --------
-
-    The way to train using A2C is to contruct an actor-critic and to pass it to
-    a V-type algorithm. Consider the following simple example:
-
-    .. code:: python
-
-        import gym
-        from keras_gym.predefined.linear import LinearV, LinearSoftmaxPolicy
-        from keras_gym.algorithms import AdvantageActorCritic, NStepBootstrap
-
-        env = gym.make(...)
-
-        actor_critic = AdvantageActorCritic(
-            policy=LinearSoftmaxPolicy(env, lr=0.01),
-            value_function=LinearV(env, lr=0.1))
-
-        a2c_algo = NStepBootstrap(actor_critic, n=10)
-
-        # usual boilerplate to run env episodes
-        ...
-
-        # within an episode, update the actor-critic by feeding a transition
-        a = ac.policy.thompson(s)
-        s_next, r, done, info = env.step(a)
-        a2c_algo.update(s, a, r, s_next, done)
 
 
     """

@@ -61,14 +61,44 @@ Policy Gradient
 ---------------
 
 These are algorithms that update the policy directly. The underlying object
-that is updated is am updateable policy object, cf. :mod:`keras_gym.policies`.
+that is updated is an updateable policy object, cf. :mod:`keras_gym.policies`.
 
 The most basic example is the implementation of the REINFORCE algorithm:
-:class:`Reinforce <keras_gym.algorithms.Reinforce>`. Another very broad class
-of algorithms is implemented in :class:`AdvantageActorCritic
-<keras_gym.algorithms.AdvantageActorCritic>`, which approxmates the advantage
-function not by sampling (as in REINFORCE) but by learning an auxiliary value
-function :math:`V(s)`.
+:class:`Reinforce <keras_gym.algorithms.Reinforce>`.
+
+Another very broad class of algorithms is implemented in
+:class:`AdvantageActorCritic <keras_gym.algorithms.AdvantageActorCritic>`,
+which approximates the advantage function not by sampling (as in REINFORCE) but
+by learning an auxiliary value function :math:`V(s)`. The implementation is not
+an algorithm on its own. Instead, :class:`AdvantageActorCritic
+<keras_gym.algorithms.AdvantageActorCritic>` allows you to bundle the policy
+(actor) with the value function (critic). The combined actor-critic object can
+then be passed to an ordinary V-type algorithm like :class:`MonteCarloV
+<keras_gym.algorithms.MonteCarloV>`, :class:`ValueTD0
+<keras_gym.algorithms.ValueTD0>`, :class:`NStepBootstrap
+<keras_gym.algorithms.NStepBootstrap>`, etc.
+
+.. code:: python
+
+    import gym
+    from keras_gym.predefined.linear import LinearV, LinearSoftmaxPolicy
+    from keras_gym.algorithms import AdvantageActorCritic, NStepBootstrap
+
+    env = gym.make(...)
+
+    actor_critic = AdvantageActorCritic(
+        policy=LinearSoftmaxPolicy(env, lr=0.01),
+        value_function=LinearV(env, lr=0.1))
+
+    a2c_algo = NStepBootstrap(actor_critic, n=10)
+
+    # usual boilerplate to run env episodes
+    ...
+
+    # within an episode, update the actor-critic by feeding a transition
+    a = ac.policy.thompson(s)
+    s_next, r, done, info = env.step(a)
+    a2c_algo.update(s, a, r, s_next, done)
 
 
 References
