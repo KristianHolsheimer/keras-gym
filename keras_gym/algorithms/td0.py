@@ -43,9 +43,9 @@ class ValueTD0(BaseVAlgorithm):
         experience-replay type updates.
 
     """
-    def update(self, s, a, r, s_next):
+    def update(self, s, a, r, s_next, done):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        I_next = np.array([self.gamma])
+        I_next = np.zeros(1) if done else np.array([self.gamma])
 
         # keep experience
         if self.experience_cache is not None:
@@ -94,13 +94,13 @@ class QLearning(BaseQAlgorithm):
         experience-replay type updates.
 
     """
-    def update(self, s, a, r, s_next):
+    def update(self, s, a, r, s_next, done):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        I_next = np.array([self.gamma])
+        I_next = np.zeros(1) if done else np.array([self.gamma])
 
         # get target Q-value
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
-        G = R + self.gamma * np.max(Q_next, axis=1)  # target under Q-learning
+        G = R + I_next * np.max(Q_next, axis=1)  # target under Q-learning
 
         # keep experience
         if self.experience_cache is not None:
@@ -159,9 +159,9 @@ class ExpectedSarsa(BaseQAlgorithm):
         super().__init__(value_function, gamma=gamma)
         self.policy = policy
 
-    def update(self, s, a, r, s_next):
+    def update(self, s, a, r, s_next, done):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        I_next = np.array([self.gamma])
+        I_next = np.zeros(1) if done else np.array([self.gamma])
 
         # get probabilities over next actions from policy
         P = self.policy.batch_eval(X_next)
@@ -169,7 +169,7 @@ class ExpectedSarsa(BaseQAlgorithm):
         # get target Q-value
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b, n]
-        G = R + self.gamma * np.einsum('bn,bn->b', P, Q_next)
+        G = R + I_next * np.einsum('bn,bn->b', P, Q_next)
 
         # keep experience
         if self.experience_cache is not None:
@@ -218,7 +218,7 @@ class Sarsa(BaseQAlgorithm):
         experience-replay type updates.
 
     """
-    def update(self, s, a, r, s_next, a_next):
+    def update(self, s, a, r, s_next, a_next, done):
         """
         Update the given policy and/or value function.
 
@@ -242,12 +242,12 @@ class Sarsa(BaseQAlgorithm):
 
         """
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
-        I_next = np.array([self.gamma])
+        I_next = np.zeros(1) if done else np.array([self.gamma])
 
         # get target Q-value
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         Q_next = Q_next[idx(Q_next), [a_next]]  # project onto next action
-        G = R + self.gamma * Q_next             # TD-target under SARSA
+        G = R + I_next * Q_next                 # TD-target under SARSA
 
         # keep experience
         if self.experience_cache is not None:
