@@ -45,7 +45,13 @@ class Reinforce(BasePolicyAlgorithm):
     """
     def __init__(self, policy, gamma=0.9, experience_cache_size=0):
         self._episode_cache = ExperienceCache(overflow='grow')
-        super().__init__(policy, gamma, experience_cache_size)
+        super().__init__(
+            policy=policy,
+            gamma=gamma,
+            experience_cache_size=0,
+            experience_replay_batch_size=0,
+            target_func_update_delay=0,
+            target_func_update_tau=1.0)
 
     def update(self, s, a, r, s_next, done):
         """
