@@ -449,14 +449,11 @@ class BaseActorCritic(EnvironmentDimensionsMixin):
 
 
         """
-        if self.target_func_update_delay == 0 and self.train_model is not None:
+        if self.train_model is not None:
             self.train_model.train_on_batch([X, Gn, X_next, I_next], A)
         else:
             V = self.value_function.batch_eval(X)
-            if self.target_func is not None:
-                V_next = self.target_func.batch_eval_next(X_next)
-            else:
-                V_next = self.value_function.batch_eval_next(X_next)
+            V_next = self.value_function.batch_eval_next(X_next)
             G = Gn + I_next * V_next
             advantages = G - V
             self.value_function.update(X, G)

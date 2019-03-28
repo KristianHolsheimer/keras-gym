@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
-from copy import deepcopy
-
 import numpy as np
-from tensorflow import keras
 
 from ..utils import ExperienceCache
 from ..value_functions import GenericV, GenericQ, GenericQTypeII
@@ -32,28 +29,6 @@ class BaseAlgorithm(ABC):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
-
     Attributes
     ----------
     experience_cache : ExperienceCache or None
@@ -61,24 +36,13 @@ class BaseAlgorithm(ABC):
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
 
-    target_func : value function or policy
-
-        A copy of the underlying value function or policy. This is used to
-        compute bootstrap targets. This model is typically only updated
-        periodically; the period being set by the ``target_func_update_delay``
-        parameter.
-
     """
     def __init__(self, gamma=0.9, experience_cache_size=0,
-                 experience_replay_batch_size=0, target_func_update_delay=0,
-                 target_func_update_tau=1.0):
+                 experience_replay_batch_size=0):
 
         self.gamma = gamma
-
-        # experience replay for stabilizing updates
         self.experience_cache = None
         self.experience_replay_batch_size = int(experience_replay_batch_size)
-
         if experience_cache_size:
             self.experience_cache = ExperienceCache(
                 maxlen=int(experience_cache_size), overflow='cycle')
@@ -86,43 +50,6 @@ class BaseAlgorithm(ABC):
             raise ValueError(
                 "`experience_cache_size` must be at least at large as "
                 "`experience_replay_batch_size`")
-
-        # target model for stabilizing bootstrap updates
-        self.target_func = None
-        self.target_func_update_delay = int(target_func_update_delay)
-        self.target_func_update_tau = float(target_func_update_tau)
-
-        if not (0.0 <= self.target_func_update_tau <= 1.0):
-            raise ValueError(
-                "target_func_update_tau must lie on the unit interval")
-        if self.target_func_update_delay:
-            self._func.bootstrap_model = None
-            self.target_func = deepcopy(self._func)
-            self.target_func.model = keras.models.clone_model(self._func.model)
-            self.target_func.model.set_weights(self._func.model.get_weights())
-
-    @property
-    def _func(self):
-        if hasattr(self, 'value_function'):
-            return self.value_function
-        if hasattr(self, 'policy'):
-            return self.policy
-        raise AttributeError(
-            "algorithm has neither a value_function nor a policy")
-
-    def _check_update_target_model(self, num_observations):
-        if not hasattr(self, '_update_counter'):
-            self._update_counter = 0
-        self._update_counter += int(num_observations)
-        n = self.target_func_update_delay
-        if self.target_func is not None and self._update_counter % n == 0:
-            tau = self.target_func_update_tau
-            fresh_weights = self._func.model.get_weights()
-            old_target_weights = self.target_func.get_weights()
-            new_target_weights = [
-                (1 - tau) * w_old + tau * w
-                for w, w_old in zip(fresh_weights, old_target_weights)]
-            self.target_func.set_weights(new_target_weights)
 
     def preprocess_transition(self, s, a, r, s_next):
         """
@@ -243,7 +170,7 @@ class BaseVAlgorithm(BaseAlgorithm):
 
         Future discount factor, value between 0 and 1.
 
-    experience_cache_size : non-negative int, optional
+    experience_cache_size : positive int, optional
 
         If provided, we populate a presisted experience cache that can be used
         for (asynchronous) experience replay. If left unspecified, no
@@ -256,33 +183,10 @@ class BaseVAlgorithm(BaseAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    experience_replay_batch_size : non-negative int, optional
+    experience_replay_batch_size : positive int, optional
 
-        If ``experience_cache_size > 0``, this setting sets the batch size of
-        the experience-replay updates. If this is left unspecified, basic
-        per-observation updates are done instead.
-
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -291,17 +195,9 @@ class BaseVAlgorithm(BaseAlgorithm):
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
 
-    target_func : value function or policy
-
-        A copy of the underlying value function or policy. This is used to
-        compute bootstrap targets. This model is typically only updated
-        periodically; the period being set by the ``target_func_update_delay``
-        parameter.
-
     """
     def __init__(self, value_function_or_actor_critic, gamma=0.9,
-                 experience_cache_size=0, experience_replay_batch_size=0,
-                 target_func_update_delay=0, target_func_update_tau=1.0):
+                 experience_cache_size=0, experience_replay_batch_size=0):
 
         type_V = (
             isinstance(value_function_or_actor_critic, GenericV)
@@ -327,11 +223,11 @@ class BaseVAlgorithm(BaseAlgorithm):
 
         if self.actor_critic is not None:
             self.actor_critic.update(X, A, Gn, X_next, I_next)
+        # elif self.value_function.bootstrap_model is not None:
+        #     self.value_function.update_bootstrapped(
+        #         X, Gn, X_next, I_next)
         else:
-            if self.target_func is not None:
-                V_next = self.target_func.batch_eval_next(X_next)
-            else:
-                V_next = self.value_function.batch_eval_next(X_next)
+            V_next = self.value_function.batch_eval_next(X_next)
             G = Gn + I_next * V_next
             self.value_function.update(X, G)
 
@@ -364,33 +260,10 @@ class BaseQAlgorithm(BaseAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    experience_replay_batch_size : non-negative int, optional
+    experience_replay_batch_size : positive int, optional
 
-        If ``experience_cache_size > 0``, this setting sets the batch size of
-        the experience-replay updates. If this is left unspecified, basic
-        per-observation updates are done instead.
-
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -399,17 +272,9 @@ class BaseQAlgorithm(BaseAlgorithm):
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
 
-    target_func : value function or policy
-
-        A copy of the underlying value function or policy. This is used to
-        compute bootstrap targets. This model is typically only updated
-        periodically; the period being set by the ``target_func_update_delay``
-        parameter.
-
     """
     def __init__(self, value_function, gamma=0.9, experience_cache_size=0,
-                 experience_replay_batch_size=0, target_func_update_delay=0,
-                 target_func_update_tau=1.0):
+                 experience_replay_batch_size=0):
 
         if not isinstance(value_function, (GenericQ, GenericQTypeII)):
             raise ValueError("expected a Q-type value function")
@@ -455,33 +320,10 @@ class BasePolicyAlgorithm(BaseAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    experience_replay_batch_size : non-negative int, optional
+    experience_replay_batch_size : positive int, optional
 
-        If ``experience_cache_size > 0``, this setting sets the batch size of
-        the experience-replay updates. If this is left unspecified, basic
-        per-observation updates are done instead.
-
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -490,17 +332,9 @@ class BasePolicyAlgorithm(BaseAlgorithm):
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
 
-    target_func : value function or policy
-
-        A copy of the underlying value function or policy. This is used to
-        compute bootstrap targets. This model is typically only updated
-        periodically; the period being set by the ``target_func_update_delay``
-        parameter.
-
     """
     def __init__(self, policy, gamma=0.9, experience_cache_size=0,
-                 experience_replay_batch_size=0, target_func_update_delay=0,
-                 target_func_update_tau=1.0):
+                 experience_replay_batch_size=0):
 
         if not isinstance(policy, BaseUpdateablePolicy):
             raise TypeError("expected a policy object")

@@ -35,33 +35,10 @@ class ValueTD0(BaseVAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    experience_replay_batch_size : non-negative int, optional
+    experience_replay_batch_size : positive int, optional
 
-        If ``experience_cache_size > 0``, this setting sets the batch size of
-        the experience-replay updates. If this is left unspecified, basic
-        per-observation updates are done instead.
-
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -69,13 +46,6 @@ class ValueTD0(BaseVAlgorithm):
 
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
-
-    target_func : keras.Model or None
-
-        A copy of the model used by the udnerlying value function or policy.
-        This model is used to compute bootstrap targets. This model is
-        typically only updated periodically; the period being set by the
-        ``target_func_update_delay`` parameter.
 
     """
     def update(self, s, a, r, s_next, done):
@@ -126,33 +96,10 @@ class QLearning(BaseQAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    experience_replay_batch_size : non-negative int, optional
+    experience_replay_batch_size : positive int, optional
 
-        If ``experience_cache_size > 0``, this setting sets the batch size of
-        the experience-replay updates. If this is left unspecified, basic
-        per-observation updates are done instead.
-
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -161,23 +108,13 @@ class QLearning(BaseQAlgorithm):
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
 
-    target_func : keras.Model or None
-
-        A copy of the model used by the udnerlying value function or policy.
-        This model is used to compute bootstrap targets. This model is
-        typically only updated periodically; the period being set by the
-        ``target_func_update_delay`` parameter.
-
     """
     def update(self, s, a, r, s_next, done):
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
         I_next = np.zeros(1) if done else np.array([self.gamma])
 
         # get target Q-value
-        if self.target_func is not None:
-            Q_next = self.target_func.batch_eval_next(X_next)
-        else:
-            Q_next = self.value_function.batch_eval_next(X_next)
+        Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         G = R + I_next * np.max(Q_next, axis=1)  # target under Q-learning
 
         # keep experience (cache precomputed G to have a more stable target)
@@ -227,33 +164,10 @@ class ExpectedSarsa(BaseQAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    experience_replay_batch_size : non-negative int, optional
+    experience_replay_batch_size : positive int, optional
 
-        If ``experience_cache_size > 0``, this setting sets the batch size of
-        the experience-replay updates. If this is left unspecified, basic
-        per-observation updates are done instead.
-
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -261,13 +175,6 @@ class ExpectedSarsa(BaseQAlgorithm):
 
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
-
-    target_func : keras.Model or None
-
-        A copy of the model used by the udnerlying value function or policy.
-        This model is used to compute bootstrap targets. This model is
-        typically only updated periodically; the period being set by the
-        ``target_func_update_delay`` parameter.
 
     """
     def __init__(self, value_function, policy, gamma=0.9):
@@ -285,10 +192,7 @@ class ExpectedSarsa(BaseQAlgorithm):
         P = self.policy.batch_eval(X_next)
 
         # get target Q-value
-        if self.target_func is not None:
-            Q_next = self.target_func.batch_eval_next(X_next)
-        else:
-            Q_next = self.value_function.batch_eval_next(X_next)
+        Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         assert P.shape == Q_next.shape  # [batch_size, num_actions] = [b, n]
         G = R + I_next * np.einsum('bn,bn->b', P, Q_next)
 
@@ -336,33 +240,10 @@ class Sarsa(BaseQAlgorithm):
         right value balances negative effects from remembering too much and
         forgetting too quickly.
 
-    experience_replay_batch_size : non-negative int, optional
+    experience_replay_batch_size : positive int, optional
 
-        If ``experience_cache_size > 0``, this setting sets the batch size of
-        the experience-replay updates. If this is left unspecified, basic
-        per-observation updates are done instead.
-
-    target_func_update_delay : non-negative int, optional
-
-        If a non-zero value is provided, the function approximator
-        (:class:`keras.Model`) is copied. The copy of the model is often called
-        *target* function approximator. The specific value provided for
-        ``target_func_update_delay`` specifies the number of observations
-        (i.e. *not* the number of batches) to wait before updating
-        the target function approximator.
-
-    target_func_update_tau : float, optional
-
-        If there is a target function approximator present, this parameter
-        specifies how "hard" the update must be. The update rule is:
-
-        .. math::
-
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target + \\tau\\,w
-
-        where :math:`w` (without subscript) are the weights of the model that
-        is continually updated. A hard update is accomplished by to the default
-        value :math:`tau=1`.
+        If provided, we do experience-replay updates instead of regular, single
+        instance updates.
 
     Attributes
     ----------
@@ -370,13 +251,6 @@ class Sarsa(BaseQAlgorithm):
 
         The persisted experience cache, which could be used for (asynchronous)
         experience-replay type updates.
-
-    target_func : keras.Model or None
-
-        A copy of the model used by the udnerlying value function or policy.
-        This model is used to compute bootstrap targets. This model is
-        typically only updated periodically; the period being set by the
-        ``target_func_update_delay`` parameter.
 
     """
     def update(self, s, a, r, s_next, a_next, done):
@@ -406,10 +280,7 @@ class Sarsa(BaseQAlgorithm):
         I_next = np.zeros(1) if done else np.array([self.gamma])
 
         # get target Q-value
-        if self.target_func is not None:
-            Q_next = self.target_func.batch_eval_next(X_next)
-        else:
-            Q_next = self.value_function.batch_eval_next(X_next)
+        Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
         Q_next = Q_next[idx(Q_next), [a_next]]  # project onto next action
         G = R + I_next * Q_next                 # TD-target under SARSA
 
