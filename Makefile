@@ -35,7 +35,7 @@ nbconvert:
 	jupyter nbconvert --to html --output-dir doc/_static/notebooks/ notebooks/*.ipynb
 
 install_requirements:
-	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do pip install -r $r; done
+	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do $(PYTHON_EXEC) -m pip install -r $$r; done
 
 upgrade_requirements:
-	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do pur -r $r; do pip install -r $r; done
+	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do $(PYTHON_EXEC) -m pur -r $$r; $(PYTHON_EXEC) -m pip install -r $$r; done
