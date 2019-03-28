@@ -392,6 +392,9 @@ class LinearQ(GenericQ, LinearValueFunctionMixin):
         model, bootstrap_model = self._models(
             interaction, optimizer, **sgd_kwargs)
 
+        if int(target_model_sync_period) > 0:
+            bootstrap_model = None  # for consistency
+
         GenericQ.__init__(
             self, env, model,
             state_action_combiner=state_action_combiner,
