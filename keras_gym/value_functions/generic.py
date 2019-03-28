@@ -42,12 +42,12 @@ class GenericV(BaseValueFunction):
 
         .. math::
 
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\text{target}
             + \\tau\\,w_\\text{primary}
 
         where :math:`w_\\text{primary}` are the weights of the primary model,
-        which is continually updated. A hard update is accomplished by to the
-        default value :math:`tau=1`.
+        which is continually updated. A hard update is accomplished by the
+        default value :math:`\\tau=1`.
 
     bootstrap_model : keras.Model, optional
 
@@ -250,12 +250,12 @@ class GenericQ(BaseValueFunction):
 
         .. math::
 
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\text{target}
             + \\tau\\,w_\\text{primary}
 
         where :math:`w_\\text{primary}` are the weights of the primary model,
-        which is continually updated. A hard update is accomplished by to the
-        default value :math:`tau=1`.
+        which is continually updated. A hard update is accomplished by the
+        default value :math:`\\tau=1`.
 
     bootstrap_model : keras.Model, optional
 
@@ -520,12 +520,12 @@ class GenericQTypeII(GenericV):
 
         .. math::
 
-            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\text{target}
             + \\tau\\,w_\\text{primary}
 
         where :math:`w_\\text{primary}` are the weights of the primary model,
-        which is continually updated. A hard update is accomplished by to the
-        default value :math:`tau=1`.
+        which is continually updated. A hard update is accomplished by the
+        default value :math:`\\tau=1`.
 
     Attributes
     ----------
