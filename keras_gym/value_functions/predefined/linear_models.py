@@ -154,6 +154,32 @@ class LinearV(GenericV, LinearValueFunctionMixin):
         unspecified (`interaction=None`), the interaction layer is omitted
         altogether.
 
+    target_model_sync_period : non-negative int, optional
+
+        If a non-zero value is provided, the function approximator
+        (:class:`keras.Model`) is copied. The copy of the model is often called
+        *target* function approximator. The specific value provided for
+        ``target_model_sync_period`` specifies the number of regular updates to
+        perform before synchronizing the target function approximator. For
+        instance, ``target_model_sync_period = 100`` means synchronize the
+        target model after every 100th update of the primary model. See the
+        ``target_model_sync_tau`` option below to see how the target model is
+        synchronized.
+
+    target_model_sync_tau : float, optional
+
+        If there is a target function approximator present, this parameter
+        specifies how "hard" the update must be. The update rule is:
+
+        .. math::
+
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            + \\tau\\,w_\\text{primary}
+
+        where :math:`w_\\text{primary}` are the weights of the primary model,
+        which is continually updated. A hard update is accomplished by to the
+        default value :math:`tau=1`.
+
     optimizer : keras.optimizers.Optimizer, optional
 
         If left unspecified (``optimizer=None``), the plain vanilla SGD
@@ -178,12 +204,51 @@ class LinearV(GenericV, LinearValueFunctionMixin):
 
         See `keras docs <https://keras.io/optimizers/#sgd>`_ for more details.
 
+    Attributes
+    ----------
+    num_actions : int or error
+
+        If the action space is :class:`gym.spaces.Discrete`, this is equal to
+        ``env.action_space.n``. If one attempts to access this attribute when
+        the action space not discrete, however, an error is raised.
+
+    input_dim : int
+
+        The number of input features that is fed into the function
+        approximator.
+
+    output_dim : int
+
+        The dimensionality of the function approximator's output.
+
+    target_model : keras.Model or None
+
+        A copy of the underlying value function or policy. This is used to
+        compute bootstrap targets. This model is typically only updated
+        periodically; the period being set by the
+        ``target_model_sync_period`` parameter.
+
     """
-    def __init__(self, env, interaction=None, optimizer=None, **sgd_kwargs):
+    def __init__(
+            self, env,
+            interaction=None,
+            target_model_sync_period=0,
+            target_model_sync_tau=1.0,
+            optimizer=None,
+            **sgd_kwargs):
+
         self._set_env_and_input_dim(env)
         model, bootstrap_model = self._models(
             interaction, optimizer, **sgd_kwargs)
-        GenericV.__init__(self, env, model, bootstrap_model)
+
+        if int(target_model_sync_period) > 0:
+            bootstrap_model = None  # for consistency
+
+        GenericV.__init__(
+            self, env, model,
+            target_model_sync_period=target_model_sync_period,
+            target_model_sync_tau=target_model_sync_tau,
+            bootstrap_model=bootstrap_model)
 
 
 class LinearQ(GenericQ, LinearValueFunctionMixin):
@@ -237,6 +302,32 @@ class LinearQ(GenericQ, LinearValueFunctionMixin):
         unspecified (`interaction=None`), the interaction layer is omitted
         altogether.
 
+    target_model_sync_period : non-negative int, optional
+
+        If a non-zero value is provided, the function approximator
+        (:class:`keras.Model`) is copied. The copy of the model is often called
+        *target* function approximator. The specific value provided for
+        ``target_model_sync_period`` specifies the number of regular updates to
+        perform before synchronizing the target function approximator. For
+        instance, ``target_model_sync_period = 100`` means synchronize the
+        target model after every 100th update of the primary model. See the
+        ``target_model_sync_tau`` option below to see how the target model is
+        synchronized.
+
+    target_model_sync_tau : float, optional
+
+        If there is a target function approximator present, this parameter
+        specifies how "hard" the update must be. The update rule is:
+
+        .. math::
+
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            + \\tau\\,w_\\text{primary}
+
+        where :math:`w_\\text{primary}` are the weights of the primary model,
+        which is continually updated. A hard update is accomplished by to the
+        default value :math:`tau=1`.
+
     optimizer : keras.optimizers.Optimizer, optional
 
         If left unspecified (``optimizer=None``), the plain vanilla SGD
@@ -261,18 +352,52 @@ class LinearQ(GenericQ, LinearValueFunctionMixin):
 
         See `keras docs <https://keras.io/optimizers/#sgd>`_ for more details.
 
-    """
-    def __init__(self, env, state_action_combiner='outer', interaction=None,
-                 optimizer=None, **sgd_kwargs):
+    Attributes
+    ----------
+    num_actions : int or error
 
-        self._init_combiner(state_action_combiner)
-        self._set_env_and_input_dim(env)
+        If the action space is :class:`gym.spaces.Discrete`, this is equal to
+        ``env.action_space.n``. If one attempts to access this attribute when
+        the action space not discrete, however, an error is raised.
+
+    input_dim : int
+
+        The number of input features that is fed into the function
+        approximator.
+
+    output_dim : int
+
+        The dimensionality of the function approximator's output.
+
+    target_model : keras.Model or None
+
+        A copy of the underlying value function or policy. This is used to
+        compute bootstrap targets. This model is typically only updated
+        periodically; the period being set by the
+        ``target_model_sync_period`` parameter.
+
+    """
+    def __init__(
+            self, env,
+            state_action_combiner='outer',
+            interaction=None,
+            target_model_sync_period=0,
+            target_model_sync_tau=1.0,
+            optimizer=None,
+            **sgd_kwargs):
+
+        self._init_combiner(state_action_combiner)  # needed for self.X(s, a)
+        self._set_env_and_input_dim(env)            # requires self.X(s, a)
 
         model, bootstrap_model = self._models(
             interaction, optimizer, **sgd_kwargs)
 
         GenericQ.__init__(
-            self, env, model, bootstrap_model, state_action_combiner)
+            self, env, model,
+            state_action_combiner=state_action_combiner,
+            target_model_sync_period=target_model_sync_period,
+            target_model_sync_tau=target_model_sync_tau,
+            bootstrap_model=bootstrap_model)
 
 
 class LinearQTypeII(GenericQTypeII, LinearValueFunctionMixin):
@@ -325,6 +450,32 @@ class LinearQTypeII(GenericQTypeII, LinearValueFunctionMixin):
         unspecified (`interaction=None`), the interaction layer is omitted
         altogether.
 
+    target_model_sync_period : non-negative int, optional
+
+        If a non-zero value is provided, the function approximator
+        (:class:`keras.Model`) is copied. The copy of the model is often called
+        *target* function approximator. The specific value provided for
+        ``target_model_sync_period`` specifies the number of regular updates to
+        perform before synchronizing the target function approximator. For
+        instance, ``target_model_sync_period = 100`` means synchronize the
+        target model after every 100th update of the primary model. See the
+        ``target_model_sync_tau`` option below to see how the target model is
+        synchronized.
+
+    target_model_sync_tau : float, optional
+
+        If there is a target function approximator present, this parameter
+        specifies how "hard" the update must be. The update rule is:
+
+        .. math::
+
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            + \\tau\\,w_\\text{primary}
+
+        where :math:`w_\\text{primary}` are the weights of the primary model,
+        which is continually updated. A hard update is accomplished by to the
+        default value :math:`tau=1`.
+
     optimizer : keras.optimizers.Optimizer, optional
 
         If left unspecified (``optimizer=None``), the plain vanilla SGD
@@ -349,11 +500,46 @@ class LinearQTypeII(GenericQTypeII, LinearValueFunctionMixin):
 
         See `keras docs <https://keras.io/optimizers/#sgd>`_ for more details.
 
+    Attributes
+    ----------
+    num_actions : int or error
+
+        If the action space is :class:`gym.spaces.Discrete`, this is equal to
+        ``env.action_space.n``. If one attempts to access this attribute when
+        the action space not discrete, however, an error is raised.
+
+    input_dim : int
+
+        The number of input features that is fed into the function
+        approximator.
+
+    output_dim : int
+
+        The dimensionality of the function approximator's output.
+
+    target_model : keras.Model or None
+
+        A copy of the underlying value function or policy. This is used to
+        compute bootstrap targets. This model is typically only updated
+        periodically; the period being set by the
+        ``target_model_sync_period`` parameter.
+
     """
-    def __init__(self, env, interaction=None, optimizer=None, **sgd_kwargs):
+    def __init__(
+            self, env,
+            interaction=None,
+            target_model_sync_period=0,
+            target_model_sync_tau=1.0,
+            optimizer=None,
+            **sgd_kwargs):
+
         self._set_env_and_input_dim(env)
         model = self._models(interaction, optimizer, **sgd_kwargs)
-        GenericQTypeII.__init__(self, env, model)
+
+        GenericQTypeII.__init__(
+            self, env, model,
+            target_model_sync_period=target_model_sync_period,
+            target_model_sync_tau=target_model_sync_tau)
 
     def _models(self, interaction, optimizer, **sgd_kwargs):
 

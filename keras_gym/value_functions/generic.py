@@ -23,6 +23,32 @@ class GenericV(BaseValueFunction):
         :mod:`keras_gym.wrappers` module for wrappers that allow you to use
         e.g. scikit-learn function approximators instead.
 
+    target_model_sync_period : non-negative int, optional
+
+        If a non-zero value is provided, the function approximator
+        (:class:`keras.Model`) is copied. The copy of the model is often called
+        *target* function approximator. The specific value provided for
+        ``target_model_sync_period`` specifies the number of regular updates to
+        perform before synchronizing the target function approximator. For
+        instance, ``target_model_sync_period = 100`` means synchronize the
+        target model after every 100th update of the primary model. See the
+        ``target_model_sync_tau`` option below to see how the target model is
+        synchronized.
+
+    target_model_sync_tau : float, optional
+
+        If there is a target function approximator present, this parameter
+        specifies how "hard" the update must be. The update rule is:
+
+        .. math::
+
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            + \\tau\\,w_\\text{primary}
+
+        where :math:`w_\\text{primary}` are the weights of the primary model,
+        which is continually updated. A hard update is accomplished by to the
+        default value :math:`tau=1`.
+
     bootstrap_model : keras.Model, optional
 
         Just like ``model``, this is also a Keras function approximator.
@@ -40,7 +66,6 @@ class GenericV(BaseValueFunction):
         algorithms like :class:`QLearning <keras_gym.algorithms.QLearning>` are
         unable to make use of it altogether.
 
-
     Attributes
     ----------
     num_actions : int or error
@@ -57,6 +82,13 @@ class GenericV(BaseValueFunction):
     output_dim : int
 
         The dimensionality of the function approximator's output.
+
+    target_model : keras.Model or None
+
+        A copy of the underlying value function or policy. This is used to
+        compute bootstrap targets. This model is typically only updated
+        periodically; the period being set by the
+        ``target_model_sync_period`` parameter.
 
     """
     output_dim = 1
@@ -168,7 +200,7 @@ class GenericV(BaseValueFunction):
             This array represents :math:`V(s)`.
 
         """
-        return self.batch_eval(X_next)
+        return super().batch_eval_next(X_next)
 
 
 class GenericQ(BaseValueFunction):
@@ -189,6 +221,42 @@ class GenericQ(BaseValueFunction):
         :mod:`keras_gym.wrappers` module for wrappers that allow you to use
         e.g. scikit-learn function approximators instead.
 
+    state_action_combiner : {'outer', 'concatenate'} or func
+
+        How to combine the feature vectors coming from ``s`` and ``a``. Here
+        'outer' means taking a flat outer product using :py:func:`numpy.kron`,
+        which gives a 1d-array of length :math:`d_s\\times d_a`. This choice is
+        suitable for simple linear models, including the table-lookup type
+        models. In contrast, 'concatenate' uses :py:func:`numpy.hstack` to
+        return a 1d array of length :math:`d_s + d_a`. This option is more
+        suitable for non-linear models.
+
+    target_model_sync_period : non-negative int, optional
+
+        If a non-zero value is provided, the function approximator
+        (:class:`keras.Model`) is copied. The copy of the model is often called
+        *target* function approximator. The specific value provided for
+        ``target_model_sync_period`` specifies the number of regular updates to
+        perform before synchronizing the target function approximator. For
+        instance, ``target_model_sync_period = 100`` means synchronize the
+        target model after every 100th update of the primary model. See the
+        ``target_model_sync_tau`` option below to see how the target model is
+        synchronized.
+
+    target_model_sync_tau : float, optional
+
+        If there is a target function approximator present, this parameter
+        specifies how "hard" the update must be. The update rule is:
+
+        .. math::
+
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            + \\tau\\,w_\\text{primary}
+
+        where :math:`w_\\text{primary}` are the weights of the primary model,
+        which is continually updated. A hard update is accomplished by to the
+        default value :math:`tau=1`.
+
     bootstrap_model : keras.Model, optional
 
         Just like ``model``, this is also a Keras function approximator.
@@ -205,16 +273,6 @@ class GenericQ(BaseValueFunction):
         bootstrapped target is computed on the python side. Also, some
         algorithms like :class:`QLearning <keras_gym.algorithms.QLearning>` are
         unable to make use of it altogether.
-
-    state_action_combiner : {'outer', 'concatenate'} or func
-
-        How to combine the feature vectors coming from ``s`` and ``a``. Here
-        'outer' means taking a flat outer product using :py:func:`numpy.kron`,
-        which gives a 1d-array of length :math:`d_s\\times d_a`. This choice is
-        suitable for simple linear models, including the table-lookup type
-        models. In contrast, 'concatenate' uses :py:func:`numpy.hstack` to
-        return a 1d array of length :math:`d_s + d_a`. This option is more
-        suitable for non-linear models.
 
     Attributes
     ----------
@@ -233,15 +291,30 @@ class GenericQ(BaseValueFunction):
 
         The dimensionality of the function approximator's output.
 
+    target_model : keras.Model or None
+
+        A copy of the underlying value function or policy. This is used to
+        compute bootstrap targets. This model is typically only updated
+        periodically; the period being set by the
+        ``target_model_sync_period`` parameter.
 
     """
     output_dim = 1
 
     def __init__(
-            self, env, model, bootstrap_model=None,
-            state_action_combiner='outer'):
+            self, env, model,
+            state_action_combiner='outer',
+            target_model_sync_period=0,
+            target_model_sync_tau=1.0,
+            bootstrap_model=None):
+
         self._init_combiner(state_action_combiner)
-        super().__init__(env, model, bootstrap_model)
+        super().__init__(
+            env=env,
+            model=model,
+            target_model_sync_period=target_model_sync_period,
+            target_model_sync_tau=target_model_sync_tau,
+            bootstrap_model=bootstrap_model)
 
     def __call__(self, s, a=None):
         """
@@ -276,7 +349,7 @@ class GenericQ(BaseValueFunction):
             Q = self.batch_eval(X)
         else:
             X = self.X_next(s)
-            Q = self.batch_eval_next(X)
+            Q = self.batch_eval_next(X, use_target_model=False)
         return Q[0]
 
     def X(self, s, a):
@@ -385,7 +458,7 @@ class GenericQ(BaseValueFunction):
         assert X_next.shape[2] == self.input_dim
 
         X_next_2d = np.reshape(X_next, [-1, self.input_dim])
-        Q_next_1d = self.batch_eval(X_next_2d)
+        Q_next_1d = super().batch_eval_next(X_next_2d)
         assert Q_next_1d.ndim == 1, "bad shape"
 
         Q_next = np.reshape(Q_next_1d, [-1, self.num_actions])
@@ -428,12 +501,39 @@ class GenericQTypeII(GenericV):
         :mod:`keras_gym.wrappers` module for wrappers that allow you to use
         e.g. scikit-learn function approximators instead.
 
+    target_model_sync_period : non-negative int, optional
+
+        If a non-zero value is provided, the function approximator
+        (:class:`keras.Model`) is copied. The copy of the model is often called
+        *target* function approximator. The specific value provided for
+        ``target_model_sync_period`` specifies the number of regular updates to
+        perform before synchronizing the target function approximator. For
+        instance, ``target_model_sync_period = 100`` means synchronize the
+        target model after every 100th update of the primary model. See the
+        ``target_model_sync_tau`` option below to see how the target model is
+        synchronized.
+
+    target_model_sync_tau : float, optional
+
+        If there is a target function approximator present, this parameter
+        specifies how "hard" the update must be. The update rule is:
+
+        .. math::
+
+            w_\\text{target}\\ \\leftarrow\\ (1-\\tau)\\,w_\\target
+            + \\tau\\,w_\\text{primary}
+
+        where :math:`w_\\text{primary}` are the weights of the primary model,
+        which is continually updated. A hard update is accomplished by to the
+        default value :math:`tau=1`.
+
     Attributes
     ----------
     num_actions : int or error
 
-        Shortcut for ``env.action_space.n`` (assuming that the action space is
-        :class:`gym.spaces.Discrete`).
+        If the action space is :class:`gym.spaces.Discrete`, this is equal to
+        ``env.action_space.n``. If one attempts to access this attribute when
+        the action space not discrete, however, an error is raised.
 
     input_dim : int
 
@@ -442,13 +542,29 @@ class GenericQTypeII(GenericV):
 
     output_dim : int
 
-        The dimensionality of the function approximator's output, which is also
-        a shortcut for ``env.action_space.n``.
+        The dimensionality of the function approximator's output.
+
+    target_model : keras.Model or None
+
+        A copy of the underlying value function or policy. This is used to
+        compute bootstrap targets. This model is typically only updated
+        periodically; the period being set by the
+        ``target_model_sync_period`` parameter.
+
 
 
     """
-    def __init__(self, env, model):
-        super().__init__(env, model, None)
+    def __init__(
+            self, env, model,
+            target_model_sync_period=0,
+            target_model_sync_tau=1.0):
+
+        super().__init__(
+            env=env,
+            model=model,
+            target_model_sync_period=target_model_sync_period,
+            target_model_sync_tau=target_model_sync_tau,
+            bootstrap_model=None)
 
     @property
     def output_dim(self):
