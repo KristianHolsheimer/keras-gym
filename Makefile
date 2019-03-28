@@ -25,7 +25,10 @@ flake8:
 	$(PYTHON_EXEC) setup.py flake8
 
 upload: all
-	twine upload -u krispisvis dist/*
+	$(PYTHON_EXEC) -m twine upload -u krispisvis dist/*
+
+test:
+	$(PYTHON_EXEC) -m pytest
 
 nbconvert:
 	rm -f doc/_static/notebooks/*.html
