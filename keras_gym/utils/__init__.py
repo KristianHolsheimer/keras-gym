@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 from gym.spaces import Tuple, Discrete, Box, MultiDiscrete, MultiBinary
 
-from .errors import ArrayDequeOverflowError, NoExperienceCacheError
+from ..errors import ArrayDequeOverflowError, NoExperienceCacheError
 
 
 def reload_all():
@@ -13,6 +13,7 @@ def reload_all():
     modules = (
         'keras_gym.errors',
         'keras_gym.utils',
+        'keras_gym.utils.atari',
         'keras_gym.losses',
         'keras_gym.wrappers.sklearn',
         'keras_gym.wrappers',
@@ -41,7 +42,28 @@ def reload_all():
 
 
 def feature_vector(x, space):
-    if isinstance(space, Tuple):
+    """
+    Create a feature vector out of a state observation :math:`s` or an action
+    :math:`a`. This is the default preprocessor that we use for our function
+    approximators.
+
+    Parameters
+    ----------
+    x : state or action
+
+        A state observation :math:`s` or an action :math:`a`.
+
+    space : gym space
+
+        A gym space, e.g. :class:`gym.spaces.Box`,
+        :class:`gym.spaces.Discrete`, etc.
+
+    """
+    if space is None:
+        if not (isinstance(x, np.ndarray) and x.ndim == 1):
+            raise TypeError(
+                "if space is None, x must be a 1d numpy array already")
+    elif isinstance(space, Tuple):
         x = np.concatenate([
             feature_vector(x_, space_)  # recursive
             for x_, space_ in zip(x, space.spaces)], axis=0)
@@ -52,7 +74,7 @@ def feature_vector(x, space):
     elif isinstance(space, Discrete):
         x = one_hot_vector(x, space.n)
     elif isinstance(space, (MultiBinary, Box)):
-        pass
+        x = x.ravel()
     else:
         raise NotImplementedError(
             "haven't implemented a preprocessor for space type: {}"
