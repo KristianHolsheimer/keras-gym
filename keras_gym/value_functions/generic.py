@@ -653,7 +653,7 @@ class GenericQTypeII(GenericV):
             This array represents :math:`Q(s_\\text{next}, .)`.
 
         """
-        return super().batch_eval_next(X_next)
+        return self.batch_eval(X_next)
 
     def update(self, X, A, G):
         """
