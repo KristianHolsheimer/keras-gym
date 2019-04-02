@@ -110,6 +110,10 @@ class QLearning(BaseQAlgorithm):
 
     """
     def update(self, s, a, r, s_next, done):
+        if not hasattr(self, '_update_counter'):
+            self._update_counter = 0
+        self._update_counter += 1
+
         X, A, R, X_next = self.preprocess_transition(s, a, r, s_next)
         I_next = np.zeros(1) if done else np.array([self.gamma])
 
@@ -119,8 +123,11 @@ class QLearning(BaseQAlgorithm):
 
         # draw from experience cache
         if self.experience_replay_batch_size:
-            X, A, R, X_next, I_next = self.experience_cache.sample(
-                self.experience_replay_batch_size)
+            if self._update_counter % self.experience_replay_batch_size == 0:
+                X, A, R, X_next, I_next = self.experience_cache.sample(
+                    self.experience_replay_batch_size)
+            else:
+                return
 
         # get target Q-value
         Q_next = self.value_function.batch_eval_next(X_next)  # bootstrap
