@@ -20,6 +20,7 @@ def reload_all():
         'keras_gym.value_functions.base',
         'keras_gym.value_functions.generic',
         'keras_gym.value_functions.predefined.linear_models',
+        'keras_gym.value_functions.predefined.atari',
         'keras_gym.value_functions.predefined',
         'keras_gym.value_functions',
         'keras_gym.policies.base',
