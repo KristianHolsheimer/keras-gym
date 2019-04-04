@@ -85,6 +85,35 @@ def feature_vector(x, space):
     return x
 
 
+def get_transition(env):
+    """
+    Generate a transition from the environment.
+
+    This basically does a single step on the environment
+    and then closes it.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    Returns
+    -------
+    s, a, r, s_next : tuple
+
+        A single transition.
+
+    """
+    try:
+        s = env.reset()
+        a = env.action_space.sample()
+        s_next, r, _, _ = env.step(a)
+        return s, a, r, s_next
+    finally:
+        env.close()
+
+
 def check_dtype(x, dtype):
     """
     Check the data type of a scalar value `x`.
