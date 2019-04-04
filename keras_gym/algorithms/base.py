@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-from ..utils import ExperienceCacheV2
+from ..utils import ExperienceCache
 from ..value_functions import GenericV, GenericQ, GenericQTypeII
 from ..policies.base import BaseUpdateablePolicy, BaseActorCritic
 
@@ -44,8 +44,8 @@ class BaseAlgorithm(ABC):
         self.experience_cache = None
         self.experience_replay_batch_size = int(experience_replay_batch_size)
         if experience_cache_size:
-            self.experience_cache = ExperienceCacheV2(
-                maxlen=int(experience_cache_size))
+            self.experience_cache = ExperienceCache(
+                maxlen=int(experience_cache_size), overflow='cycle')
         if int(experience_cache_size) < self.experience_replay_batch_size:
             raise ValueError(
                 "`experience_cache_size` must be at least at large as "

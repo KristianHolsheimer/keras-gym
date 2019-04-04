@@ -1,6 +1,5 @@
 from string import ascii_lowercase
 
-import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -722,78 +721,3 @@ class ExperienceCache(RandomStateMixin):
             return
         for deque in self.deques_:
             deque.clear(reset_maxlen)
-
-
-class ExperienceCacheV2:
-    """
-    Experience replay cache based on pandas.
-
-    TODO: docs
-
-    """
-    NAMES = ['X', 'A', 'R', 'X_next', 'I_next']
-
-    def __init__(self, maxlen):
-        self.maxlen = maxlen
-
-    def _fit(self, *transition):
-        self._shapes = tuple(arr.shape for arr in transition)
-        if not np.all([arr.shape[0] == 1 for arr in transition]):
-            raise ValueError("expected batch_size=1 input")
-
-        self._shapes_flat = tuple(np.prod(s) for s in self._shapes)
-        cols = pd.MultiIndex.from_arrays((
-            np.concatenate([np.full(d, n) for n, d in zip(self.NAMES, self._shapes_flat)]),
-            np.concatenate([np.arange(d) for d in self._shapes_flat]),
-        ))
-        self._df = pd.DataFrame(columns=cols, data=np.zeros((self.maxlen, len(cols))))
-        self._df.insert(0, 'isfilled', False)
-        self._i = 0
-        self._len = 0
-
-    @property
-    def shapes(self):
-        return getattr(self, '_shapes')
-
-    def __len__(self):
-        return getattr(self, '_len', 0)
-
-    def __bool__(self):
-        return bool(len(self))
-
-    def __str__(self):
-        return str(self.dataframe)
-
-    def __repr__(self):
-        return repr(self.dataframe)
-
-    @property
-    def dataframe(self):
-        if not hasattr(self, '_df'):
-            return
-        if len(self) < self.maxlen:
-            mask = self._df['isfilled']
-            return self._df.loc[mask].drop('isfilled', axis=1)
-        else:
-            return self._df.drop('isfilled', axis=1)
-
-    def append(self, X, A, R, X_next, I_next):
-        tr = X, A, R, X_next, I_next  # abbreviation for transition
-
-        if not hasattr(self, '_df'):
-            self._fit(*tr)
-        elif not np.all([arr.shape == s for arr, s in zip(tr, self._shapes)]):
-            raise ValueError("inconsistent input shapes")
-
-        self._df.iloc[self._i, 1:] = np.concatenate([arr.ravel() for arr in tr])
-        self._df.iloc[self._i, 0] = True
-        self._i = (self._i + 1) % self.maxlen
-        if self._len < self.maxlen:
-            self._len += 1
-
-    def sample(self, n=1, replace=False, frac=None):
-        if not self:
-            raise ValueError('cannot sample from empty cache')
-        df = self.dataframe.sample(n, replace=replace, frac=frac)
-        return tuple(df[name].values.reshape((n,) + shape[1:])
-                     for name, shape in zip(self.NAMES, self._shapes))
