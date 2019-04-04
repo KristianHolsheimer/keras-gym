@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
@@ -64,8 +65,7 @@ class AtariDQN(GenericQTypeII):
         # model definition
         model = keras.Model(inputs=[X, G], outputs=Y)
         model.compile(
-            loss=QTypeIIMeanSquaredErrorLoss(G),
-            optimizer=keras.optimizers.RMSprop(
-                lr=0.00025, rho=0.95, epsilon=0.01))
+            loss=QTypeIIMeanSquaredErrorLoss(G, tf.losses.huber_loss),
+            optimizer=keras.optimizers.Adam(1e-3))
 
         return model
