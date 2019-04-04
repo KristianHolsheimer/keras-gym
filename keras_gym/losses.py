@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from .utils import project_onto_actions
@@ -175,8 +176,12 @@ class QTypeIIMeanSquaredErrorLoss:
 
         The returns that we wish to fit our value function on.
 
+    base_loss : keras loss function, optional
+
+        Keras loss function. Default: :func:`keras.losses.mse`.
+
     """
-    def __init__(self, G):
+    def __init__(self, G, base_loss=keras.losses.mse):
         if K.ndim(G) == 2:
             assert K.int_shape(G)[1] == 1, "bad shape"
             G = K.squeeze(G, axis=1)
@@ -265,11 +270,15 @@ class SemiGradientMeanSquaredErrorLoss:
 
             \\texttt{bootstrapped_values}\\ =\\ \\gamma^n\\,\\hat{v}(S_{t+n})
 
+    base_loss : keras loss function, optional
+
+        Keras loss function. Default: :func:`keras.losses.mse`.
 
 
     """
-    def __init__(self, bootstrapped_values):
+    def __init__(self, bootstrapped_values, base_loss=keras.losses.mse):
         self.bootstrapped_values = tf.stop_gradient(bootstrapped_values)
+        self.base_loss = base_loss
 
     def __call__(self, Gn, y_pred):
         """
@@ -293,5 +302,5 @@ class SemiGradientMeanSquaredErrorLoss:
             The bootstrapped MSE.
 
         """
-        err = Gn + self.bootstrapped_values - y_pred
-        return K.mean(K.square(err))
+        y_true = Gn + self.bootstrapped_values
+        return self.base_loss(y_true, y_pred)
