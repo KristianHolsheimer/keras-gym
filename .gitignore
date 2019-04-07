@@ -20,3 +20,6 @@ doc/build/
 # sublime
 *.sublime-workspace
 sftp*-config.json
+
+# line profiler
+*.lprof
