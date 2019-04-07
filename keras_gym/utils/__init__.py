@@ -1,4 +1,5 @@
 from string import ascii_lowercase
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -721,3 +722,20 @@ class ExperienceCache(RandomStateMixin):
             return
         for deque in self.deques_:
             deque.clear(reset_maxlen)
+
+
+class Timer:
+    def __init__(self, label="", quiet=False):
+        self.label = label
+        self.quiet = quiet
+
+    def __enter__(self):
+        if self.quiet:
+            return
+        self._t = time.time()
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if self.quiet:
+            return
+        dt = time.time() - self._t
+        print("delta_t({:s}) = {:e}".format(self.label, dt))
