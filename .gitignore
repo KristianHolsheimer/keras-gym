@@ -9,7 +9,7 @@ __pycache__*
 # jupyter / ipython
 .ipynb_checkpoints
 Untitled*.ipynb
-notebooks/data/
+data/
 
 # tests
 .coverage
