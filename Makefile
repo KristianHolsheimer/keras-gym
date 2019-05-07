@@ -34,8 +34,17 @@ nbconvert:
 	rm -f doc/_static/notebooks/*.html
 	jupyter nbconvert --to html --output-dir doc/_static/notebooks/ notebooks/*.ipynb
 
+install_dev: install_requirements
+	$(PYTHON_EXEC) -m pip install -e .
+
 install_requirements:
 	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do $(PYTHON_EXEC) -m pip install -r $$r; done
 
 upgrade_requirements:
 	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do $(PYTHON_EXEC) -m pur -r $$r; $(PYTHON_EXEC) -m pip install -r $$r; done
+
+tf_gpu:
+	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow && $(PYTHON_EXEC) -m pip install tensorflow-gpu
+
+tf_cpu:
+	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow-gpu && $(PYTHON_EXEC) -m pip install tensorflow
