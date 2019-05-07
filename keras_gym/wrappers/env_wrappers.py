@@ -1,5 +1,105 @@
-import gym
 from copy import deepcopy
+from collections import deque
+
+import gym
+import numpy as np
+
+from ..utils import Transition, ArrayDeque
+
+
+class TransitionWrapper(gym.Wrapper):
+    def __init__(
+            self, env,
+            bootstrap_n=1,
+            gamma=0.9,
+            state_preprocessor=None,
+            state_action_preprocessor=None):
+
+        super().__init__(env)
+
+        # private
+        self._bootstrap_n = bootstrap_n
+        self._gamma = gamma
+        self._gammas = np.power(gamma, np.arange(bootstrap_n))
+        self._gamman = np.power(gamma, bootstrap_n)
+        self._state_preprocessor = state_preprocessor
+        self._state_action_preprocessor = state_action_preprocessor
+        self._check_preprocessor()
+        self._XAI_deque = deque([], maxlen=(bootstrap_n + 1))  # (X, A, I_next)
+        self._R_deque = ArrayDeque(shape=(), maxlen=(bootstrap_n + 1))
+
+        # public
+        self.transitions = None
+
+    def reset(self):
+        self.transitions = deque([])
+        self._s_prev = self.env.reset()
+        return self._s_prev
+
+    def step(self, a):
+        if self.transitions is None:
+            raise RuntimeError("must reset() env before running step()")
+        s = self._s_prev
+        s_next, r, done, info = self.env.step(a)
+        X = self._preprocess(s, a)
+        A = np.array([a])
+        R = np.array([r])
+        I_next = np.array([0. if done else self._gamman])
+        if not isinstance(info, dict):
+            info = {}
+
+        self._XAI_deque.append((X, A, I_next))
+        self._R_deque.append(R)
+
+        if not done:
+            # do nothing if bootstrap window is still being populated
+            if len(self._R_deque) < self._bootstrap_n + 1:
+                info['transition'] = None  # this is a "no-op"
+                return s_next, r, done, info
+
+            # otherwise, just pop one transition out of the deques
+            assert len(self._R_deque) == self._bootstrap_n + 1
+            G = np.array([self._gammas.dot(self._R_deque.array[:-1])])
+            self._R_deque.popleft()
+            X, A, I_next = self._XAI_deque.popleft()
+            X_next, A_next, _ = self._XAI_deque[-1]
+            self.transitions.append(
+                Transition(X, A, G, X_next, A_next, I_next))
+            return s_next, r, done, info
+
+        # unroll remaining cache if episode is done
+        X_next = np.zeros_like(X)   # dummy
+        A_next = np.zeros_like(A)   # dummy
+        I_next = np.zeros(1)        # no more bootstrapping
+        remaining_transitions = []  # will collect transitions in reverse
+        G = np.zeros(1)             # will accumulate returns
+
+        while self._XAI_deque:
+            G[0] += self._gamma * self._R_deque.pop()
+            X, A, I_next = self._XAI_deque.pop()
+            remaining_transitions.append(
+                Transition(X, A, G, X_next, A_next, I_next))
+
+        self.transitions.extend(reversed(remaining_transitions))
+        return s_next, r, done, info
+
+    def _check_preprocessor(self):
+        phi_s = self._state_preprocessor
+        phi_sa = self._state_action_preprocessor
+        if callable(phi_s) and callable(phi_sa):
+            raise TypeError(
+                "please specify either state_preprocessor or "
+                "state_action_preprocessor, not both")
+        if not (callable(phi_s) or callable(phi_sa)):
+            raise TypeError(
+                "must specify either state_preprocessor or "
+                "state_action_preprocessor")
+
+    def _preprocess(self, s, a):
+        if callable(self._state_preprocessor):
+            return self._state_preprocessor(s)
+        else:
+            return self._state_action_preprocessor(s, a)
 
 
 class PeriodicCounter:
