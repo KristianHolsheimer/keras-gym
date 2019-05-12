@@ -1,44 +1,3 @@
-# keras-gym
-*Plug-n-Play Reinforcement Learning in Python*
-
-
-Create simple, reproducible RL solutions with Keras function approximators.
-
-
-## Documentation
-
-For the full documentation, go to
-[keras-gym.readthedocs.io](https://keras-gym.readthedocs.io/)
-
-
-## Install
-
-Install using pip:
-
-```
-$ pip install -U keras-gym
-```
-or install from a fresh clone
-```
-$ git clone https://github.com/KristianHolsheimer/keras-gym.git
-$ pip install -e ./keras-gym
-```
-
-## Examples
-
-Check out the [notebooks](notebooks/) for examples. These are also included in
-the documentation:
-
-* https://keras-gym.readthedocs.io/notebooks/
-
-
-
-Here's one of the examples from the notebooks, in which we solve the
-`'CartPole-v0'` environment with the SARSA algorithm, using a linear function
-approximator for Q(s, a):
-
-
-```python
 import gym
 
 from keras_gym.preprocessing import DefaultPreprocessor
@@ -105,10 +64,3 @@ for t in range(num_steps):
         break
 
 env.close()
-
-```
-
-The last episode is rendered, which shows something like this:
-
-![cartpole_video](doc/_static/img/cartpole.gif)
-

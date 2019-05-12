@@ -31,8 +31,8 @@ test:
 	$(PYTHON_EXEC) -m pytest
 
 nbconvert:
-	rm -f doc/_static/notebooks/*.html
-	jupyter nbconvert --to html --output-dir doc/_static/notebooks/ notebooks/*.ipynb
+	rm -f doc/_static/notebooks/*/*.html doc/_static/notebooks/*.html
+	for f in $(find notebooks/*/*.ipynb); do jupyter nbconvert --to html --output-dir doc/_static/$(dirname $f) $f; done
 
 install_dev: install_requirements
 	$(PYTHON_EXEC) -m pip install -e .
