@@ -91,3 +91,73 @@ class NStepCache:
         A_next = np.stack(A_next, axis=0)
 
         return S, A, Gn, I_next, S_next, A_next
+
+
+class MonteCarloCache:
+    def __init__(self, gamma):
+        self.gamma = float(gamma)
+
+        self._deque = deque([])
+        self._done = False
+        self._g = 0  # accumulator for return
+
+    def append(self, s, a, r, done):
+        if self._done and len(self):
+            raise EpisodeDoneError(
+                "please flush cache (or repeatedly pop) before appending new "
+                "transitions")
+
+        self._deque.append((s, a, r))
+        self._done = bool(done)
+        if done:
+            self._g = 0.  # init return
+
+    def __len__(self):
+        return len(self._deque)
+
+    def __bool__(self):
+        return bool(len(self)) and self._done
+
+    def pop(self):
+        if not self:
+            if not len(self):
+                raise InsufficientCacheError(
+                    "cache needs to receive more transitions before it can be "
+                    "popped from")
+            else:
+                raise InsufficientCacheError(
+                    "cannot pop from cache before before receiving done=True")
+
+        # pop state-action pair
+        s, a, r = self._deque.pop()
+
+        # update return
+        self._g = r + self.gamma * self._g
+
+        return s, a, self._g
+
+    def flush(self):
+        if not self:
+            if not len(self):
+                raise InsufficientCacheError(
+                    "cache needs to receive more transitions before it can be "
+                    "flushed")
+            else:
+                raise InsufficientCacheError(
+                    "cannot flush cache before before receiving done=True")
+
+        S = []
+        A = []
+        G = []
+
+        while self:
+            s, a, g = self.pop()
+            S.append(s)
+            A.append(a)
+            G.append(g)
+
+        S = np.stack(S, axis=0)
+        A = np.stack(A, axis=0)
+        G = np.stack(G, axis=0)
+
+        return S, A, G

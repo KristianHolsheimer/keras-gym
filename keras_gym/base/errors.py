@@ -1,20 +1,24 @@
 
 
-class InsufficientCacheError(Exception):
+class KerasGymError(Exception):
     pass
 
 
-class EpisodeDoneError(Exception):
+class InsufficientCacheError(KerasGymError):
     pass
 
 
-class NonDiscreteActionSpace(Exception):
+class EpisodeDoneError(KerasGymError):
     pass
 
 
-class NumpyArrayCheckError(Exception):
+class NonDiscreteActionSpace(KerasGymError):
     pass
 
 
-class MissingModelError(Exception):
+class NumpyArrayCheckError(KerasGymError):
+    pass
+
+
+class MissingModelError(KerasGymError):
     pass

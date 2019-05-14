@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 
 from ..base.errors import InsufficientCacheError, EpisodeDoneError
-from .nstep_cache import NStepCache
+from .episode import NStepCache, MonteCarloCache
 
 
 class TestNStepCache:
@@ -175,11 +175,6 @@ class TestNStepCache:
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in islice(enumerate(self.episode, 1), 4):
             cache.append(s, a, r, done)
-            assert len(cache) == i
-            if i <= self.n:
-                assert not cache
-            if i > self.n:
-                assert cache
 
         with pytest.raises(InsufficientCacheError):
             cache.flush()
@@ -189,3 +184,64 @@ class TestNStepCache:
 
         with pytest.raises(InsufficientCacheError):
             cache.flush()
+
+
+class TestMonteCarloCache:
+    gamma = 0.85
+    S = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+    A = np.array([6, 3, 7, 4, 6, 9, 2, 6, 7, 4, 3, 7, 7])
+    R = np.array([-0.48, 0.16, 0.23, 0.11, 1.46, 1.53, -2.43, 0.60, -0.25,
+                  -0.16, -1.47, 1.48, -0.02])
+    D = np.array([False] * 12 + [True])
+    G = np.zeros_like(R)
+    for i, r in enumerate(R[::-1]):
+        G[i] = r + gamma * G[i - 1]
+    G = G[::-1]
+    episode = list(zip(S, A, R, D))
+
+    def test_append_pop_too_soon(self):
+        cache = MonteCarloCache(self.gamma)
+        for s, a, r, done in self.episode:
+            cache.append(s, a, r, done)
+            break
+
+        with pytest.raises(InsufficientCacheError):
+            cache.pop()
+
+    def test_append_pop_expected(self):
+        cache = MonteCarloCache(self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            cache.append(s, a, r, done)
+            assert len(cache) == i
+
+        assert cache
+        assert len(cache) == 13
+
+        for i in range(13):
+            assert cache
+            s, a, g = cache.pop()
+            assert self.S[12 - i] == s
+            assert self.A[12 - i] == a
+            assert self.G[12 - i] == g
+
+        assert not cache
+
+    def test_append_flush_too_soon(self):
+        cache = MonteCarloCache(self.gamma)
+        for i, (s, a, r, done) in islice(enumerate(self.episode, 1), 4):
+            cache.append(s, a, r, done)
+            assert len(cache) == i
+
+        with pytest.raises(InsufficientCacheError):
+            cache.flush()
+
+    def test_append_flush_expected(self):
+        cache = MonteCarloCache(self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            cache.append(s, a, r, done)
+            assert len(cache) == i
+
+        S, A, G = cache.flush()
+        np.testing.assert_array_equal(S, self.S[::-1])
+        np.testing.assert_array_equal(A, self.A[::-1])
+        np.testing.assert_array_equal(G, self.G[::-1])
