@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..losses import SoftmaxPolicyLossWithLogits
+from ..losses import SoftmaxPolicyLossWithLogits, ProjectedSemiGradientLoss
 from .base import VFunction, QFunctionTypeI, QFunctionTypeII, SoftmaxPolicy
 
 
@@ -174,7 +174,59 @@ class LinearQTypeII(QFunctionTypeII, LinearFunctionMixin):
             interaction=None,
             optimizer=None,
             **sgd_kwargs):
-        raise NotImplementedError('LinearQTypeII')
+
+        super().__init__(
+            env=env,
+            gamma=gamma,
+            bootstrap_n=bootstrap_n,
+            update_strategy=update_strategy,
+            train_model=None,  # set models later
+            predict_model=None,
+            target_model=None,
+            bootstrap_model=None)
+
+        self.interaction = interaction
+        self._init_interaction_layer(interaction)
+        self._init_optimizer(optimizer, sgd_kwargs)
+        self._init_models(output_dim=self.num_actions)
+        self._check_attrs()
+
+    def _init_models(self, output_dim):
+        shape = self.env.observation_space.shape
+        dtype = self.env.observation_space.dtype
+
+        S = keras.Input(name='S', shape=shape, dtype=dtype)
+        G = keras.Input(name='G', shape=(), dtype='float')
+
+        def forward_pass(S, variable_scope):
+            def v(name):
+                return '{}/{}'.format(variable_scope, name)
+
+            if K.ndim(S) > 2:
+                S = keras.layers.Flatten(S)
+
+            if self.interaction_layer is not None:
+                S = self.interaction_layer(S)
+
+            dense_layer = keras.layers.Dense(
+                output_dim, kernel_initializer='zeros', name=v('weights'))
+
+            return dense_layer(S)
+
+        # computation graph
+        Q = forward_pass(S, variable_scope='primary')
+
+        # loss
+        loss = ProjectedSemiGradientLoss(G, base_loss=tf.losses.huber_loss)
+
+        # regular models
+        self.train_model = keras.Model(inputs=[S, G], outputs=Q)
+        self.train_model.compile(loss=loss, optimizer=self.optimizer)
+        self.predict_model = keras.Model(inputs=S, outputs=Q)
+
+        # optional models
+        self.target_model = None
+        self.bootstrap_model = None
 
 
 class LinearSoftmaxPolicy(SoftmaxPolicy, LinearFunctionMixin):
@@ -240,6 +292,4 @@ class LinearSoftmaxPolicy(SoftmaxPolicy, LinearFunctionMixin):
         self.predict_model = keras.Model(inputs=S, outputs=Logits)
 
         # optional models
-        # Logits_target = forward_pass(S, A, variable_scope='target')
-        # self.target_model = keras.Model(inputs=S, outputs=Logits_target)
         self.target_model = None

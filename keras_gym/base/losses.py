@@ -1,5 +1,3 @@
-from abc import ABC, abstractmethod
-
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
@@ -8,13 +6,13 @@ from ..utils import project_onto_actions_tf, check_tensor
 
 __all__ = (
     'SoftmaxPolicyLossWithLogits',
-    'SemiGradientTypeIILoss',
+    'ProjectedSemiGradientLoss',
 )
 
 
-class BasePolicyLoss(ABC):
+class SoftmaxPolicyLossWithLogits:
     """
-    Abstract base class for policy loss functions.
+    Softmax-policy loss (with logits).
 
     This class provides a stateful implementation of a keras-compatible loss
     function that requires more input than just ``y_true`` and ``y_pred``. The
@@ -27,6 +25,10 @@ class BasePolicyLoss(ABC):
     choice is :math:`V(s) = \\sum_a\\pi(a|s)\\,Q(s,a)`, in which case
     :math:`\\mathcal{A}(s, a)` is a proper advantage function with vanishing
     expectation value.
+
+    This loss function is actually a surrogate loss function defined in such a
+    way that its gradient is the same as what one would get by taking a true
+    policy gradient.
 
     Parameters
     ----------
@@ -46,25 +48,6 @@ class BasePolicyLoss(ABC):
         check_tensor(Adv, ndim=1)
         self.Adv = K.stop_gradient(Adv)
 
-    @abstractmethod
-    def __call__(self, y_true, y_pred):
-        pass
-
-
-class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
-    """
-    Softmax-policy loss (with logits).
-
-    This loss function is actually a surrogate loss function defined in such a
-    way that its gradient is the same as what one would get by taking a true
-    policy gradient.
-
-    Parameters
-    ----------
-    advantages : 1d Tensor, dtype: float, shape: [batch_size]
-        The advantages, one per time step.
-
-    """
     @staticmethod
     def logpi_surrogate(logits):
         """
@@ -167,7 +150,7 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
         return surrogate_loss
 
 
-class SemiGradientTypeIILoss:
+class ProjectedSemiGradientLoss:
     """
     Loss function for type-II Q-function.
 
