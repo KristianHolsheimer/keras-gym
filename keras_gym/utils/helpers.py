@@ -2,13 +2,14 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from ..base.errors import NumpyArrayCheckError
+from ..base.errors import NumpyArrayCheckError, TensorCheckError
 
 
 __all__ = (
     'argmax',
     'argmin',
     'check_numpy_array',
+    'check_tensor',
     'get_transition',
     'idx',
     'project_onto_actions_np',
@@ -124,6 +125,62 @@ def check_numpy_array(
         raise NumpyArrayCheckError(
             "expected input with size {} along axis {}, got shape: {}"
             .format(axis_size, axis, arr.shape))
+
+
+def check_tensor(
+        tensor,
+        ndim=None,
+        ndim_min=None,
+        dtype=None,
+        int_shape=None,
+        axis_size=None,
+        axis=None):
+    """
+    This helper function is mostly for internal use. It allows you to check a
+    few common properties of a numpy array.
+
+    Raises
+    ------
+    TensorCheckError
+
+        If one of the checks fails, it raises a :class:`TensorCheckError`.
+
+    """
+
+    if not isinstance(tensor, tf.Tensor):
+        raise TensorCheckError(
+            "expected input to be a Tensor, got type: {}"
+            .format(type(tensor)))
+
+    check = ndim is not None
+    if check and K.ndim(tensor) != ndim:
+        raise TensorCheckError(
+            "expected input with ndim equal to {}, got ndim: {}"
+            .format(ndim, K.ndim(tensor)))
+
+    check = ndim_min is not None
+    if check and K.ndim(tensor) < ndim_min:
+        raise TensorCheckError(
+            "expected input with ndim at least {}, got ndim: {}"
+            .format(ndim_min, K.ndim(tensor)))
+
+    check = dtype is not None
+    if check and tensor.dtype != dtype:
+        raise TensorCheckError(
+            "expected input with dtype {}, got dtype: {}"
+            .format(dtype, tensor.dtype))
+
+    check = int_shape is not None
+    if check and K.int_shape(tensor) != int_shape:
+        raise TensorCheckError(
+            "expected input with shape {}, got shape: {}"
+            .format(int_shape, K.int_shape(tensor)))
+
+    check = axis_size is not None and axis is not None
+    if check and K.int_shape(tensor)[axis] != axis_size:
+        raise TensorCheckError(
+            "expected input with size {} along axis {}, got shape: {}"
+            .format(axis_size, axis, K.int_shape(tensor)))
 
 
 def project_onto_actions_np(Y, A):

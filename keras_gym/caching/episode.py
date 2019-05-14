@@ -7,6 +7,7 @@ from ..base.errors import InsufficientCacheError, EpisodeDoneError
 
 
 __all__ = (
+    'MonteCarloCache',
     'NStepCache',
 )
 
@@ -96,7 +97,9 @@ class NStepCache:
 class MonteCarloCache:
     def __init__(self, gamma):
         self.gamma = float(gamma)
+        self.reset()
 
+    def reset(self):
         self._deque = deque([])
         self._done = False
         self._g = 0  # accumulator for return

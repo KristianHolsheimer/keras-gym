@@ -1,6 +1,7 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin
+from ..base.policy import BasePolicy
 from ..utils import argmax
 
 
@@ -9,7 +10,7 @@ __all__ = (
 )
 
 
-class EpsilonGreedy(RandomStateMixin):
+class EpsilonGreedy(BasePolicy, RandomStateMixin):
     def __init__(self, q_function, epsilon=0.1, random_seed=None):
         self.q_function = q_function
         self.epsilon = epsilon
@@ -35,11 +36,18 @@ class EpsilonGreedy(RandomStateMixin):
         if self.random.rand() < self.epsilon:
             return self.q_function.env.action_space.sample()
 
+        a = self.greedy(s)
+        return a
+
+    def set_epsilon(self, epsilon):
+        self.epsilon = epsilon
+
+    def greedy(self, s):
         Q = self.q_function(s)  # shape: [num_actions]
         a = argmax(Q)
         return a
 
-    def propensity(self, s):
+    def proba(self, s):
         Q = self.q_function(s)  # shape: [num_actions]
         a = argmax(Q)
         n = self.q_function.num_actions

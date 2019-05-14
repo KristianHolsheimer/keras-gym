@@ -1,38 +1,50 @@
-from gym.envs.toy_text.frozen_lake import FrozenLakeEnv
+import numpy as np
+from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
 
 from keras_gym.preprocessing import DefaultPreprocessor
-from keras_gym.policies import Policy
-from keras_gym.caching import MonteCarlo
+from keras_gym.policies import LinearSoftmaxPolicy
+from keras_gym.caching import MonteCarloCache
 
 
 # env with preprocessing
 env = FrozenLakeEnv(is_slippery=False)
 env = DefaultPreprocessor(env)
-
+actions = {LEFT: 'L', RIGHT: 'R', UP: 'U', DOWN: 'D'}
 
 # updateable policy
-policy = Policy(env, lr=0.1)
-buffer = MonteCarlo(gamma=0.9)
+policy = LinearSoftmaxPolicy(env, lr=0.1)
+cache = MonteCarloCache(gamma=0.99)
 
 
 # static parameters
-num_episodes = 50
+num_episodes = 1000
 num_steps = 30
 
 
 # train
 for ep in range(num_episodes):
     s = env.reset()
+    cache.reset()
 
     for t in range(num_steps):
         a = policy(s)
         s_next, r, done, info = env.step(a)
 
-        buffer.add(s, a, r)
+        # small incentive to keep moving
+        if np.array_equal(s_next, s):
+            r = -0.1
+
+        cache.append(s, a, r, done)
 
         if done:
-            policy.batch_update(*buffer.flush())
+            # S, A, G = cache.flush()
+            # policy.batch_update(S, A, G)
+            while cache:
+                s, a, g = cache.pop()
+                policy.update(s, a, g)
             break
+
+        s = s_next
 
 
 # run env one more time to render
@@ -41,8 +53,13 @@ env.render()
 
 for t in range(num_steps):
 
-    a = policy(s, epsilon=0)
+    # print individual action probabilities
+    for i, p in enumerate(policy.proba(s)):
+        print("  {:s}: {:.3f}".format(actions[i], p))
+
+    a = policy.greedy(s)
     s, r, done, info = env.step(a)
+
     env.render()
 
     if done:

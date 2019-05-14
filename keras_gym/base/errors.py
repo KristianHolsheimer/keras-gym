@@ -20,5 +20,9 @@ class NumpyArrayCheckError(KerasGymError):
     pass
 
 
+class TensorCheckError(KerasGymError):
+    pass
+
+
 class MissingModelError(KerasGymError):
     pass

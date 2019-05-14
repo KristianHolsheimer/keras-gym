@@ -1,20 +1,22 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
-import gym
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from ...utils import project_onto_actions_np, check_numpy_array
+from ...utils import (
+    project_onto_actions_np, check_numpy_array, softmax, argmax)
 from ...caching import NStepCache
-from ..errors import NonDiscreteActionSpace, MissingModelError
+from ..errors import MissingModelError
+from ..mixins import RandomStateMixin, NumActionsMixin
+from ..policy import BasePolicy
 
 
 __all__ = (
     'VFunction',
     'QFunctionTypeI',
     'QFunctionTypeII',
-    'Policy',
+    'SoftmaxPolicy',
 )
 
 
@@ -37,8 +39,14 @@ class BaseFunctionApproximator(ABC):
 
     def _check_attrs(self):
         required_attrs = [
-            'env', 'train_model', 'predict_model', 'target_model',
-            'bootstrap_model', '_cache']
+            'env', 'gamma', 'bootstrap_n', 'train_model', 'predict_model',
+            'target_model', 'bootstrap_model', '_cache']
+
+        if isinstance(self, SoftmaxPolicy):
+            required_attrs.remove('bootstrap_model')
+            required_attrs.remove('bootstrap_n')
+            required_attrs.remove('gamma')
+            required_attrs.remove('_cache')
 
         missing_attrs = ", ".join(
             attr for attr in required_attrs if not hasattr(self, attr))
@@ -94,23 +102,9 @@ class VFunction(BaseFunctionApproximator):
         raise NotImplementedError('VFunction')  # TODO
 
 
-class Policy(BaseFunctionApproximator):
-    def __init__(self):
-        raise NotImplementedError('Policy')  # TODO
-
-
-class NumActionsMixin:
-    @property
-    def num_actions(self):
-        if not hasattr(self, '_num_actions'):
-            if not isinstance(self.env.action_space, gym.spaces.Discrete):
-                raise NonDiscreteActionSpace(
-                    "num_actions property is inaccesible")
-            self._num_actions = self.env.action_space.n
-        return self._num_actions
-
-
 class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
+    UPDATE_STRATEGIES = ('sarsa', 'q_learning', 'double_q_learning')
+
     def __init__(
             self, env, train_model, predict_model,
             target_model=None,
@@ -155,8 +149,10 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
             which is only well-defined for discrete action spaces.
 
         """
+        assert self.env.observation_space.contains(s)
         S = np.expand_dims(s, axis=0)
         if a is not None:
+            assert self.env.action_space.contains(a)
             A = np.expand_dims(a, axis=0)
             Q = self.batch_eval(S, A)
             check_numpy_array(Q, shape=(1,))
@@ -168,6 +164,8 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         return Q
 
     def update(self, s, a, r, done):
+        assert self.env.observation_space.contains(s)
+        assert self.env.action_space.contains(a)
         self._cache.append(s, a, r, done)
 
         # eager updates
@@ -211,8 +209,7 @@ class QFunctionTypeI(BaseQFunction):
 
         if A is not None:
             Q = model.predict_on_batch([S, A])
-            check_numpy_array(Q, ndim=2)
-            check_numpy_array(Q, axis_size=1, axis=1)
+            check_numpy_array(Q, ndim=2, axis_size=1, axis=1)
             Q = np.squeeze(Q, axis=1)
             return Q  # shape: [batch_size]
         else:
@@ -221,8 +218,7 @@ class QFunctionTypeI(BaseQFunction):
                 A = a * np.ones(len(S), dtype='int')
                 Q.append(self.batch_eval(S, A))
             Q = np.stack(Q, axis=1)
-            check_numpy_array(Q, ndim=2)
-            check_numpy_array(Q, axis_size=self.num_actions, axis=1)
+            check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
 
 
@@ -236,14 +232,89 @@ class QFunctionTypeII(BaseQFunction):
 
         if A is not None:
             Q = model.predict_on_batch(S)  # shape: [batch_size, num_actions]
-            check_numpy_array(Q, ndim=2)
-            check_numpy_array(Q, axis_size=self.num_actions, axis=1)
-            check_numpy_array(A, ndim=1, dtype='int')
-            check_numpy_array(A, axis_size=Q.shape[0], axis=0)  # batch_size
+            check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
+            check_numpy_array(
+                A, ndim=1, dtype='int', axis_size=Q.shape[0], axis=0)
             Q = project_onto_actions_np(Q, A)
             return Q  # shape: [batch_size]
         else:
             Q = model.predict_on_batch(S)
-            check_numpy_array(Q, ndim=2)
-            check_numpy_array(Q, axis_size=self.num_actions, axis=1)
+            check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
+
+
+class SoftmaxPolicy(
+        BasePolicy, BaseFunctionApproximator, NumActionsMixin,
+        RandomStateMixin):
+
+    UPDATE_STRATEGIES = ('vanilla', 'trpo', 'ppo')
+
+    def __init__(
+            self, env, train_model, predict_model,
+            target_model=None,
+            update_strategy='vanilla',
+            random_seed=None):
+
+        self.env = env
+        self.train_model = train_model
+        self.predict_model = predict_model
+        self.target_model = target_model
+        self.update_strategy = update_strategy
+        self.random_seed = random_seed  # sets self.random in RandomStateMixin
+
+        # TODO: allow for non-discrete action spaces
+        self._actions = np.arange(self.num_actions)
+
+    def __call__(self, s):
+        """
+        The the next action proposed under the current policy.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        Returns
+        -------
+        a : action, optional
+
+            A single action proposed under the current policy.
+
+        """
+        a = self.random.choice(self._actions, p=self.proba(s))
+        return a
+
+    def proba(self, s):
+        assert self.env.observation_space.contains(s)
+        S = np.expand_dims(s, axis=0)
+        Pi = self.batch_eval(S)
+        check_numpy_array(Pi, shape=(1, self.num_actions))
+        pi = np.squeeze(Pi, axis=0)
+        return pi
+
+    def greedy(self, s):
+        a = argmax(self.proba(s))
+        return a
+
+    def update(self, s, a, advantage):
+        assert self.env.observation_space.contains(s)
+        assert self.env.action_space.contains(a)
+        S = np.expand_dims(s, axis=0)
+        A = np.expand_dims(a, axis=0)
+        Adv = np.expand_dims(advantage, axis=0)
+        self.batch_update(S, A, Adv)
+
+    def batch_eval(self, S, use_target_model=False):
+        if use_target_model and self.target_model is not None:
+            model = self.target_model
+        else:
+            model = self.predict_model
+
+        Logits = model.predict_on_batch(S)
+        check_numpy_array(Logits, ndim=2, axis_size=self.num_actions, axis=1)
+        Pi = softmax(Logits, axis=1)
+        return Pi  # shape: [batch_size, num_actions]
+
+    def batch_update(self, S, A, Adv):
+        self.train_model.train_on_batch([S, Adv], A)

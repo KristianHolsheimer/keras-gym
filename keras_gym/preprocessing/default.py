@@ -43,6 +43,14 @@ class DefaultPreprocessor(gym.Wrapper):
 
 
     """
+    def __init__(self, env):
+        super().__init__(env)
+        s = self.env.observation_space.sample()
+        s = feature_vector(s, self.env.observation_space)
+        self.observation_space = gym.spaces.Box(
+            low=np.finfo(s.dtype).min, high=np.finfo(s.dtype).max,
+            shape=s.shape)
+
     def reset(self):
         self._s_orig = self.env.reset()
         s = feature_vector(self._s_orig, self.env.observation_space)
