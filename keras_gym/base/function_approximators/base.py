@@ -169,8 +169,9 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         self._cache.append(s, a, r, done)
 
         # eager updates
-        if self._cache:
-            self.batch_update(*self._cache.flush())
+        while self._cache:
+            batch = [np.expand_dims(x, axis=0) for x in self._cache.popleft()]
+            self.batch_update(*batch)
 
     def batch_update(self, S, A, Rn, I_next, S_next, A_next):
         if self.bootstrap_model is not None:
