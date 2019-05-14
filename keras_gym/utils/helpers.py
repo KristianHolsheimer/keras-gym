@@ -6,6 +6,7 @@ from ..base.errors import NumpyArrayCheckError, TensorCheckError
 
 
 __all__ = (
+    'Transition',
     'argmax',
     'argmin',
     'check_numpy_array',
@@ -16,6 +17,81 @@ __all__ = (
     'project_onto_actions_tf',
     'softmax',
 )
+
+
+class Transition:
+    """
+    A simple wrapper for storing a batch of preprocessed transitions.
+
+    Parameters
+    ----------
+    X : ndarray, shape: [batch_size, ...]
+
+        A batch of preprocessed states (or state-action pairs).
+
+    A : ndarray, shape: [batch_size]
+
+        A batch of preprocessed actions taken.
+
+    Gn : ndarray, shape: [batch_size]
+
+        A batch of (partial) returns. For instance, in n-step bootstrapping,
+        this is:
+
+            .. math::
+
+                G_t^{(n)}\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
+                    + \\gamma^{n-1}\\,R_{t+n-1}
+
+        In other words, it's the non-bootstrapped part of the return.
+
+    X_next : ndarray, shape: [batch_size, ...]
+
+        A batch of preprocessed states (or state-action pairs). These may be
+        used for bootstrapping.
+
+    A_next : ndarray, shape: [batch_size]
+
+        A batch of preprocessed actions taken. These may be used for
+        bootstrapping.
+
+    I_next : ndarray, shape: [batch_size]
+
+        A batch of bootstrap discount factors, e.g. for n-step bootstrapping
+        this would represent :math:`\\gamma^n` (or 0 if no bootstrapping is to
+        be done).
+
+    """
+    def __init__(self, X, A, Gn, X_next, A_next, I_next):
+        self._check_shapes(X, A, Gn, X_next, A_next, I_next)
+        self.X = X
+        self.A = A
+        self.Gn = Gn
+        self.X_next = X_next
+        self.A_next = A_next
+        self.I_next = I_next
+
+    def _check_shapes(self, X, A, Gn, X_next, A_next, I_next):
+        self._len = X.shape[0]
+        tmpl = "incompatible batch_size: {{}} != {}".format(self._len)
+        assert self._len == A.shape[0], tmpl.format(A.shape[0])
+        assert self._len == Gn.shape[0], tmpl.format(Gn.shape[0])
+        assert self._len == X_next.shape[0], tmpl.format(X_next.shape[0])
+        assert self._len == A_next.shape[0], tmpl.format(A_next.shape[0])
+        assert self._len == I_next.shape[0], tmpl.format(I_next.shape[0])
+
+    def __len__(self):
+        return self._len
+
+    def __bool__(self):
+        return bool(len(self))
+
+    def __repr__(self):
+        return "Transition<len={}>".format(len(self))
+
+    def __iter__(self):
+        attrs = ('X', 'A', 'Gn', 'X_next', 'A_next', 'I_next')
+        return (getattr(self, attr) for attr in attrs)
 
 
 def get_transition(env):
