@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..losses import SoftmaxPolicyLossWithLogits, ProjectedSemiGradientLoss
+from ...losses import SoftmaxPolicyLossWithLogits, ProjectedSemiGradientLoss
 from .base import VFunction, QFunctionTypeI, QFunctionTypeII, SoftmaxPolicy
 
 
