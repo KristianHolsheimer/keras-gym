@@ -25,7 +25,7 @@ Documentation
     notebooks/index
     value_functions/index
     policies/index
-    base/function_approximators
+    misc/glossary
     misc/release_notes
 
 

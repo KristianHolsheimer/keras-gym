@@ -1,5 +1,5 @@
-Function Approximators
-======================
+Glossary
+========
 
 In this package we make heavy use of function approximators using
 :class:`keras.Model` objects. In Section 1 we list the available types of
