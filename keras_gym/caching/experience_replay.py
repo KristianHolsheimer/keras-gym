@@ -1,7 +1,7 @@
 import numpy as np
 
-from ..base.mixins import RandomStateMixin, Transition
-
+from ..base.mixins import RandomStateMixin
+from ..utils import Transition
 
 __all__ = (
     'ExperienceReplayBuffer',
