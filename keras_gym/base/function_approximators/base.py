@@ -164,6 +164,28 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         return Q
 
     def update(self, s, a, r, done):
+        """
+        Update the Q-function.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        a : action
+
+            A single action that was taken.
+
+        r : float
+
+            A single observed reward.
+
+        done : bool
+
+            Whether the episode has finished.
+
+        """
         assert self.env.observation_space.contains(s)
         assert self.env.action_space.contains(a)
         self._cache.append(s, a, r, done)
@@ -174,6 +196,48 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
             self.batch_update(*batch)
 
     def batch_update(self, S, A, Rn, I_next, S_next, A_next):
+        """
+        Update the policy on a batch of transitions.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        A : 1d array, dtype: int, shape: [batch_size]
+
+            A batch of actions that were taken.
+
+        Rn : 1d array, dtype: float, shape: [batch_size]
+
+            A batch of partial returns. For example, in n-step bootstrapping
+            this is given by:
+
+            .. math::
+
+                R^{(n)}_t\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
+                    \\gamma^{n-1}\\,R_{t+n-1}
+
+            In other words, it's the non-bootstrapped part of the n-step
+            return.
+
+        I_next : 1d array, dtype: float, shape: [batch_size]
+
+            A batch bootstrapping factor. For instance, in n-step bootstrapping
+            this is given by :math:`I_t=\\gamma^n` if the epsiode is ongoing
+            and :math:`I_t=0` otherwise. This allows us to write the bootstrapped
+            target as :math:`G^{(n)}=R^{(n)}+I_tQ(S_{t+n}, A_{t+n})`
+
+        S_next : nd array, shape: [batch_size, ...]
+
+            A batch of next-state observations.
+
+        A_next : 1d array, dtype: int, shape: [batch_size]
+
+            A batch of next-actions that were taken.
+
+        """
         if self.bootstrap_model is not None:
             self.bootstrap_model.train_on_batch(
                 [S, Rn, I_next, S_next, A_next], A)
@@ -182,6 +246,49 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
             self.train_model.train_on_batch([S, G], A)
 
     def bootstrap_target_np(self, Rn, I_next, S_next, A_next=None):
+        """
+        Get the bootstrapped target
+        :math:`G^{(n)}=R^{(n)}+\\gamma^nQ(S_{t+n}, A_{t+n})`.
+
+        Parameters
+        ----------
+        Rn : 1d array, dtype: float, shape: [batch_size]
+
+            A batch of partial returns. For example, in n-step bootstrapping
+            this is given by:
+
+            .. math::
+
+                R^{(n)}_t\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
+                    \\gamma^{n-1}\\,R_{t+n-1}
+
+            In other words, it's the non-bootstrapped part of the n-step
+            return.
+
+        I_next : 1d array, dtype: float, shape: [batch_size]
+
+            A batch bootstrapping factor. For instance, in n-step bootstrapping
+            this is given by :math:`I_t=\\gamma^n` if the epsiode is ongoing
+            and :I_t=0: otherwise. This allows us to write the bootstrapped
+            target as :math:`G^{(n)}=R^{(n)}+I_tQ(S_{t+n},A_{t+n})`
+
+        S_next : nd array, shape: [batch_size, ...]
+
+            A batch of next-state observations.
+
+        A_next : 1d array, dtype: int, shape: [batch_size], optional
+
+            A batch of next-actions that were taken.
+
+        Returns
+        -------
+        Gn : 1d array, dtype: int, shape: [batch_size]
+
+            A batch of bootstrap-estimated returns
+            :math:`G^{(n)}=R^{(n)}+I_tQ(S_{t+n},A_{t+n})` computed according to
+            given ``update_strategy``.
+
+        """
         if self.update_strategy == 'sarsa':
             assert A_next is not None
             Q_next = self.batch_eval(S_next, A_next, use_target_model=True)
@@ -196,8 +303,44 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         else:
             raise ValueError("unknown update_strategy")
 
-        Q_target = Rn + I_next * Q_next
-        return Q_target
+        Gn = Rn + I_next * Q_next
+        return Gn
+
+    @abstractmethod
+    def batch_eval(self, S, A=None, use_target_model=False):
+        """
+        Evaluate the Q-function on a batch of state (or state-action)
+        observations.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        A : 1d array, dtype: int, shape: [batch_size], optional
+
+            A batch of actions that were taken.
+
+        use_target_model : bool, optional
+
+            Whether to use the ``target_model``. If ``False`` (default), the
+            primary ``predict_model`` is used.
+
+        Returns
+        -------
+        Q : 1d or 2d array of floats
+
+            If action ``A`` is provided, a 1d array representing a batch of
+            :math:`Q(s,a)` is returned. If, on the other hand, ``A`` is left
+            unspecified, a vector representing a batch of :math:`Q(s,.)` is
+            returned instead. The shape of the latter return value is
+            ``[batch_size, num_actions]``, which is only well-defined for
+            discrete action
+            spaces.
+
+        """
+        pass
 
 
 class QFunctionTypeI(BaseQFunction):
@@ -267,22 +410,6 @@ class SoftmaxPolicy(
         self._actions = np.arange(self.num_actions)
 
     def __call__(self, s):
-        """
-        The the next action proposed under the current policy.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        Returns
-        -------
-        a : action, optional
-
-            A single action proposed under the current policy.
-
-        """
         a = self.random.choice(self._actions, p=self.proba(s))
         return a
 
@@ -299,6 +426,26 @@ class SoftmaxPolicy(
         return a
 
     def update(self, s, a, advantage):
+        """
+        Update the policy.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        a : action
+
+            A single action that was taken.
+
+        advantage : float
+
+            A value for the advantage :math:`\\mathcal{A}(s,a)=Q(s,a)-V(s)`.
+            This might be sampled and/or estimated version of the true
+            advantage.
+
+        """
         assert self.env.observation_space.contains(s)
         assert self.env.action_space.contains(a)
         S = np.expand_dims(s, axis=0)
@@ -307,6 +454,21 @@ class SoftmaxPolicy(
         self.batch_update(S, A, Adv)
 
     def batch_eval(self, S, use_target_model=False):
+        """
+        Evaluate the policy on a batch of state observations.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        use_target_model : bool, optional
+
+            Whether to use the ``target_model``. If ``False`` (default), the
+            primary ``predict_model`` is used.
+
+        """
         if use_target_model and self.target_model is not None:
             model = self.target_model
         else:
@@ -318,4 +480,24 @@ class SoftmaxPolicy(
         return Pi  # shape: [batch_size, num_actions]
 
     def batch_update(self, S, A, Adv):
+        """
+        Update the policy on a batch of transitions.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        A : 1d array, dtype: int, shape: [batch_size]
+
+            A batch of actions that were taken.
+
+        Adv : 1d array, dtype: float, shape: [batch_size]
+
+            A value for the advantage :math:`\\mathcal{A}(s,a)=Q(s,a)-V(s)`.
+            This might be sampled and/or estimated version of the true
+            advantage.
+
+        """
         self.train_model.train_on_batch([S, Adv], A)

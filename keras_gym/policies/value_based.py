@@ -11,28 +11,30 @@ __all__ = (
 
 
 class EpsilonGreedy(BasePolicy, RandomStateMixin):
+    """
+    Value-based policy to select actions using epsilon-greedy strategy.
+
+    Parameters
+    ----------
+    q_function : callable
+
+        A state-action value function object.
+
+    epsilon : float between 0 and 1
+
+        The probability of selecting an action uniformly at random.
+
+    random_seed : int, optional
+
+        Sets the random state to get reproducible results.
+
+    """
     def __init__(self, q_function, epsilon=0.1, random_seed=None):
         self.q_function = q_function
         self.epsilon = epsilon
         self.random_seed = random_seed  # sets self.random in RandomStateMixin
 
     def __call__(self, s):
-        """
-        Select an action :math:`a`, given a state observation :math:`s`.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        Returns
-        -------
-        a : action
-
-            A single action.
-
-        """
         if self.random.rand() < self.epsilon:
             return self.q_function.env.action_space.sample()
 
@@ -40,6 +42,16 @@ class EpsilonGreedy(BasePolicy, RandomStateMixin):
         return a
 
     def set_epsilon(self, epsilon):
+        """
+        Change the value for ``epsilon``.
+
+        Parameters
+        ----------
+        epsilon : float between 0 and 1
+
+            The probability of selecting an action uniformly at random.
+
+        """
         self.epsilon = epsilon
 
     def greedy(self, s):

@@ -23,6 +23,8 @@ Documentation
     :maxdepth: 1
 
     notebooks/index
+    value_functions/index
+    policies/index
     base/function_approximators
     misc/release_notes
 
