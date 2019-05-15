@@ -162,3 +162,12 @@ inputs/outputs to our keras models.
         A batch of next-actions to be taken. These can be actions that were
         actually taken (on-policy), but they can also be any other would-be
         next-actions (off-policy).
+
+    Q_sa
+
+        A batch of Q-values :math:`Q(s,a)` of shape ``[batch_size]``.
+
+    Q_s
+
+        A batch of Q-values :math:`Q(s,.)` of shape
+        ``[batch_size, num_actions]``.

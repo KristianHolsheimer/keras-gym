@@ -344,7 +344,95 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
 
 
 class QFunctionTypeI(BaseQFunction):
+    """
+    Base class for modeling :term:`type-I <type-I state-action value function>`
+    Q-function.
 
+    A :term:`type-I <type-I state-action value function>` Q-function is
+    implemented by mapping :math:`(s, a)\\mapsto Q(s,a)`.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    train_model : keras.Model([:term:`S`, :term:`A`], :term:`Q_sa`)
+
+        Used for training.
+
+    predict_model : keras.Model([:term:`S`, :term:`A`], :term:`Q_sa`)
+
+        Used for predicting. For :term:`type-I <type-I state-action value
+        function>` Q-functions, the :term:`target_model` and
+        :term:`predict_model` are the same.
+
+    target_model : keras.Model(:term:`S`, :term:`Q_sa`), optional
+
+        A :term:`target_model` is used to make predictions on a bootstrapping
+        scenario. It can be advantageous to use a point-in-time copy of the
+        :term:`predict_model` to construct a bootstrapped target.
+
+    bootstrap_model : keras.Model([:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`], :term:`Q_sa`), optional
+
+        A :term:`bootstrap_model` can be used for training. It differs from the
+        :term:`train_model` in that it computes the bootstrapped target
+        internally (instead of receiving it as input). The use of a
+        :term:`bootstrap_model` can speed up the training process.
+
+    gamma : float, optional
+
+        The discount factor for discounting future rewards.
+
+    bootstrap_n : positive int, optional
+
+        The number of steps in n-step bootstrapping. It specifies the number of
+        steps over which we're willing to delay bootstrapping. Large :math:`n`
+        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
+        TD(0).
+
+    update_strategy : str, optional
+
+        The update strategy that we use to select the (would-be) next-action
+        :math:`A_{t+n}` in the bootsrapped target:
+
+        .. math::
+
+            G^{(n)}_t\\ =\\ R^{(n)}_t + \\gamma^n Q(S_{t+n}, A_{t+n})
+
+        Options are:
+
+            'sarsa'
+                Sample the next action, i.e. use the action that was actually
+                taken.
+
+            'q_learning'
+                Take the action with highest Q-value under the current
+                estimate, i.e. :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n}, a)`.
+                This is an off-policy method.
+
+            'double_q_learning'
+                Same as 'q_learning', :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n},
+                a)`, except that the value itself is computed using the
+                :term:`target_model` rather than the primary model, i.e.
+
+                .. math::
+
+                    A_{t+n}\\ &=\\
+                        \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
+                    G^{(n)}_t\\ &=\\ R^{(n)}_t
+                        + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
+
+            'expected_sarsa'
+                Similar to SARSA in that it's on-policy, except that we take
+                the expectated Q-value rather than a sample of it, i.e.
+
+                .. math::
+
+                    G^{(n)}_t\\ =\\ R^{(n)}_t
+                        + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
+
+    """  # noqa: E501
     def batch_eval(self, S, A=None, use_target_model=False):
         if use_target_model and self.target_model is not None:
             model = self.target_model
@@ -367,7 +455,93 @@ class QFunctionTypeI(BaseQFunction):
 
 
 class QFunctionTypeII(BaseQFunction):
+    """
+    Base class for modeling :term:`type-II <type-II state-action value
+    function>` Q-function.
 
+    A :term:`type-II <type-II state-action value function>` Q-function is
+    implemented by mapping :math:`s\\mapsto Q(s,.)`.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    train_model : keras.Model([:term:`S`, :term:`G`], :term:`Q_s`)
+
+        Used for training.
+
+    predict_model : keras.Model(:term:`S`, :term:`Q_s`)
+
+        Used for predicting.
+
+    target_model : keras.Model(:term:`S`, :term:`Q_s`), optional
+
+        A :term:`target_model` is used to make predictions on a bootstrapping
+        scenario. It can be advantageous to use a point-in-time copy of the
+        :term:`predict_model` to construct a bootstrapped target.
+
+    bootstrap_model : keras.Model([:term:`S`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`], :term:`Q_sa`), optional
+
+        A :term:`bootstrap_model` can be used for training. It differs from the
+        :term:`train_model` in that it computes the bootstrapped target
+        internally (instead of receiving it as input). The use of a
+        :term:`bootstrap_model` can speed up the training process.
+
+    gamma : float, optional
+
+        The discount factor for discounting future rewards.
+
+    bootstrap_n : positive int, optional
+
+        The number of steps in n-step bootstrapping. It specifies the number of
+        steps over which we're willing to delay bootstrapping. Large :math:`n`
+        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
+        TD(0).
+
+    update_strategy : str, optional
+
+        The update strategy that we use to select the (would-be) next-action
+        :math:`A_{t+n}` in the bootsrapped target:
+
+        .. math::
+
+            G^{(n)}_t\\ =\\ R^{(n)}_t + \\gamma^n Q(S_{t+n}, A_{t+n})
+
+        Options are:
+
+            'sarsa'
+                Sample the next action, i.e. use the action that was actually
+                taken.
+
+            'q_learning'
+                Take the action with highest Q-value under the current
+                estimate, i.e. :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n}, a)`.
+                This is an off-policy method.
+
+            'double_q_learning'
+                Same as 'q_learning', :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n},
+                a)`, except that the value itself is computed using the
+                :term:`target_model` rather than the primary model, i.e.
+
+                .. math::
+
+                    A_{t+n}\\ &=\\
+                        \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
+                    G^{(n)}_t\\ &=\\ R^{(n)}_t
+                        + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
+
+            'expected_sarsa'
+                Similar to SARSA in that it's on-policy, except that we take
+                the expectated Q-value rather than a sample of it, i.e.
+
+                .. math::
+
+                    G^{(n)}_t\\ =\\ R^{(n)}_t
+                        + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
+
+    """  # noqa: E501
     def batch_eval(self, S, A=None, use_target_model=False):
         if use_target_model and self.target_model is not None:
             model = self.target_model
