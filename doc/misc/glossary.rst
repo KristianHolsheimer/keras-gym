@@ -31,7 +31,7 @@ In this package we have four distinct types of function approximators:
 
         .. math::
 
-            (s, a) \mapsto Q(s,a)
+            (s, a) \mapsto Q(s,a)\ \in\ \mathbb{R}
 
         This function approximator is implemented by :class:`QFunctionTypeI
         <keras_gym.value_functions.QFunctionTypeI>`.
@@ -43,25 +43,24 @@ In this package we have four distinct types of function approximators:
 
         .. math::
 
-            s \mapsto Q(s,.)
+            s \mapsto Q(s,.)\ \in\ \mathbb{R}^n
 
-        The type-II Q-function is implemented by :class:`QFunctionTypeII
+        where :math:`n` is the number of actions. The type-II Q-function is
+        implemented by :class:`QFunctionTypeII
         <keras_gym.value_functions.QFunctionTypeII>`.
-
-        .. note::
-
-            At the moment, this is only implemented for environments with a
-            :class:`Discrete <gym.spaces.Discrete>` action space.
 
     updateable policy
 
         This function approximator represents a policy directly. It is
         implemented by :class:`Policy <keras_gym.policies.Policy>`.
 
-        .. note::
 
-            At the moment, this is only implemented for environments with a
-            :class:`Discrete <gym.spaces.Discrete>` action space.
+.. note::
+
+    At the moment, :term:`type-II Q-functions <type-II state-action value
+    function>` and :term:`updateable policies <updateable policy>` are only
+    implemented for environments with a :class:`Discrete <gym.spaces.Discrete>`
+    action space.
 
 
 
@@ -144,13 +143,13 @@ inputs/outputs to our keras models.
 
         A batch of bootstrap factors. For instance, in n-step bootstrapping
         these are given by :math:`I_t=\gamma^n` when bootstrapping and
-        :math:`I_t=0` otherwise. It is used in boostrapped updates. For
+        :math:`I_t=0` otherwise. It is used in bootstrapped updates. For
         instance, the n-step bootstrapped target makes use of :math:`I` as
         follows:
 
             .. math::
 
-                G\ =\ R^{(n)}_t + I_t\,Q(S_{t+1}, A_{t+1})
+                G^{(n)}_t\ =\ R^{(n)}_t + I_t\,Q(S_{t+1}, A_{t+1})
 
     S_next
 

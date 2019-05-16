@@ -240,9 +240,10 @@ class VFunction(BaseFunctionApproximator):
         I_next : 1d array, dtype: float, shape: [batch_size]
 
             A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the epsiode is ongoing
-            and :math:`I_t=0` otherwise. This allows us to write the bootstrapped
-            target as :math:`G^{(n)}=R^{(n)}+I_tQ(S_{t+n}, A_{t+n})`
+            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
+            and :math:`I_t=0` otherwise. This allows us to write the
+            bootstrapped target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},
+            A_{t+n})`.
 
         S_next : nd array, shape: [batch_size, ...]
 
@@ -379,9 +380,10 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         I_next : 1d array, dtype: float, shape: [batch_size]
 
             A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the epsiode is ongoing
-            and :math:`I_t=0` otherwise. This allows us to write the bootstrapped
-            target as :math:`G^{(n)}=R^{(n)}+I_tQ(S_{t+n}, A_{t+n})`
+            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
+            and :math:`I_t=0` otherwise. This allows us to write the
+            bootstrapped target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},
+            A_{t+n})`.
 
         S_next : nd array, shape: [batch_size, ...]
 
@@ -402,7 +404,7 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
     def bootstrap_target_np(self, Rn, I_next, S_next, A_next=None):
         """
         Get the bootstrapped target
-        :math:`G^{(n)}=R^{(n)}+\\gamma^nQ(S_{t+n}, A_{t+n})`.
+        :math:`G^{(n)}_t=R^{(n)}_t+\\gamma^nQ(S_{t+n}, A_{t+n})`.
 
         Parameters
         ----------
@@ -422,9 +424,9 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         I_next : 1d array, dtype: float, shape: [batch_size]
 
             A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the epsiode is ongoing
+            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
             and :I_t=0: otherwise. This allows us to write the bootstrapped
-            target as :math:`G^{(n)}=R^{(n)}+I_tQ(S_{t+n},A_{t+n})`
+            target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})`.
 
         S_next : nd array, shape: [batch_size, ...]
 
@@ -439,8 +441,8 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         Gn : 1d array, dtype: int, shape: [batch_size]
 
             A batch of bootstrap-estimated returns
-            :math:`G^{(n)}=R^{(n)}+I_tQ(S_{t+n},A_{t+n})` computed according to
-            given ``update_strategy``.
+            :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})` computed
+            according to given ``update_strategy``.
 
         """
         if self.update_strategy == 'sarsa':
