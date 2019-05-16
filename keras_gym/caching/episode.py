@@ -50,7 +50,7 @@ class NStepCache:
 
         # n-step partial return
         zipped = zip(self._gammas, self._deque_r)
-        gn = sum(x * r for x, r in islice(zipped, self.n))
+        rn = sum(x * r for x, r in islice(zipped, self.n))
         self._deque_r.popleft()
 
         # keep in mind that we've already popped (s, a)
@@ -60,7 +60,14 @@ class NStepCache:
         else:
             s_next, a_next, i_next = s, a, 0.  # no more bootstrapping
 
-        return s, a, gn, i_next, s_next, a_next
+        S = np.array([s])
+        A = np.array([a])
+        Rn = np.array([rn])
+        I_next = np.array([i_next])
+        S_next = np.array([s_next])
+        A_next = np.array([a_next])
+
+        return S, A, Rn, I_next, S_next, A_next  # batch_size=1
 
     def flush(self):
         if not self:
@@ -77,12 +84,12 @@ class NStepCache:
 
         while self:
             s, a, gn, i_next, s_next, a_next = self.popleft()
-            S.append(s)
-            A.append(a)
-            Gn.append(gn)
-            I_next.append(i_next)
-            S_next.append(s_next)
-            A_next.append(a_next)
+            S.append(s[0])
+            A.append(a[0])
+            Gn.append(gn[0])
+            I_next.append(i_next[0])
+            S_next.append(s_next[0])
+            A_next.append(a_next[0])
 
         S = np.stack(S, axis=0)
         A = np.stack(A, axis=0)
@@ -137,7 +144,11 @@ class MonteCarloCache:
         # update return
         self._g = r + self.gamma * self._g
 
-        return s, a, self._g
+        S = np.array([s])
+        A = np.array([a])
+        G = np.array([self._g])
+
+        return S, A, G  # batch_size=1
 
     def flush(self):
         if not self:
@@ -155,9 +166,9 @@ class MonteCarloCache:
 
         while self:
             s, a, g = self.pop()
-            S.append(s)
-            A.append(a)
-            G.append(g)
+            S.append(s[0])
+            A.append(a[0])
+            G.append(g[0])
 
         S = np.stack(S, axis=0)
         A = np.stack(A, axis=0)

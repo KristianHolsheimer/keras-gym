@@ -163,6 +163,10 @@ inputs/outputs to our keras models.
         actually taken (on-policy), but they can also be any other would-be
         next-actions (off-policy).
 
+    V
+
+        A batch of V-values :math:`V(s)` of shape ``[batch_size]``.
+
     Q_sa
 
         A batch of Q-values :math:`Q(s,a)` of shape ``[batch_size]``.
