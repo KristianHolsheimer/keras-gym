@@ -1,5 +1,10 @@
 a {
   font-weight: bold;
+  color: #2980B9;
+}
+
+a:visited {
+  color: #2980B9;
 }
 
 .math {
@@ -36,15 +41,6 @@ video#cartpole {
   padding-right: 6pt;
 }
 
-/* Make "Other Methods" admonition collapsible. See also custom.js */
-.admonition-other-methods p.admonition-title::before {
-  content: "▶";
-}
-
-.admonition-other-methods p.admonition-title.active::before {
-  transform: rotate(90deg);
-}
-
-.admonition-other-methods dl.method {
-  display: none;  /* hide by default */
+.rst-content dl:not(.docutils) dl dt a.reference.internal span.xref.std.std-term {
+  color: #2980B9;
 }
