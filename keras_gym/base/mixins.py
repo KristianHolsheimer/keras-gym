@@ -29,3 +29,20 @@ class NumActionsMixin:
                     "num_actions property is inaccesible")
             self._num_actions = self.env.action_space.n
         return self._num_actions
+
+
+class AddOrigStateToInfoDictMixin:
+    def _add_orig_to_info_dict(self, info):
+        if not isinstance(info, dict):
+            assert info is None, "unexpected type for 'info' dict"
+            info = {}
+
+        if 's_orig' in info:
+            info['s_orig'].append(self._s_orig)
+        else:
+            info['s_orig'] = [self._s_orig]
+
+        if 's_next_orig' in info:
+            info['s_next_orig'].append(self._s_next_orig)
+        else:
+            info['s_next_orig'] = [self._s_next_orig]

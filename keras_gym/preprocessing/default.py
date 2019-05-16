@@ -2,6 +2,9 @@ import gym
 import numpy as np
 
 
+from ..base.mixins import AddOrigStateToInfoDictMixin
+
+
 __all__ = (
     'DefaultPreprocessor',
     'feature_vector',
@@ -9,7 +12,7 @@ __all__ = (
 )
 
 
-class DefaultPreprocessor(gym.Wrapper):
+class DefaultPreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
     """
     This is our default preprocessor. It's an environment wrapper that ensures
     that the state observations can be readily fed into a function
@@ -18,6 +21,13 @@ class DefaultPreprocessor(gym.Wrapper):
     The original, non-preprocessed state observation is stored in the ``info``
     dict, with the key ``info['s_orig']``. The corresponding value is a list,
     whose individual entries correspond to each consecutive preprocessing step.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
 
     Examples
     --------
@@ -61,21 +71,6 @@ class DefaultPreprocessor(gym.Wrapper):
         self._add_orig_to_info_dict(info)
         s_next = feature_vector(self._s_next_orig, self.env.observation_space)
         return s_next, r, done, info
-
-    def _add_orig_to_info_dict(self, info):
-        if not isinstance(info, dict):
-            assert info is None, "unexpected type for 'info' dict"
-            info = {}
-
-        if 's_orig' in info:
-            info['s_orig'].append(self._s_orig)
-        else:
-            info['s_orig'] = [self._s_orig]
-
-        if 's_next_orig' in info:
-            info['s_next_orig'].append(self._s_next_orig)
-        else:
-            info['s_next_orig'] = [self._s_next_orig]
 
 
 def feature_vector(x, space):
