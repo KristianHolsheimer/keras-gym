@@ -2,10 +2,6 @@ a {
   font-weight: bold;
 }
 
-a:visited {
-  color: inherit;
-}
-
 .math {
     text-align: left;
 }
