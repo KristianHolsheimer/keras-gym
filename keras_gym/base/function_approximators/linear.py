@@ -105,7 +105,56 @@ class LinearV(GenericV, LinearFunctionMixin):
             interaction=None,
             optimizer=None,
             **sgd_kwargs):
-        raise NotImplementedError('LinearV')
+
+        super().__init__(
+            env=env,
+            gamma=gamma,
+            bootstrap_n=bootstrap_n,
+            train_model=None,  # set models later
+            predict_model=None,
+            target_model=None,
+            bootstrap_model=None)
+
+        self.interaction = interaction
+        self._init_interaction_layer(interaction)
+        self._init_optimizer(optimizer, sgd_kwargs)
+        self._init_models(output_dim=1)
+        self._check_attrs()
+
+    def _init_models(self, output_dim):
+        s = self.env.observation_space.sample()
+
+        S = keras.Input(name='S', shape=s.shape, dtype=s.dtype)
+
+        def forward_pass(S, variable_scope):
+            def v(name):
+                return '{}/{}'.format(variable_scope, name)
+
+            if K.ndim(S) > 2:
+                S = keras.layers.Flatten(S)
+
+            S = keras.layers.Flatten()(S)
+
+            if self.interaction_layer is not None:
+                S = self.interaction_layer(S)
+
+            dense_layer = keras.layers.Dense(
+                output_dim, kernel_initializer='zeros', name=v('weights'))
+
+            return dense_layer(S)
+
+        # regular models
+        Q = forward_pass(S, variable_scope='primary')
+        self.train_model = keras.Model(S, Q)
+        self.train_model.compile(
+            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+        self.predict_model = self.train_model  # yes, it's trivial for V(s)
+
+        # optional models
+        # V_target = forward_pass(S, variable_scope='target')
+        # self.target_model = keras.Model(S, V_target)
+        self.target_model = None
+        self.bootstrap_model = None
 
 
 class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
