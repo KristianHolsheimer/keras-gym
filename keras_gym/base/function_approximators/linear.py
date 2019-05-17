@@ -1,3 +1,5 @@
+import gym
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
@@ -16,6 +18,16 @@ __all__ = (
 
 class LinearFunctionMixin:
     INTERACTION_OPTS = ('elementwise_quadratic', 'full_quadratic')
+
+    @property
+    def input_dim(self):
+        if not hasattr(self, '_input_dim'):
+            if not isinstance(self.env.observation_space, gym.spaces.Box):
+                raise TypeError(
+                    "expected observation space Box, got: {}"
+                    .format(self.env.observation_space))
+            self._input_dim = np.prod(self.env.observation_space.shape)
+        return self._input_dim
 
     def _init_interaction_layer(self, interaction):
         if interaction is None:
