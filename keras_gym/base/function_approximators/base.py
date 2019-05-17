@@ -257,6 +257,17 @@ class GenericV(BaseFunctionApproximator):
             Gn = Rn + I_next * V_next
             self.train_model.train_on_batch(S, Gn)
 
+    def batch_eval(self, S, use_target_model=False):
+        if use_target_model and self.target_model is not None:
+            model = self.target_model
+        else:
+            model = self.predict_model
+
+        V = model.predict_on_batch(S)
+        check_numpy_array(V, ndim=2, axis_size=1, axis=1)
+        V = np.squeeze(V, axis=1)  # shape: [batch_size]
+        return V
+
 
 class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
     UPDATE_STRATEGIES = ('sarsa', 'q_learning', 'double_q_learning')
