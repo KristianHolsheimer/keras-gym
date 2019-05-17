@@ -40,8 +40,8 @@ for ep in range(num_episodes):
             # S, A, G = cache.flush()
             # policy.batch_update(S, A, G)
             while cache:
-                s, a, g = cache.pop()
-                policy.update(s, a, g)
+                S, A, G = cache.pop()
+                policy.batch_update(S, A, G)
             break
 
         s = s_next
@@ -55,7 +55,7 @@ for t in range(num_steps):
 
     # print individual action probabilities
     for i, p in enumerate(policy.proba(s)):
-        print("  {:s}: {:.3f}".format(actions[i], p))
+        print("  π({:s}|s) = {:.3f}".format(actions[i], p))
 
     a = policy.greedy(s)
     s, r, done, info = env.step(a)
