@@ -13,9 +13,9 @@ from ..policy import BasePolicy
 
 
 __all__ = (
-    'VFunction',
-    'QFunctionTypeI',
-    'QFunctionTypeII',
+    'GenericV',
+    'GenericQTypeI',
+    'GenericQTypeII',
     'SoftmaxPolicy',
 )
 
@@ -97,7 +97,7 @@ class BaseFunctionApproximator(ABC):
             feed_dict={self._target_model_sync_tau: tau})
 
 
-class VFunction(BaseFunctionApproximator):
+class GenericV(BaseFunctionApproximator):
     """
     Base class for modeling a :term:`state value function`.
 
@@ -258,7 +258,7 @@ class VFunction(BaseFunctionApproximator):
             self.train_model.train_on_batch(S, Gn)
 
 
-class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
+class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
     UPDATE_STRATEGIES = ('sarsa', 'q_learning', 'double_q_learning')
 
     def __init__(
@@ -499,7 +499,7 @@ class BaseQFunction(BaseFunctionApproximator, NumActionsMixin):
         pass
 
 
-class QFunctionTypeI(BaseQFunction):
+class GenericQTypeI(BaseGenericQ):
     """
     Base class for modeling :term:`type-I <type-I state-action value function>`
     Q-function.
@@ -612,7 +612,7 @@ class QFunctionTypeI(BaseQFunction):
             return Q  # shape: [batch_size, num_actions]
 
 
-class QFunctionTypeII(BaseQFunction):
+class GenericQTypeII(BaseGenericQ):
     """
     Base class for modeling :term:`type-II <type-II state-action value
     function>` Q-function.

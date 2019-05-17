@@ -21,8 +21,8 @@ In this package we have four distinct types of function approximators:
 
     state value function
 
-        State value functions :math:`V(s)` are implemented by :class:`VFunction
-        <keras_gym.value_functions.VFunction>`.
+        State value functions :math:`V(s)` are implemented by :class:`GenericV
+        <keras_gym.value_functions.GenericV>`.
 
     type-I state-action value function
 
@@ -33,8 +33,8 @@ In this package we have four distinct types of function approximators:
 
             (s, a) \mapsto Q(s,a)\ \in\ \mathbb{R}
 
-        This function approximator is implemented by :class:`QFunctionTypeI
-        <keras_gym.value_functions.QFunctionTypeI>`.
+        This function approximator is implemented by :class:`GenericQTypeI
+        <keras_gym.value_functions.GenericQTypeI>`.
 
     type-II state-action value function
 
@@ -46,8 +46,8 @@ In this package we have four distinct types of function approximators:
             s \mapsto Q(s,.)\ \in\ \mathbb{R}^n
 
         where :math:`n` is the number of actions. The type-II Q-function is
-        implemented by :class:`QFunctionTypeII
-        <keras_gym.value_functions.QFunctionTypeII>`.
+        implemented by :class:`GenericQTypeII
+        <keras_gym.value_functions.GenericQTypeII>`.
 
     updateable policy
 

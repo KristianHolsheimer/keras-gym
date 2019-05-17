@@ -3,7 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ...losses import SoftmaxPolicyLossWithLogits, ProjectedSemiGradientLoss
-from .base import VFunction, QFunctionTypeI, QFunctionTypeII, SoftmaxPolicy
+from .base import GenericV, GenericQTypeI, GenericQTypeII, SoftmaxPolicy
 
 
 __all__ = (
@@ -85,7 +85,7 @@ class LinearFunctionMixin:
                 "None (which sets the default keras.optimizers.SGD optimizer)")
 
 
-class LinearV(VFunction, LinearFunctionMixin):
+class LinearV(GenericV, LinearFunctionMixin):
     def __init__(
             self, env,
             gamma=0.9,
@@ -96,7 +96,7 @@ class LinearV(VFunction, LinearFunctionMixin):
         raise NotImplementedError('LinearV')
 
 
-class LinearQTypeI(QFunctionTypeI, LinearFunctionMixin):
+class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
     def __init__(
             self, env,
             gamma=0.9,
@@ -165,7 +165,7 @@ class LinearQTypeI(QFunctionTypeI, LinearFunctionMixin):
         self.bootstrap_model = None
 
 
-class LinearQTypeII(QFunctionTypeII, LinearFunctionMixin):
+class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
     def __init__(
             self, env,
             gamma=0.9,
