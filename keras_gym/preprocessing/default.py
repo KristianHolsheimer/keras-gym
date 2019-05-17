@@ -58,7 +58,7 @@ class DefaultPreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
         s = self.env.observation_space.sample()
         s = feature_vector(s, self.env.observation_space)
         self.observation_space = gym.spaces.Box(
-            low=np.finfo(s.dtype).min, high=np.finfo(s.dtype).max,
+            low=np.finfo(np.float32).min, high=np.finfo(np.float32).max,
             shape=s.shape)
 
     def reset(self):
