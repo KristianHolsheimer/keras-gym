@@ -141,7 +141,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
             .. math::
 
-                \\left( R^{(n)}_t + I_t\,Q(S_{t+n},A_{t+n})
+                \\left( R^{(n)}_t + I_t\\,Q(S_{t+n},A_{t+n})
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
