@@ -35,7 +35,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
     num_frames : positive int
 
         The number of frames to stack together to make up one state input
-        ``X``.
+        ``S``.
 
     bootstrap_n : positive int
 
@@ -58,7 +58,6 @@ class ExperienceReplayBuffer(RandomStateMixin):
     """
     def __init__(
             self,
-            state_preprocessor,
             capacity=1000000,
             batch_size=32,
             num_frames=4,
@@ -67,7 +66,6 @@ class ExperienceReplayBuffer(RandomStateMixin):
             warmup_period=50000,
             random_seed=None):
 
-        self.state_preprocessor = state_preprocessor
         self.capacity = int(capacity)
         self.batch_size = int(batch_size)
         self.num_frames = int(num_frames)
@@ -114,11 +112,10 @@ class ExperienceReplayBuffer(RandomStateMixin):
             generating consistent samples.
 
         """
-        x = self.state_preprocessor(s)
         if not self._initialized:
-            self._init_cache(x)
+            self._init_cache(s)
 
-        self._x[self._i] = x
+        self._s[self._i] = s
         self._a[self._i] = a
         self._r[self._i] = r
         self._d[self._i] = gamma
@@ -133,17 +130,26 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
         Returns
         -------
-        transition : Transition object
+        S, A, Rn, I_next, S_next, A_next : tuple of arrays
 
-            A :class:`Transition <keras_gym.utils.Transition>` object that
-            contains the batch of preprocessed transitions.
+            The returned tuple represents a batch of preprocessed transitions:
 
-        """
-        sample = {'X': [], 'A': [], 'Rn': [],
-                  'X_next': [], 'A_next': [], 'I_next': []}
+                (:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`)
+
+            These are typically used for bootstrapped updates, e.g. minimizing
+            the bootstrapped MSE:
+
+            .. math::
+
+                \\left( R^{(n)}_t + I_t\,Q(S_{t+n},A_{t+n})
+                    - Q(S_t, A_t) \\right)^2
+
+        """  # noqa: E501
+        sample = {'S': [], 'A': [], 'Rn': [],
+                  'S_next': [], 'A_next': [], 'I_next': []}
 
         for attempt in range(10 * self.batch_size):
-            # js are the X idices and ks are the X_next indices
+            # js are the S indices and ks are the S_next indices
             J = len(self) - self.bootstrap_n - self.num_frames
             assert J > 0, "please insert more transitions before sampling"
             js = self._random.randint(J) + np.arange(self.num_frames)
@@ -155,7 +161,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
             ks %= self.capacity + 1
             ls %= self.capacity + 1
 
-            # check if X indices are all from the same episode
+            # check if S indices are all from the same episode
             ep = self._e[js[0]]
             if any(self._e[j] != ep for j in js[1:]):
                 continue
@@ -173,11 +179,11 @@ class ExperienceReplayBuffer(RandomStateMixin):
                 continue
 
             # permutation to transpose 'num_frames' axis to axis=-1
-            perm = np.roll(np.arange(self._x.ndim), -1)
-            sample['X'].append(self._x[js].transpose(perm).ravel())
+            perm = np.roll(np.arange(self._s.ndim), -1)
+            sample['S'].append(self._s[js].transpose(perm).ravel())
             sample['A'].append(self._a[js[-1:]])
             sample['Rn'].append(Rn)
-            sample['X_next'].append(self._x[ks].transpose(perm).ravel())
+            sample['S_next'].append(self._s[ks].transpose(perm).ravel())
             sample['A_next'].append(self._a[ks[-1:]])
             if done:
                 sample['I_next'].append(np.zeros(1))
@@ -185,26 +191,27 @@ class ExperienceReplayBuffer(RandomStateMixin):
                 sample['I_next'].append(
                     np.power([self.gamma], self.bootstrap_n))
 
-            if len(sample['X']) == self.batch_size:
+            if len(sample['S']) == self.batch_size:
                 break
 
-        if len(sample['X']) < self.batch_size:
+        if len(sample['S']) < self.batch_size:
             raise RuntimeError("couldn't construct valid sample")
 
-        return Transition(
-            X=np.stack(sample['X']),
-            A=np.stack(sample['A']),
-            Rn=np.stack(sample['Rn']),
-            X_next=np.stack(sample['X_next']),
-            A_next=np.stack(sample['A_next']),
-            I_next=np.stack(sample['I_next']))
+        S = np.stack(sample['S'])
+        A = np.stack(sample['A'])
+        Rn = np.stack(sample['Rn'])
+        I_next = np.stack(sample['I_next'])
+        S_next = np.stack(sample['S_next'])
+        A_next = np.stack(sample['A_next'])
+
+        return S, A, Rn, I_next, S_next, A_next
 
     def is_warming_up(self):
         return len(self) < self.warmup_period
 
     def _init_cache(self, x):
         n = (self.capacity + 1,)
-        self._x = np.zeros(n + x.shape, x.dtype)  # frame
+        self._s = np.zeros(n + x.shape, x.dtype)  # frame
         self._a = np.zeros(n, 'int32')      # actions taken (assume Discrete)
         self._r = np.zeros(n, 'float')      # rewards
         self._d = np.zeros(n, 'bool')       # done?
