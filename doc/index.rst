@@ -25,12 +25,17 @@ Documentation
     notebooks/index
     value_functions/index
     policies/index
-    misc/glossary
-    misc/release_notes
+    caching/index
 
 
 Indices and tables
 ------------------
+
+.. toctree::
+    :maxdepth: 1
+
+    misc/glossary
+    misc/release_notes
 
 * :ref:`genindex`
 * :ref:`modindex`

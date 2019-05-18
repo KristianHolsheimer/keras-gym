@@ -1,6 +1,3 @@
-
-
-
 Value-Based Policies
 ====================
 

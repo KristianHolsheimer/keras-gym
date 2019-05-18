@@ -15,7 +15,15 @@ outputs that our keras models expect.
 1. Function approximator types
 ------------------------------
 
-In this package we have four distinct types of function approximators:
+.. glossary::
+
+    function approximator
+
+        A function approximator is any object that can be updated.
+
+
+In this package we have four distinct types of :term:`function approximators
+<function approximator>`:
 
 .. glossary::
 
