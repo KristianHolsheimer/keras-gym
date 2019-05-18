@@ -1,3 +1,3 @@
 # flake8: noqa
-from .episode import *
+from .short_term import *
 from .experience_replay import *

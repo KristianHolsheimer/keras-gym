@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 
 from ..base.errors import InsufficientCacheError, EpisodeDoneError
-from .episode import NStepCache, MonteCarloCache
+from .short_term import NStepCache, MonteCarloCache
 
 
 class TestNStepCache:
