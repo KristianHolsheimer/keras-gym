@@ -4,6 +4,7 @@ from PIL import Image
 
 from ..utils import check_numpy_array
 from ..base.mixins import AddOrigStateToInfoDictMixin
+from ..base.errors import NumpyArrayCheckError
 
 
 __all__ = (
@@ -53,10 +54,11 @@ class ImagePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
 
         self.height = int(height)
         self.width = int(width)
+        self.grayscale = bool(grayscale)
 
         # check input shape?
         self.assert_input_shape = assert_input_shape
-        if self.assert_input_shape is None:
+        if self.assert_input_shape is not None:
             self.assert_input_shape = tuple(self.assert_input_shape)
 
         # check original shape / dtype
@@ -67,7 +69,10 @@ class ImagePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
         assert dtype == 'uint8', "bad dtype: {}".format(dtype)
 
         # update observation space
-        shape = (self.height, self.width, shape[2])
+        if self.grayscale:
+            shape = (self.height, self.width)
+        else:
+            shape = (self.height, self.width, shape[2])
         self.observation_space = gym.spaces.Box(
             shape=shape, low=0, high=255, dtype='uint8')
 
@@ -115,7 +120,14 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
         self.num_frames = int(num_frames)
 
         s = self.env.observation_space.sample()
-        check_numpy_array(s, dtype='uint8', ndim=2)  # TODO: implement color
+        check_numpy_array(s, dtype='uint8')
+        if s.ndim == 2:
+            self._perm = (1, 2, 0)
+        elif s.ndim == 3:
+            self._perm = (1, 2, 3, 0)
+        else:
+            NumpyArrayCheckError(
+                "expected ndim equal to 2 or 3, got shape: {}".format(s.shape))
 
         # update observation space
         shape = s.shape + (self.num_frames,)
@@ -127,10 +139,10 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
         frame_shape = tuple(self.env.observation_space.shape)
         shape = (self.num_frames,) + frame_shape
         self._frames = np.zeros(shape, self.observation_space.dtype)
-        self._s_orig = self.env.reset()            # shape: [h, w]
-        s = np.expand_dims(self._s_orig, axis=0)   # shape: [1, h, w]
-        self._frames[...] = s                      # broadcast along axis=0
-        s = np.transpose(self._frames, (1, 2, 0))  # to shape: [h, w, c]
+        self._s_orig = self.env.reset()             # shape: [h, w, c?]
+        s = np.expand_dims(self._s_orig, axis=0)    # shape: [1, h, w, c?]
+        self._frames[...] = s                       # broadcast along axis=0
+        s = np.transpose(self._frames, self._perm)  # to shape: [h, w, c?, f]
         return s
 
     def step(self, a):
@@ -139,6 +151,6 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
         self._frames[self._i] = self._s_next_orig
         self._i += 1
         self._i %= self.num_frames
-        s_next = np.roll(self._frames, -self._i)  # latest frame is last
-        s_next = np.transpose(s_next, (1, 2, 0))  # to shape: [h, w, c]
+        s_next = np.roll(self._frames, -self._i)   # latest frame is last
+        s_next = np.transpose(s_next, self._perm)  # to shape: [h, w, c?, f]
         return s_next, r, done, info

@@ -46,3 +46,5 @@ class AddOrigStateToInfoDictMixin:
             info['s_next_orig'].append(self._s_next_orig)
         else:
             info['s_next_orig'] = [self._s_next_orig]
+
+        self._s_orig = self._s_next_orig
