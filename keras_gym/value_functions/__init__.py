@@ -1,4 +1,4 @@
 # flake8: noqa
-from ..base.function_approximators import (
-    GenericV, GenericQTypeI, GenericQTypeII,
-    LinearV, LinearQTypeI, LinearQTypeII)
+from ..base.function_approximators.generic import (
+    GenericV, GenericQTypeI, GenericQTypeII)
+from .linear import *

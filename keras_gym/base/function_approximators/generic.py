@@ -5,7 +5,8 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from ...utils import (
-    project_onto_actions_np, check_numpy_array, softmax, argmax)
+    project_onto_actions_np, project_onto_actions_tf, check_numpy_array,
+    softmax, argmax)
 from ...caching import NStepCache
 from ..errors import MissingModelError
 from ..mixins import RandomStateMixin, NumActionsMixin
@@ -16,7 +17,7 @@ __all__ = (
     'GenericV',
     'GenericQTypeI',
     'GenericQTypeII',
-    'SoftmaxPolicy',
+    'GenericSoftmaxPolicy',
 )
 
 
@@ -42,7 +43,7 @@ class BaseFunctionApproximator(ABC):
             'env', 'gamma', 'bootstrap_n', 'train_model', 'predict_model',
             'target_model', 'bootstrap_model', '_cache']
 
-        if isinstance(self, SoftmaxPolicy):
+        if isinstance(self, GenericSoftmaxPolicy):
             required_attrs.remove('bootstrap_model')
             required_attrs.remove('bootstrap_n')
             required_attrs.remove('gamma')
@@ -417,6 +418,8 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         Get the bootstrapped target
         :math:`G^{(n)}_t=R^{(n)}_t+\\gamma^nQ(S_{t+n}, A_{t+n})`.
 
+        This is the *numpy* implementation.
+
         Parameters
         ----------
         Rn : 1d array, dtype: float, shape: [batch_size]
@@ -472,6 +475,54 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
         Gn = Rn + I_next * Q_next
         return Gn
+
+    def bootstrap_target_tf(self, Rn, I_next, S_next, A_next=None):
+        """
+        Get the bootstrapped target
+        :math:`G^{(n)}_t=R^{(n)}_t+\\gamma^nQ(S_{t+n}, A_{t+n})`.
+
+        This is the *tensorflow* implementation.
+
+        Parameters
+        ----------
+        Rn : 1d tensor, dtype: float, shape: [batch_size]
+
+            A batch of partial returns. For example, in n-step bootstrapping
+            this is given by:
+
+            .. math::
+
+                R^{(n)}_t\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
+                    \\gamma^{n-1}\\,R_{t+n-1}
+
+            In other words, it's the non-bootstrapped part of the n-step
+            return.
+
+        I_next : 1d tensor, dtype: float, shape: [batch_size]
+
+            A batch bootstrapping factor. For instance, in n-step bootstrapping
+            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
+            and :I_t=0: otherwise. This allows us to write the bootstrapped
+            target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})`.
+
+        S_next : nd tensor, shape: [batch_size, ...]
+
+            A batch of next-state observations.
+
+        A_next : 1d tensor, dtype: int, shape: [batch_size], optional
+
+            A batch of next-actions that were taken.
+
+        Returns
+        -------
+        Gn : 1d tensor, dtype: int, shape: [batch_size]
+
+            A batch of bootstrap-estimated returns
+            :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})` computed
+            according to given ``update_strategy``.
+
+        """
+        raise NotImplementedError('bootstrap_target_tf')
 
     @abstractmethod
     def batch_eval(self, S, A=None, use_target_model=False):
@@ -729,8 +780,30 @@ class GenericQTypeII(BaseGenericQ):
             check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
 
+    def bootstrap_target_tf(self, Rn, I_next, S_next, A_next=None):
+        if self.target_model is None:
+            raise MissingModelError('target_model')
 
-class SoftmaxPolicy(
+        if self.update_strategy == 'sarsa':
+            assert A_next is not None
+            Q_next = self.target_model(S_next)
+            Q_next = project_onto_actions_tf(Q_next, A_next)
+        elif self.update_strategy == 'q_learning':
+            Q_next = self.target_model(S_next)
+            Q_next = K.max(Q_next, axis=1)
+        elif self.update_strategy == 'double_q_learning':
+            A_next = K.argmax(self.predict_model(S_next), axis=1)
+            Q_next = self.target_model(S_next)
+            Q_next = project_onto_actions_np(Q_next, A_next)
+        else:
+            raise ValueError(
+                "unknown update_strategy: {}".format(self.update_strategy))
+
+        Gn = Rn + I_next * Q_next
+        return Gn
+
+
+class GenericSoftmaxPolicy(
         BasePolicy, BaseFunctionApproximator, NumActionsMixin,
         RandomStateMixin):
 
