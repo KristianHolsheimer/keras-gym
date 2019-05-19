@@ -1,7 +1,8 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin
-from ..base.errors import InsufficientCacheError
+from ..base.errors import InsufficientCacheError, NumpyArrayCheckError
+from ..utils import check_numpy_array
 
 
 __all__ = (
@@ -56,7 +57,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
             self,
             capacity=1000000,
             batch_size=32,
-            num_frames=4,
+            num_frames=None,
             bootstrap_n=1,
             gamma=0.99,
             warmup_period=50000,
@@ -64,7 +65,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
         self.capacity = int(capacity)
         self.batch_size = int(batch_size)
-        self.num_frames = int(num_frames)
+        self.num_frames = int(num_frames or 1)
         self.bootstrap_n = int(bootstrap_n)
         self.gamma = float(gamma)
         self.warmup_period = int(warmup_period)
@@ -108,6 +109,8 @@ class ExperienceReplayBuffer(RandomStateMixin):
             generating consistent samples.
 
         """
+        s = self._extract_last_frame(s)
+
         if not self._initialized:
             self._init_cache(s)
 
@@ -199,12 +202,16 @@ class ExperienceReplayBuffer(RandomStateMixin):
         if len(sample['S']) < self.batch_size:
             raise RuntimeError("couldn't construct valid sample")
 
-        S = np.concatenate(sample['S'], axis=0)
+        S = np.stack(sample['S'], axis=0)
         A = np.concatenate(sample['A'], axis=0)
         Rn = np.concatenate(sample['Rn'], axis=0)
         I_next = np.concatenate(sample['I_next'], axis=0)
-        S_next = np.concatenate(sample['S_next'], axis=0)
+        S_next = np.stack(sample['S_next'], axis=0)
         A_next = np.concatenate(sample['A_next'], axis=0)
+
+        if self.num_frames == 1:
+            S = np.squeeze(S, axis=-1)
+            S_next = np.squeeze(S_next, axis=-1)
 
         return S, A, Rn, I_next, S_next, A_next
 
@@ -218,8 +225,21 @@ class ExperienceReplayBuffer(RandomStateMixin):
         self._r = np.zeros(n, 'float')      # rewards
         self._d = np.zeros(n, 'bool')       # done?
         self._e = np.zeros(n, 'int32')      # episode id
-        self._e[...] = -1
         self._initialized = True
+
+    def _extract_last_frame(self, s):
+        if self.num_frames == 1:
+            return s
+
+        check_numpy_array(s, axis_size=self.num_frames, axis=-1)
+        if s.ndim == 3:
+            s = s[:, :, -1]
+        elif s.ndim == 4:
+            s = s[:, :, :, -1]
+        else:
+            NumpyArrayCheckError(
+                "expected ndim equal to 3 or 4, got shape: {}".format(s.shape))
+        return s
 
     def __len__(self):
         return self._len

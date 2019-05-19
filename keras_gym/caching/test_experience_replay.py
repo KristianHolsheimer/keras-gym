@@ -55,7 +55,7 @@ class TestExperienceReplayBuffer:
 
     def test_sample(self):
         buffer = ExperienceReplayBuffer(
-            capacity=17, random_seed=13, batch_size=16, num_frames=3,
+            capacity=17, random_seed=13, batch_size=16, num_frames=1,
             bootstrap_n=2, warmup_period=10)
 
         for ep in (1, 2, 3):
@@ -73,11 +73,8 @@ class TestExperienceReplayBuffer:
         S, A, Rn, I_next, S_next, A_next = buffer.sample()
         np.testing.assert_array_equal(
             I_next,
-            [0., 0., 0., 0., 0.9801, 0., 0., 0., 0., 0., 0.9801, 0., 0., 0.,
-             0., 0.])
-
-        # check if all frames come from the same episode
-        np.testing.assert_array_equal(np.unique(np.diff(S, axis=1)), [1])
+            [0., 0.9801, 0.9801, 0.9801, 0., 0., 0.9801, 0.9801,
+             0., 0.9801, 0.9801, 0.9801, 0.9801, 0., 0., 0.])
 
         # check if actions are separate by bootstrap_n steps
         for a, i_next, a_next in zip(A, I_next, A_next):
@@ -107,3 +104,18 @@ class TestExperienceReplayBuffer:
         assert not buffer.is_warming_up()
 
         buffer.sample()
+
+    def test_shape(self):
+        buffer = ExperienceReplayBuffer(
+            capacity=17, warmup_period=7, batch_size=5, num_frames=3)
+
+        for ep in (1, 2, 3):
+            for i, (_, a, r, done) in enumerate(self.EPISODE):
+                s = 100 * ep + i * np.ones((11, 13, 3))
+                buffer.add(s, a, r, done, 0)
+
+        S, A, Rn, I_next, S_next, A_next = buffer.sample()
+        assert S.shape == (5, 11, 13, 3)
+
+        # check if all frames come from the same episode
+        np.testing.assert_array_equal(np.unique(np.diff(S, axis=-1)), [1])
