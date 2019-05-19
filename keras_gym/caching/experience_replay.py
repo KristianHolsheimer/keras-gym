@@ -1,7 +1,8 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin
-from ..utils import Transition
+from ..base.errors import InsufficientCacheError
+
 
 __all__ = (
     'ExperienceReplayBuffer',
@@ -18,11 +19,6 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
     Parameters
     ----------
-    state_preprocessor : function
-
-        Function to use for preprocessing a single state observation (e.g. an
-        individual frame).
-
     capacity : positive int
 
         The capacity of the experience replay buffer. DQN typically uses
@@ -84,7 +80,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
         self._len = 0
         self._initialized = False
 
-    def add(self, s, a, r, gamma, episode_id):
+    def add(self, s, a, r, done, episode_id):
         """
         Add a transition to the experience replay buffer.
 
@@ -102,9 +98,9 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
             The observed rewards associated with this transition.
 
-        gamma : bool
+        done : bool
 
-            By how much we want to bootstrap (can be zero).
+            Whether the episode has finished.
 
         episode_id : int
 
@@ -118,7 +114,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
         self._s[self._i] = s
         self._a[self._i] = a
         self._r[self._i] = r
-        self._d[self._i] = gamma
+        self._d[self._i] = done
         self._e[self._i] = episode_id
         self._i = (self._i + 1) % (self.capacity + 1)
         if self._len < self.capacity:
@@ -145,6 +141,12 @@ class ExperienceReplayBuffer(RandomStateMixin):
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
+        if self.is_warming_up():
+            raise InsufficientCacheError(
+                "experience replay buffer is still warming up; please wait "
+                "until the warm-up period is over before sampling (use the "
+                ".is_warming_up() method to check if it's ready)")
+
         sample = {'S': [], 'A': [], 'Rn': [],
                   'S_next': [], 'A_next': [], 'I_next': []}
 
@@ -152,7 +154,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
             # js are the S indices and ks are the S_next indices
             J = len(self) - self.bootstrap_n - self.num_frames
             assert J > 0, "please insert more transitions before sampling"
-            js = self._random.randint(J) + np.arange(self.num_frames)
+            js = self.random.randint(J) + np.arange(self.num_frames)
             ks = js + self.bootstrap_n
             ls = np.arange(js[-1], ks[-1])
 
@@ -180,10 +182,10 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
             # permutation to transpose 'num_frames' axis to axis=-1
             perm = np.roll(np.arange(self._s.ndim), -1)
-            sample['S'].append(self._s[js].transpose(perm).ravel())
+            sample['S'].append(self._s[js].transpose(perm))
             sample['A'].append(self._a[js[-1:]])
             sample['Rn'].append(Rn)
-            sample['S_next'].append(self._s[ks].transpose(perm).ravel())
+            sample['S_next'].append(self._s[ks].transpose(perm))
             sample['A_next'].append(self._a[ks[-1:]])
             if done:
                 sample['I_next'].append(np.zeros(1))
@@ -197,12 +199,12 @@ class ExperienceReplayBuffer(RandomStateMixin):
         if len(sample['S']) < self.batch_size:
             raise RuntimeError("couldn't construct valid sample")
 
-        S = np.stack(sample['S'])
-        A = np.stack(sample['A'])
-        Rn = np.stack(sample['Rn'])
-        I_next = np.stack(sample['I_next'])
-        S_next = np.stack(sample['S_next'])
-        A_next = np.stack(sample['A_next'])
+        S = np.concatenate(sample['S'], axis=0)
+        A = np.concatenate(sample['A'], axis=0)
+        Rn = np.concatenate(sample['Rn'], axis=0)
+        I_next = np.concatenate(sample['I_next'], axis=0)
+        S_next = np.concatenate(sample['S_next'], axis=0)
+        A_next = np.concatenate(sample['A_next'], axis=0)
 
         return S, A, Rn, I_next, S_next, A_next
 
