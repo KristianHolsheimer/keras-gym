@@ -136,8 +136,8 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
 
     def reset(self):
         self._i = 0
-        frame_shape = tuple(self.env.observation_space.shape)
-        shape = (self.num_frames,) + frame_shape
+        frame_shape = tuple(self.env.observation_space.shape)  # [h, w, c?]
+        shape = (self.num_frames,) + frame_shape               # [f, h, w, c?]
         self._frames = np.zeros(shape, self.observation_space.dtype)
         self._s_orig = self.env.reset()             # shape: [h, w, c?]
         s = np.expand_dims(self._s_orig, axis=0)    # shape: [1, h, w, c?]

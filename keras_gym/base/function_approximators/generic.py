@@ -12,6 +12,8 @@ from ..errors import MissingModelError
 from ..mixins import RandomStateMixin, NumActionsMixin
 from ..policy import BasePolicy
 
+logger = tf.get_logger()
+
 
 __all__ = (
     'GenericV',
@@ -95,7 +97,7 @@ class BaseFunctionApproximator(ABC):
         K.get_session().run(
             self._target_model_sync_op,
             feed_dict={self._target_model_sync_tau: tau})
-        tf.logging.info("updated target_model")
+        logger.info("updated target_model")
 
 
 class GenericV(BaseFunctionApproximator):

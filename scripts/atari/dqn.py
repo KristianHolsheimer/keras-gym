@@ -109,7 +109,8 @@ for ep in range(num_episodes):
             T_sync = 0
 
         if done:
-            print("ep: {}, T: {}, G: {}, t: {}".format(ep, T, G, t))
+            print("ep: {}, T: {}, G: {}, t: {}, epsilon: {}"
+                  .format(ep, T, G, t, policy.epsilon))
             break
 
         s = s_next
