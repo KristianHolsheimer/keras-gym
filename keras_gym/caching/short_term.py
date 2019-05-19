@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from collections import deque
 from itertools import islice
 
@@ -12,18 +13,94 @@ __all__ = (
 )
 
 
-class NStepCache:
+class BaseShortTermCache(ABC):
+    @abstractmethod
+    def add(self, s, a, r, done):
+        """
+        Add a transition to the experience cache.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        a : action
+
+            A single action that was taken.
+
+        r : float
+
+            A single observed reward.
+
+        done : bool
+
+            Whether the episode has finished.
+
+        """
+        pass
+
+    @abstractmethod
+    def pop(self):
+        """
+        Pop a single transition from the cache.
+
+        Returns
+        -------
+        #TODO
+
+        """
+        pass
+
+    @abstractmethod
+    def flush(self):
+        """
+        Flush all transitions from the cache.
+
+        Returns
+        -------
+        #TODO
+
+        """
+        pass
+
+    @abstractmethod
+    def reset(self):
+        """
+        Reset the cache to the initial state.
+
+        """
+        pass
+
+
+class NStepCache(BaseShortTermCache):
+    """
+    A convenient helper class for n-step bootstrapping.
+
+    Parameters
+    ----------
+    n : positive int
+
+        The number of steps over which to bootstrap.
+
+    gamma : float between 0 and 1
+
+        The amount by which to discount future rewards.
+
+    """
     def __init__(self, n, gamma):
         self.n = int(n)
         self.gamma = float(gamma)
+        self.reset()
 
+    def reset(self):
         self._deque_sa = deque([])
         self._deque_r = deque([])
         self._done = False
         self._gammas = np.power(self.gamma, np.arange(self.n))
         self._gamman = np.power(self.gamma, self.n)
 
-    def append(self, s, a, r, done):
+    def add(self, s, a, r, done):
         if self._done and len(self):
             raise EpisodeDoneError(
                 "please flush cache (or repeatedly call popleft) before "
@@ -39,7 +116,27 @@ class NStepCache:
     def __bool__(self):
         return bool(len(self)) and (self._done or len(self) > self.n)
 
-    def popleft(self):
+    def pop(self):
+        """
+        Pop a single transition from the cache.
+
+        Returns
+        -------
+        S, A, Rn, I_next, S_next, A_next : tuple of arrays, batch_size=1
+
+            The returned tuple represents a batch of preprocessed transitions:
+
+                (:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`)
+
+            These are typically used for bootstrapped updates, e.g. minimizing
+            the bootstrapped MSE:
+
+            .. math::
+
+                \\left( R^{(n)}_t + I_t\\,Q(S_{t+n},A_{t+n})
+                    - Q(S_t, A_t) \\right)^2
+
+        """  # noqa: E501
         if not self:
             raise InsufficientCacheError(
                 "cache needs to receive more transitions before it can be "
@@ -70,6 +167,26 @@ class NStepCache:
         return S, A, Rn, I_next, S_next, A_next  # batch_size=1
 
     def flush(self):
+        """
+        Flush all transitions from the cache.
+
+        Returns
+        -------
+        S, A, Rn, I_next, S_next, A_next : tuple of arrays
+
+            The returned tuple represents a batch of preprocessed transitions:
+
+                (:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`)
+
+            These are typically used for bootstrapped updates, e.g. minimizing
+            the bootstrapped MSE:
+
+            .. math::
+
+                \\left( R^{(n)}_t + I_t\\,Q(S_{t+n},A_{t+n})
+                    - Q(S_t, A_t) \\right)^2
+
+        """  # noqa: E501
         if not self:
             raise InsufficientCacheError(
                 "cache needs to receive more transitions before it can be "
@@ -77,58 +194,70 @@ class NStepCache:
 
         S = []
         A = []
-        Gn = []
+        Rn = []
         I_next = []
         S_next = []
         A_next = []
 
         while self:
-            s, a, gn, i_next, s_next, a_next = self.popleft()
+            s, a, gn, i_next, s_next, a_next = self.pop()
             S.append(s[0])
             A.append(a[0])
-            Gn.append(gn[0])
+            Rn.append(gn[0])
             I_next.append(i_next[0])
             S_next.append(s_next[0])
             A_next.append(a_next[0])
 
         S = np.stack(S, axis=0)
         A = np.stack(A, axis=0)
-        Gn = np.stack(Gn, axis=0)
+        Rn = np.stack(Rn, axis=0)
         I_next = np.stack(I_next, axis=0)
         S_next = np.stack(S_next, axis=0)
         A_next = np.stack(A_next, axis=0)
 
-        return S, A, Gn, I_next, S_next, A_next
+        return S, A, Rn, I_next, S_next, A_next
 
 
-class MonteCarloCache:
+class MonteCarloCache(BaseShortTermCache):
     def __init__(self, gamma):
         self.gamma = float(gamma)
         self.reset()
 
     def reset(self):
-        self._deque = deque([])
+        self._list = []
         self._done = False
         self._g = 0  # accumulator for return
 
-    def append(self, s, a, r, done):
+    def add(self, s, a, r, done):
         if self._done and len(self):
             raise EpisodeDoneError(
                 "please flush cache (or repeatedly pop) before appending new "
                 "transitions")
 
-        self._deque.append((s, a, r))
+        self._list.append((s, a, r))
         self._done = bool(done)
         if done:
             self._g = 0.  # init return
 
     def __len__(self):
-        return len(self._deque)
+        return len(self._list)
 
     def __bool__(self):
         return bool(len(self)) and self._done
 
     def pop(self):
+        """
+        Pop a single transition from the cache.
+
+        Returns
+        -------
+        S, A, G : tuple of arrays, batch_size=1
+
+            The returned tuple represents a batch of preprocessed transitions:
+
+                (:term:`S`, :term:`A`, :term:`G`)
+
+        """
         if not self:
             if not len(self):
                 raise InsufficientCacheError(
@@ -139,7 +268,7 @@ class MonteCarloCache:
                     "cannot pop from cache before before receiving done=True")
 
         # pop state-action pair
-        s, a, r = self._deque.pop()
+        s, a, r = self._list.pop()
 
         # update return
         self._g = r + self.gamma * self._g
@@ -151,6 +280,18 @@ class MonteCarloCache:
         return S, A, G  # batch_size=1
 
     def flush(self):
+        """
+        Flush all transitions from the cache.
+
+        Returns
+        -------
+        S, A, G : tuple of arrays
+
+            The returned tuple represents a batch of preprocessed transitions:
+
+                (:term:`S`, :term:`A`, :term:`G`)
+
+        """
         if not self:
             if not len(self):
                 raise InsufficientCacheError(

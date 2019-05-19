@@ -73,7 +73,7 @@ below, in which we implement the REINFORCE algorithm:
     for t in range(num_steps):
         a = policy(s)
         s_next, r, done, info = env.step(a)
-        cache.append(s, a, r, done)
+        cache.add(s, a, r, done)
 
         if done:
             # update at the end of the episode

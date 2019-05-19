@@ -29,42 +29,42 @@ class TestNStepCache:
     episode = list(zip(S, A, R, D))
 
     @property
-    def Gn(self):
-        G = np.zeros_like(self.R)
+    def Rn(self):
+        Rn_ = np.zeros_like(self.R)
         gammas = np.power(self.gamma, np.arange(13))
-        for i in range(len(G)):
-            G[i] = self.R[i:(i + self.n)].dot(
+        for i in range(len(Rn_)):
+            Rn_[i] = self.R[i:(i + self.n)].dot(
                 gammas[:len(self.R[i:(i + self.n)])])
-        return G
+        return Rn_
 
     def test_append_done_twice(self):
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode, 1):
             if i == 1:
-                cache.append(s, a, r, True)
+                cache.add(s, a, r, True)
             else:
                 with pytest.raises(EpisodeDoneError):
-                    cache.append(s, a, r, True)
+                    cache.add(s, a, r, True)
 
     def test_append_done_one(self):
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode, 1):
             if i == 1:
-                cache.append(s, a, r, True)
+                cache.add(s, a, r, True)
             else:
                 break
 
         assert cache
-        S, A, Gn, I_next, S_next, A_next = cache.flush()
+        S, A, Rn, I_next, S_next, A_next = cache.flush()
         np.testing.assert_array_equal(S, self.S[:1])
         np.testing.assert_array_equal(A, self.A[:1])
-        np.testing.assert_array_equal(Gn, self.R[:1])
+        np.testing.assert_array_equal(Rn, self.R[:1])
         np.testing.assert_array_equal(I_next, [0])
 
-    def test_popleft(self):
+    def test_pop(self):
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode, 1):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             assert len(cache) == i
             if i <= self.n:
                 assert not cache
@@ -73,28 +73,28 @@ class TestNStepCache:
 
         i = 0
         while cache:
-            s, a, gn, i_next, s_next, a_next = cache.popleft()
+            s, a, rn, i_next, s_next, a_next = cache.pop()
             assert s == self.S[i]
             assert a == self.A[i]
-            assert gn == self.Gn[i]
+            assert rn == self.Rn[i]
             assert i_next == self.I_next[i]
             if i < 13 - self.n:
                 assert s_next == self.S[i + self.n]
                 assert a_next == self.A[i + self.n]
             i += 1
 
-    def test_popleft_eager(self):
+    def test_pop_eager(self):
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             assert len(cache) == min(i + 1, self.n + 1)
 
             if cache:
                 assert i + 1 > self.n
-                s, a, gn, i_next, s_next, a_next = cache.popleft()
+                s, a, gn, i_next, s_next, a_next = cache.pop()
                 assert s == self.S[i - self.n]
                 assert a == self.A[i - self.n]
-                assert gn == self.Gn[i - self.n]
+                assert gn == self.Rn[i - self.n]
                 assert i_next == self.I_next[i - self.n]
                 assert s_next == self.S[i]
                 assert a_next == self.A[i]
@@ -103,10 +103,10 @@ class TestNStepCache:
 
         i = 13 - self.n
         while cache:
-            s, a, gn, i_next, s_next, a_next = cache.popleft()
+            s, a, gn, i_next, s_next, a_next = cache.pop()
             assert s == self.S[i]
             assert a == self.A[i]
-            assert gn == self.Gn[i]
+            assert gn == self.Rn[i]
             assert i_next == self.I_next[i]
             if i < 13 - self.n:
                 assert s_next == self.S[i + self.n]
@@ -116,17 +116,17 @@ class TestNStepCache:
     def test_flush(self):
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode, 1):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             assert len(cache) == i
             if i <= self.n:
                 assert not cache
             if i > self.n:
                 assert cache
 
-        S, A, Gn, I_next, S_next, A_next = cache.flush()
+        S, A, Rn, I_next, S_next, A_next = cache.flush()
         np.testing.assert_array_equal(S, self.S)
         np.testing.assert_array_equal(A, self.A)
-        np.testing.assert_array_equal(Gn, self.Gn)
+        np.testing.assert_array_equal(Rn, self.Rn)
         np.testing.assert_array_equal(I_next, self.I_next)
         np.testing.assert_array_equal(S_next[:-self.n], self.S[self.n:])
         np.testing.assert_array_equal(A_next[:-self.n], self.A[self.n:])
@@ -134,17 +134,17 @@ class TestNStepCache:
     def test_flush_eager(self):
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             assert len(cache) == min(i + 1, self.n + 1)
 
             if cache:
                 assert i + 1 > self.n
-                S, A, Gn, I_next, S_next, A_next = cache.flush()
+                S, A, Rn, I_next, S_next, A_next = cache.flush()
                 if i == 12:
                     slc = slice(i - self.n, None)
                     np.testing.assert_array_equal(S, self.S[slc])
                     np.testing.assert_array_equal(A, self.A[slc])
-                    np.testing.assert_array_equal(Gn, self.Gn[slc])
+                    np.testing.assert_array_equal(Rn, self.Rn[slc])
                     np.testing.assert_array_equal(I_next, self.I_next[slc])
                     np.testing.assert_array_equal(S_next.shape, (self.n + 1,))
                     np.testing.assert_array_equal(A_next.shape, (self.n + 1,))
@@ -152,7 +152,7 @@ class TestNStepCache:
                     slc = slice(i - self.n, i - self.n + 1)
                     np.testing.assert_array_equal(S, self.S[slc])
                     np.testing.assert_array_equal(A, self.A[slc])
-                    np.testing.assert_array_equal(Gn, self.Gn[slc])
+                    np.testing.assert_array_equal(Rn, self.Rn[slc])
                     np.testing.assert_array_equal(I_next, self.I_next[slc])
                     np.testing.assert_array_equal(S_next, self.S[i])
                     np.testing.assert_array_equal(A_next, self.A[i])
@@ -161,10 +161,10 @@ class TestNStepCache:
 
         i = 13 - self.n
         while cache:
-            s, a, gn, i_next, s_next, a_next = cache.popleft()
+            s, a, gn, i_next, s_next, a_next = cache.pop()
             assert s == self.S[i]
             assert a == self.A[i]
-            assert gn == self.Gn[i]
+            assert gn == self.Rn[i]
             assert i_next == self.I_next[i]
             if i < 13 - self.n:
                 assert s_next == self.S[i + self.n]
@@ -174,7 +174,7 @@ class TestNStepCache:
     def test_flush_insufficient(self):
         cache = NStepCache(self.n, gamma=self.gamma)
         for i, (s, a, r, done) in islice(enumerate(self.episode, 1), 4):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
 
         with pytest.raises(InsufficientCacheError):
             cache.flush()
@@ -202,7 +202,7 @@ class TestMonteCarloCache:
     def test_append_pop_too_soon(self):
         cache = MonteCarloCache(self.gamma)
         for s, a, r, done in self.episode:
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             break
 
         with pytest.raises(InsufficientCacheError):
@@ -211,7 +211,7 @@ class TestMonteCarloCache:
     def test_append_pop_expected(self):
         cache = MonteCarloCache(self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode, 1):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             assert len(cache) == i
 
         assert cache
@@ -229,7 +229,7 @@ class TestMonteCarloCache:
     def test_append_flush_too_soon(self):
         cache = MonteCarloCache(self.gamma)
         for i, (s, a, r, done) in islice(enumerate(self.episode, 1), 4):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             assert len(cache) == i
 
         with pytest.raises(InsufficientCacheError):
@@ -238,7 +238,7 @@ class TestMonteCarloCache:
     def test_append_flush_expected(self):
         cache = MonteCarloCache(self.gamma)
         for i, (s, a, r, done) in enumerate(self.episode, 1):
-            cache.append(s, a, r, done)
+            cache.add(s, a, r, done)
             assert len(cache) == i
 
         S, A, G = cache.flush()

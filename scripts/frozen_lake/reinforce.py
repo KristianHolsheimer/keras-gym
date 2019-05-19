@@ -34,11 +34,9 @@ for ep in range(num_episodes):
         if np.array_equal(s_next, s):
             r = -0.1
 
-        cache.append(s, a, r, done)
+        cache.add(s, a, r, done)
 
         if done:
-            # S, A, G = cache.flush()
-            # policy.batch_update(S, A, G)
             while cache:
                 S, A, G = cache.pop()
                 policy.batch_update(S, A, G)

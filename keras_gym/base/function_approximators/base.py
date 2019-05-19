@@ -207,11 +207,11 @@ class GenericV(BaseFunctionApproximator):
 
         """
         assert self.env.observation_space.contains(s)
-        self._cache.append(s, 0, r, done)
+        self._cache.add(s, 0, r, done)
 
         # eager updates
         while self._cache:
-            S, _, Rn, I_next, S_next, _ = self._cache.popleft()
+            S, _, Rn, I_next, S_next, _ = self._cache.pop()
             self.batch_update(S, Rn, I_next, S_next)
 
     def batch_update(self, S, Rn, I_next, S_next):
@@ -355,11 +355,11 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         """
         assert self.env.observation_space.contains(s)
         assert self.env.action_space.contains(a)
-        self._cache.append(s, a, r, done)
+        self._cache.add(s, a, r, done)
 
         # eager updates
         while self._cache:
-            self.batch_update(*self._cache.popleft())  # pop with batch_size=1
+            self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
     def batch_update(self, S, A, Rn, I_next, S_next, A_next):
         """
