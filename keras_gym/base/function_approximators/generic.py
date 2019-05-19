@@ -87,15 +87,15 @@ class BaseFunctionApproximator(ABC):
 
             assert len(primary_weights) == len(target_weights), "incompatible"
 
-            self._target_model_sync_tau = tau = tf.placeholder(
-                tf.float32, shape=())
+            self._target_model_sync_tau = tf.placeholder(tf.float32, shape=())
             self._target_model_sync_op = tf.group(*(
-                K.update(wt, wt + tau * (wp - wt))
+                K.update(wt, wt + self._target_model_sync_tau * (wp - wt))
                 for wp, wt in zip(target_weights, primary_weights)))
 
         K.get_session().run(
             self._target_model_sync_op,
             feed_dict={self._target_model_sync_tau: tau})
+        tf.logging.info("updated target_model")
 
 
 class GenericV(BaseFunctionApproximator):

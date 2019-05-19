@@ -92,7 +92,7 @@ class ImagePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
     def step(self, a):
         self._s_next_orig, r, done, info = self.env.step(a)
         self._add_orig_to_info_dict(info)
-        s_next = self.preprocess_frame(self._s_next_orig)
+        s_next = self._preprocess_frame(self._s_next_orig)
         return s_next, r, done, info
 
 
