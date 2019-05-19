@@ -8,13 +8,15 @@ from keras_gym.caching import ExperienceReplayBuffer
 
 # env with preprocessing
 env = gym.make('PongDeterministic-v4')
-env = ImagePreprocessor(env)
-env = FrameStacker(env)
+env = ImagePreprocessor(env, height=105, width=80, grayscale=True)
+env = FrameStacker(env, num_frames=4)
 
 
 # value function
 Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1)
-buffer = ExperienceReplayBuffer(Q, capacity=1000000, batch_size=32)
+buffer = ExperienceReplayBuffer(
+    gamma=0.99, bootstrap_n=1, capacity=1000000, warmup_period=50000,
+    batch_size=32, num_frames=4)
 policy = EpsilonGreedy(Q)
 
 
@@ -41,22 +43,65 @@ T = 0
 T_sync = 0
 
 
+def generate_gif(frames, ep):
+    """
+    Taken from: https://towardsdatascience.com/tutorial-double-deep-q-learning-with-dueling-network-architectures-4c1b3fb7f756  # noqa: E501
+    """
+    import os
+    import imageio
+    from skimage.transform import resize
+
+    for i, frame in enumerate(frames):
+        frames[i] = resize(
+            frame, (420, 320, 3),
+            preserve_range=True, order=0).astype('uint8')
+    os.makedirs('data/gifs', exist_ok=True)
+    imageio.mimsave(
+        'data/gifs/ep{:06d}.gif'.format(ep),
+        frames,
+        duration=1 / 30)
+
+
+def evaluate(env, ep):
+    frames = []
+    s = env.reset()
+    G = 0.
+
+    for t in range(1000):
+        policy.epsilon = 0.01
+        a = policy(s)
+        s, r, done, info = env.step(a)
+        G += r
+
+        frames.append(info['s_orig'][0])
+
+        if done:
+            break
+
+    generate_gif(frames, ep)
+    print("[EVAL] ep: {}, G: {}, t: {}".format(ep, G, t))
+
+
 for ep in range(num_episodes):
+    if ep % 10 == 0 and not buffer.is_warming_up():
+        evaluate(env, ep)
+
     s = env.reset()
     G = 0  # to accumulate return
 
     for t in range(num_steps):
-        a = policy(s, epsilon=epsilon(T))
-        s_next, r, done, info = env.step(s)
+        policy.epsilon = epsilon(T)
+        a = policy(s)
+        s_next, r, done, info = env.step(a)
 
         # counters
         G += r
         T += 1
         T_sync += 1
 
-        buffer.add(s, a, r, done, info, ep)
+        buffer.add(s, a, r, done, ep)
 
-        if T > buffer_warmup_period:
+        if not buffer.is_warming_up():
             Q.batch_update(*buffer.sample())
 
         if T_sync % target_model_sync_period == 0:

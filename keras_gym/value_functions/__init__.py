@@ -2,3 +2,4 @@
 from ..base.function_approximators.generic import (
     GenericV, GenericQTypeI, GenericQTypeII)
 from .linear import *
+from .dqn import *
