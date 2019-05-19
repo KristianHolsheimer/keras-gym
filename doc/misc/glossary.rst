@@ -124,15 +124,18 @@ inputs/outputs to our keras models.
 
     S
 
-        A batch of (preprocessed) state observations.
+        A batch of (preprocessed) state observations. The shape is
+        ``[batch_size, ...]`` where the ellipses might be any number of
+        dimensions.
 
     A
 
-        A batch of actions taken.
+        A batch of actions taken, with shape ``[batch_size]``.
 
     G
 
-        A batch of (:math:`\gamma`-discounted) returns.
+        A batch of (:math:`\gamma`-discounted) returns, shape:
+        ``[batch_size]``.
 
     Rn
 
@@ -145,7 +148,7 @@ inputs/outputs to our keras models.
             \gamma^{n-1}\,R_{t+n-1}
 
         In other words, it's the part of the n-step return *without* the
-        bootstrapping term.
+        bootstrapping term. The shape is ``[batch_size]``.
 
     I_next
 
@@ -159,16 +162,19 @@ inputs/outputs to our keras models.
 
                 G^{(n)}_t\ =\ R^{(n)}_t + I_t\,Q(S_{t+1}, A_{t+1})
 
+        The shape is ``[batch_size]``.
+
     S_next
 
         A batch of (preprocessed) next-state observations. This is typically
-        used in bootstrapping (see :term:`I_next`).
+        used in bootstrapping (see :term:`I_next`). The shape is ``[batch_size,
+        ...]`` where the ellipses might be any number of dimensions.
 
     A_next
 
         A batch of next-actions to be taken. These can be actions that were
         actually taken (on-policy), but they can also be any other would-be
-        next-actions (off-policy).
+        next-actions (off-policy). The shape is ``[batch_size]``.
 
     V
 

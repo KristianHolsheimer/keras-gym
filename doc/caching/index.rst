@@ -1,15 +1,15 @@
 .. automodule:: keras_gym.caching
 
-Caching Objects
-===============
+Caching
+=======
 
 In RL we often make use of data caching. This might be short-term caching, over
 the course of an episode, or it might be long-term caching as is done in
 experience replay.
 
 
-Short-term Caching Objects
---------------------------
+Short-term Caching
+------------------
 
 Our short-term caching objects allow us to cache experience within an episode.
 For instance :class:`MonteCarloCache <keras_gym.caching.MonteCarloCache>`
