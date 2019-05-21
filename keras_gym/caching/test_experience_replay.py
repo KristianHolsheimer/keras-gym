@@ -107,15 +107,22 @@ class TestExperienceReplayBuffer:
 
     def test_shape(self):
         buffer = ExperienceReplayBuffer(
-            capacity=17, warmup_period=7, batch_size=5, num_frames=3)
+            capacity=17, warmup_period=7, batch_size=5, num_frames=3,
+            random_seed=13)
 
         for ep in (1, 2, 3):
             for i, (_, a, r, done) in enumerate(self.EPISODE):
-                s = 100 * ep + i * np.ones((11, 13, 3))
-                buffer.add(s, a, r, done, 0)
+                s = 100 * ep + i * np.ones((11, 13, 3), dtype='int')
+                buffer.add(s, a, r, done, ep)
 
         S, A, Rn, I_next, S_next, A_next = buffer.sample()
         assert S.shape == (5, 11, 13, 3)
 
         # check if all frames come from the same episode
-        np.testing.assert_array_equal(np.unique(np.diff(S, axis=-1)), [1])
+        np.testing.assert_array_equal(
+            S[:, 0, 0, :],     # look at upper-left pixel only
+            [[304, 305, 306],
+             [203, 204, 205],
+             [304, 305, 306],
+             [200, 200, 201],  # note: first frame is repeated
+             [104, 105, 106]])
