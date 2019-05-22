@@ -133,8 +133,12 @@ class ExperienceReplayBuffer(RandomStateMixin):
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
-        sample = {'S': [], 'A': [], 'Rn': [],
-                  'S_next': [], 'A_next': [], 'I_next': []}
+        S = []
+        A = []
+        Rn = []
+        S_next = []
+        A_next = []
+        I_next = []
 
         for attempt in range(10 * self.batch_size):
             # js are the S indices and ks are the S_next indices
@@ -163,10 +167,10 @@ class ExperienceReplayBuffer(RandomStateMixin):
                     js[i] = js[i + 1]
 
             # gather partial returns
-            Rn = np.zeros(1)
+            rn = np.zeros(1)
             done = False
             for t, l in enumerate(ls):
-                Rn[0] += pow(self.gamma, t) * self._r[l]
+                rn[0] += pow(self.gamma, t) * self._r[l]
                 done = self._d[l]
                 if done:
                     break
@@ -176,29 +180,29 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
             # permutation to transpose 'num_frames' axis to axis=-1
             perm = np.roll(np.arange(self._s.ndim), -1)
-            sample['S'].append(self._s[js].transpose(perm))
-            sample['A'].append(self._a[js[-1:]])
-            sample['Rn'].append(Rn)
-            sample['S_next'].append(self._s[ks].transpose(perm))
-            sample['A_next'].append(self._a[ks[-1:]])
+            S.append(self._s[js].transpose(perm))
+            A.append(self._a[js[-1:]])
+            Rn.append(rn)
+            S_next.append(self._s[ks].transpose(perm))
+            A_next.append(self._a[ks[-1:]])
             if done:
-                sample['I_next'].append(np.zeros(1))
+                I_next.append(np.zeros(1))
             else:
-                sample['I_next'].append(
+                I_next.append(
                     np.power([self.gamma], self.bootstrap_n))
 
-            if len(sample['S']) == self.batch_size:
+            if len(S) == self.batch_size:
                 break
 
-        if len(sample['S']) < self.batch_size:
+        if len(S) < self.batch_size:
             raise RuntimeError("couldn't construct valid sample")
 
-        S = np.stack(sample['S'], axis=0)
-        A = np.concatenate(sample['A'], axis=0)
-        Rn = np.concatenate(sample['Rn'], axis=0)
-        I_next = np.concatenate(sample['I_next'], axis=0)
-        S_next = np.stack(sample['S_next'], axis=0)
-        A_next = np.concatenate(sample['A_next'], axis=0)
+        S = np.stack(S, axis=0)
+        A = np.concatenate(A, axis=0)
+        Rn = np.concatenate(Rn, axis=0)
+        I_next = np.concatenate(I_next, axis=0)
+        S_next = np.stack(S_next, axis=0)
+        A_next = np.concatenate(A_next, axis=0)
 
         if self.num_frames == 1:
             S = np.squeeze(S, axis=-1)
