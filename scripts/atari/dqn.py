@@ -39,48 +39,43 @@ buffer_warmup_period = 50000
 target_model_sync_period = 10000
 
 
-def generate_gif(frames, ep):
+def generate_gif(env):
     """
-    Taken from: https://towardsdatascience.com/tutorial-double-deep-q-learning-with-dueling-network-architectures-4c1b3fb7f756  # noqa: E501
-    """
+    This function was taken from this `blog post <https://towardsdatascience.com/tutorial-double-deep-q-learning-with-dueling-network-architectures-4c1b3fb7f756>`_.
+
+    """  # noqa: E501
     import os
     import imageio
     from skimage.transform import resize
 
-    for i, frame in enumerate(frames):
-        frames[i] = resize(
-            frame, (420, 320, 3),
-            preserve_range=True, order=0).astype('uint8')
-    os.makedirs('data/gifs', exist_ok=True)
-    imageio.mimsave(
-        'data/gifs/ep{:06d}.gif'.format(ep),
-        frames,
-        duration=1 / 30)
+    shape = (420, 320, 3)
+    duration = 1 / 30
 
-
-def evaluate(env, ep):
+    # collect frames
     frames = []
     s = env.reset()
-    G = 0.
-
-    for t in range(1000):
+    for t in range(2000):
         policy.epsilon = 0.01
         a = policy(s)
         s, r, done, info = env.step(a)
-        G += r
 
-        frames.append(info['s_orig'][0])
+        # get original (non-preprocessed) frame, resize and store
+        frame = info['s_orig'][0]
+        frame = resize(
+            frame, shape, preserve_range=True, order=0).astype('uint8')
+        frames.append(frame)
 
         if done:
             break
 
-    generate_gif(frames, ep)
-    print("[EVAL] ep: {}, G: {}, t: {}".format(ep, G, t))
+    os.makedirs('data/gifs', exist_ok=True)
+    imageio.mimsave(
+        'data/gifs/ep{:06d}.gif'.format(env.ep), frames, duration=duration)
 
 
 for _ in range(num_episodes):
     if env.ep % 10 == 0 and env.T > buffer_warmup_period:
-        evaluate(env, env.ep)
+        generate_gif(env)
 
     s = env.reset()
 
