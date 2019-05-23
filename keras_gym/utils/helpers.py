@@ -1,3 +1,7 @@
+import sys
+import time
+
+import gym
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -6,7 +10,7 @@ from ..base.errors import NumpyArrayCheckError, TensorCheckError
 
 
 __all__ = (
-    'Transition',
+    'TrainMonitor',
     'argmax',
     'argmin',
     'check_numpy_array',
@@ -19,79 +23,104 @@ __all__ = (
 )
 
 
-class Transition:
+class TrainMonitor(gym.Wrapper):
     """
-    A simple wrapper for storing a batch of preprocessed transitions.
+    Environment wrapper for monitoring the training process.
+
+    This wrapper prints some diagnostics at the end of each episode and it also
+    gives us some handy attributes (listed below).
 
     Parameters
     ----------
-    X : ndarray, shape: [batch_size, ...]
+    env : gym environment
 
-        A batch of preprocessed states (or state-action pairs).
+        A gym environment.
 
-    A : ndarray, shape: [batch_size]
+    io : writable object, optional
 
-        A batch of preprocessed actions taken.
+        The default value is ``sys.stderr``.
 
-    Gn : ndarray, shape: [batch_size]
+    Attributes
+    ----------
+    T : positive int
 
-        A batch of (partial) returns. For instance, in n-step bootstrapping,
-        this is:
+        Global step counter. This is not reset by ``env.reset()``, use
+        ``env.reset_global()`` instead.
 
-            .. math::
+    ep : positive int
 
-                G_t^{(n)}\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
-                    + \\gamma^{n-1}\\,R_{t+n-1}
+        Global episode counter. This is not reset by ``env.reset()``, use
+        ``env.reset_global()`` instead.
 
-        In other words, it's the non-bootstrapped part of the return.
+    t : positive int
 
-    X_next : ndarray, shape: [batch_size, ...]
+        Step counter within an episode.
 
-        A batch of preprocessed states (or state-action pairs). These may be
-        used for bootstrapping.
+    G : float
 
-    A_next : ndarray, shape: [batch_size]
+        The amount of reward accumulated from the start of the current episode.
 
-        A batch of preprocessed actions taken. These may be used for
-        bootstrapping.
+    avg_r : float
 
-    I_next : ndarray, shape: [batch_size]
+        The average reward received from the start of the episode.
 
-        A batch of bootstrap discount factors, e.g. for n-step bootstrapping
-        this would represent :math:`\\gamma^n` (or 0 if no bootstrapping is to
-        be done).
+    dt_ms : float
+
+        The average wall time of a single step, in milliseconds.
 
     """
-    def __init__(self, X, A, Gn, X_next, A_next, I_next):
-        self._check_shapes(X, A, Gn, X_next, A_next, I_next)
-        self.X = X
-        self.A = A
-        self.Gn = Gn
-        self.X_next = X_next
-        self.A_next = A_next
-        self.I_next = I_next
+    def __init__(self, env, io=sys.stderr):
+        super().__init__(env)
+        self.io = io
+        self.reset_global()
 
-    def _check_shapes(self, X, A, Gn, X_next, A_next, I_next):
-        self._len = X.shape[0]
-        tmpl = "incompatible batch_size: {{}} != {}".format(self._len)
-        assert self._len == A.shape[0], tmpl.format(A.shape[0])
-        assert self._len == Gn.shape[0], tmpl.format(Gn.shape[0])
-        assert self._len == X_next.shape[0], tmpl.format(X_next.shape[0])
-        assert self._len == A_next.shape[0], tmpl.format(A_next.shape[0])
-        assert self._len == I_next.shape[0], tmpl.format(I_next.shape[0])
+    def reset_global(self):
+        """ Reset the global counters, not just the episodic ones. """
+        self.T = 0
+        self.ep = 0
+        self.t = 0
+        self.G = 0.0
+        self._ep_starttime = time.time()
 
-    def __len__(self):
-        return self._len
+    def reset(self):
+        # increment global counters:
+        self.T += 1
+        self.ep += 1
+        # reset episodic counters:
+        self.t = 0
+        self.G = 0.0
+        self._ep_starttime = time.time()
+        return self.env.reset()
 
-    def __bool__(self):
-        return bool(len(self))
+    @property
+    def dt_ms(self):
+        if self.t <= 0:
+            return np.nan
+        return 1000 * (time.time() - self._ep_starttime) / self.t
 
-    def __repr__(self):
-        return "Transition<len={}>".format(len(self))
+    @property
+    def avg_r(self):
+        if self.t <= 0:
+            return np.nan
+        return self.G / self.t
 
-    def __iter__(self):
-        attrs = ('X', 'A', 'Gn', 'X_next', 'A_next', 'I_next')
-        return (getattr(self, attr) for attr in attrs)
+    def step(self, a):
+        s_next, r, done, info = self.env.step(a)
+        if info is None:
+            info = {}
+        info['monitor'] = {'T': self.T, 'ep': self.ep}
+        self.t += 1
+        self.T += 1
+        self.G += r
+        if done:
+            print(
+                "ep: {:d}, T: {:,d}, G: {:.3g}, avg(r): {:.3f}, t: {:d}, "
+                "dt: {:.3f}ms"
+                .format(
+                    self.ep, self.T, self.G, self.avg_r, self.t, self.dt_ms),
+                file=self.io)
+
+        return s_next, r, done, info
 
 
 def get_transition(env):

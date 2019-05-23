@@ -1,24 +1,23 @@
 import gym
 
 from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
+from keras_gym.utils import TrainMonitor
 from keras_gym.value_functions import AtariQ
 from keras_gym.policies import EpsilonGreedy  # or BoltzmannPolicy
 from keras_gym.caching import ExperienceReplayBuffer
-
-# from dqn_helper import ExperienceArrayBuffer
 
 
 # env with preprocessing
 env = gym.make('PongDeterministic-v4')
 env = ImagePreprocessor(env, height=105, width=80, grayscale=True)
 env = FrameStacker(env, num_frames=4)
+env = TrainMonitor(env)
 
 
 # value function
 Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1)
 buffer = ExperienceReplayBuffer(
     gamma=0.99, bootstrap_n=1, capacity=1000000, batch_size=32, num_frames=4)
-# buffer = ExperienceArrayBuffer(env, capacity=1000000)
 policy = EpsilonGreedy(Q)
 
 
@@ -79,37 +78,26 @@ def evaluate(env, ep):
     print("[EVAL] ep: {}, G: {}, t: {}".format(ep, G, t))
 
 
-# global step counter
-T = 0
-
 for ep in range(num_episodes):
-    if ep % 10 == 0 and T > buffer_warmup_period:
+    if ep % 10 == 0 and env.T > buffer_warmup_period:
         evaluate(env, ep)
 
     s = env.reset()
-    G = 0  # to accumulate return
 
     for t in range(num_steps):
-        policy.epsilon = epsilon(T)
+        policy.epsilon = epsilon(env.T)
         a = policy(s)
         s_next, r, done, info = env.step(a)
 
-        # counters
-        G += r
-        T += 1
-
-        # buffer.add(info['s_orig'][0], a, r, done, info)
         buffer.add(s, a, r, done, ep)
 
-        if T > buffer_warmup_period:
+        if env.T > buffer_warmup_period:
             Q.batch_update(*buffer.sample())
 
-        if T % target_model_sync_period == 0:
+        if env.T % target_model_sync_period == 0:
             Q.sync_target_model()
 
         if done:
-            print("ep: {}, T: {}, G: {}, t: {}, epsilon: {}"
-                  .format(ep, T, G, t, policy.epsilon))
             break
 
         s = s_next
