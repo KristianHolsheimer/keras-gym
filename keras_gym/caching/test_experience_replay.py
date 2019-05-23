@@ -56,7 +56,7 @@ class TestExperienceReplayBuffer:
     def test_sample(self):
         buffer = ExperienceReplayBuffer(
             capacity=17, random_seed=13, batch_size=16, num_frames=1,
-            bootstrap_n=2, warmup_period=10)
+            bootstrap_n=2)
 
         for ep in (1, 2, 3):
             for s, a, r, done in self.EPISODE:
@@ -85,30 +85,9 @@ class TestExperienceReplayBuffer:
         np.testing.assert_array_equal(S[:, -1], A)
         np.testing.assert_array_equal(S_next[:, -1], A_next)
 
-    def test_warmup(self):
-        buffer = ExperienceReplayBuffer(capacity=17, warmup_period=10)
-
-        for s, a, r, done in self.EPISODE:
-            buffer.add(s, a, r, done, 0)
-
-        assert len(buffer) == 7
-        assert buffer.is_warming_up()
-
-        with pytest.raises(InsufficientCacheError):
-            buffer.sample()
-
-        for s, a, r, done in self.EPISODE:
-            buffer.add(s, a, r, done, 0)
-
-        assert len(buffer) == 14
-        assert not buffer.is_warming_up()
-
-        buffer.sample()
-
     def test_shape(self):
         buffer = ExperienceReplayBuffer(
-            capacity=17, warmup_period=7, batch_size=5, num_frames=3,
-            random_seed=13)
+            capacity=17, batch_size=5, num_frames=3, random_seed=13)
 
         for ep in (1, 2, 3):
             for i, (_, a, r, done) in enumerate(self.EPISODE):
