@@ -10,14 +10,14 @@ from keras_gym.caching import ExperienceReplayBuffer
 # env with preprocessing
 env = gym.make('PongDeterministic-v4')
 env = ImagePreprocessor(env, height=105, width=80, grayscale=True)
-env = FrameStacker(env, num_frames=4)
+env = FrameStacker(env, num_frames=3)
 env = TrainMonitor(env)
 
 
 # value function
 Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1)
 buffer = ExperienceReplayBuffer(
-    gamma=0.99, bootstrap_n=1, capacity=1000000, batch_size=32, num_frames=4)
+    gamma=0.99, bootstrap_n=1, capacity=1000000, batch_size=32, num_frames=3)
 policy = EpsilonGreedy(Q)
 
 
