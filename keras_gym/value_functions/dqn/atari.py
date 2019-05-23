@@ -146,8 +146,8 @@ class AtariQ(GenericQTypeII):
         self.predict_model = keras.Model(inputs=S, outputs=Q)
 
         # target model
-        Q_target = forward_pass(S, variable_scope='target')
-        self.target_model = keras.Model(S, Q_target)
+        Q_target = forward_pass(S_next, variable_scope='target')
+        self.target_model = keras.Model(S_next, Q_target)
 
         # bootstrap model (requires self.target_model is set)
         bootstrap_loss = ProjectedSemiGradientLoss(

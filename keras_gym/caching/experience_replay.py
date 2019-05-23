@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin
-from ..base.errors import InsufficientCacheError, NumpyArrayCheckError
+from ..base.errors import NumpyArrayCheckError
 from ..utils import check_numpy_array
 
 
@@ -43,10 +43,6 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
         Reward discount factor.
 
-    warmup_period : positive int
-
-        Number of transitions to collect before sampling.
-
     random_seed : int or None
 
         To get reproducible results.
@@ -60,7 +56,6 @@ class ExperienceReplayBuffer(RandomStateMixin):
             num_frames=None,
             bootstrap_n=1,
             gamma=0.99,
-            warmup_period=50000,
             random_seed=None):
 
         self.capacity = int(capacity)
@@ -68,13 +63,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
         self.num_frames = int(num_frames or 1)
         self.bootstrap_n = int(bootstrap_n)
         self.gamma = float(gamma)
-        self.warmup_period = int(warmup_period)
         self.random_seed = random_seed
-
-        if self.warmup_period <= self.bootstrap_n + self.num_frames:
-            raise ValueError(
-                "warmup_period should be much larger than "
-                "(bootstrap_n + num_frames)")
 
         # internal
         self._i = 0
@@ -144,12 +133,6 @@ class ExperienceReplayBuffer(RandomStateMixin):
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
-        if self.is_warming_up():
-            raise InsufficientCacheError(
-                "experience replay buffer is still warming up; please wait "
-                "until the warm-up period is over before sampling (use the "
-                ".is_warming_up() method to check if it's ready)")
-
         sample = {'S': [], 'A': [], 'Rn': [],
                   'S_next': [], 'A_next': [], 'I_next': []}
 
@@ -222,9 +205,6 @@ class ExperienceReplayBuffer(RandomStateMixin):
             S_next = np.squeeze(S_next, axis=-1)
 
         return S, A, Rn, I_next, S_next, A_next
-
-    def is_warming_up(self):
-        return len(self) < self.warmup_period
 
     def _init_cache(self, x):
         n = (self.capacity + 1,)
