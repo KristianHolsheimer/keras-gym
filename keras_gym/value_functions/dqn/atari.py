@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
+from ...utils import diff_transform_matrix
 from ...losses import ProjectedSemiGradientLoss
 from ...base.function_approximators.generic import GenericQTypeII
 
@@ -108,12 +109,17 @@ class AtariQ(GenericQTypeII):
         S_next = keras.Input(name='S_next', shape=shape, dtype=dtype)
         A_next = keras.Input(name='A_next', shape=(), dtype='int32')
 
+        def diff_transform(S):
+            S = K.cast(S, 'float32') / 255
+            M = diff_transform_matrix(num_frames=shape[-1])
+            return K.dot(S, M)
+
         def layers(variable_scope):
             def v(name):
                 return '{}/{}'.format(variable_scope, name)
 
             return [
-                keras.layers.Lambda(lambda S: K.cast(S, 'float32') / 255),
+                keras.layers.Lambda(diff_transform),
                 keras.layers.Conv2D(
                     name=v('conv1'), filters=16, kernel_size=8, strides=4,
                     activation='relu'),
