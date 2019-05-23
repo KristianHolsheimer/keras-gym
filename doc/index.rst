@@ -26,6 +26,9 @@ Documentation
     value_functions/index
     policies/index
     caching/index
+    misc/utils
+    misc/glossary
+    misc/release_notes
 
 
 Indices and tables
@@ -34,8 +37,6 @@ Indices and tables
 .. toctree::
     :maxdepth: 1
 
-    misc/glossary
-    misc/release_notes
 
 * :ref:`genindex`
 * :ref:`modindex`

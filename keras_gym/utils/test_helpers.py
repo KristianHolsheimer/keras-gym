@@ -61,7 +61,7 @@ def test_project_onto_actions_tf_expected():
         Y_proj_tf = s.run(Y_proj_tf)
 
     # compare
-    np.testing.assert_array_equal(Y_proj_np, Y_proj_np)
+    np.testing.assert_array_equal(Y_proj_tf, Y_proj_np)
 
 
 def test_softmax_expected():

@@ -5,6 +5,7 @@ import gym
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
+from scipy.special import binom
 
 from ..base.errors import NumpyArrayCheckError, TensorCheckError
 
@@ -15,6 +16,7 @@ __all__ = (
     'argmin',
     'check_numpy_array',
     'check_tensor',
+    'diff_transform_matrix',
     'get_transition',
     'idx',
     'project_onto_actions_np',
@@ -446,3 +448,63 @@ def softmax(arr, axis=0):
     arr = np.exp(arr)
     arr /= arr.sum(axis=axis, keepdims=True)
     return arr
+
+
+def diff_transform_matrix(num_frames, dtype='float32'):
+    """
+    A helper function that implements discrete differentiation for stacked
+    state observations.
+
+    Let's say we have a feature vector :math:`X` consisting of four stacked
+    frames, i.e. the shape would be: ``[batch_size, height, width, 4]``.
+
+    For instance, diff-transform matrix with ``num_frames=4`` is a
+    :math:`4\\times 4` matrix given by:
+
+    .. math::
+
+        M_\\text{diff}^{(4)}\\ =\\ \\begin{pmatrix}
+            0&  0&  0& -1\\\\
+            0&  0&  1&  3\\\\
+            0& -1& -2& -3\\\\
+            1&  1&  1&  1
+        \\end{pmatrix}
+
+    such that the diff-transformed feature vector is readily computed as:
+
+    .. math::
+
+        X_\\text{diff}\\ =\\ X\\, M_\\text{diff}^{(4)}
+
+    The diff-transformation preserves the shape, but it reorganizes the frames
+    in such a way that they look more like canonical variables. You can think
+    of :math:`X_\\text{diff}` as the stacked variables :math:`x`,
+    :math:`\\dot{x}`, :math:`\\ddot{x}`, etc. These represent the position,
+    velocity, acceleration, etc. of pixels in a single frame.
+
+    Parameters
+    ----------
+    num_frames : positive int
+
+        The number of stacked frames in the original :math:`X`.
+
+    dtype : keras dtype, optional
+
+        The output data type.
+
+    Returns
+    -------
+    M : 2d-Tensor, shape: [num_frames, num_frames]
+
+        A square matrix that is intended to be multiplied from the left, e.g.
+        ``X_diff = K.dot(X_orig, M)``, where we assume that the frames are
+        stacked in ``axis=-1`` of ``X_orig``, in chronological order.
+
+    """
+    assert isinstance(num_frames, int) and num_frames >= 2
+    M = np.zeros((num_frames, num_frames))
+    for i in range(num_frames):
+        for j in range(i + 1):
+            k = num_frames - j - 1
+            M[k, i] = pow(-1, j) * binom(i, j)
+    return K.constant(M, dtype=dtype)
