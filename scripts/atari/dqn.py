@@ -78,9 +78,9 @@ def evaluate(env, ep):
     print("[EVAL] ep: {}, G: {}, t: {}".format(ep, G, t))
 
 
-for ep in range(num_episodes):
-    if ep % 10 == 0 and env.T > buffer_warmup_period:
-        evaluate(env, ep)
+for _ in range(num_episodes):
+    if env.ep % 10 == 0 and env.T > buffer_warmup_period:
+        evaluate(env, env.ep)
 
     s = env.reset()
 
@@ -89,7 +89,7 @@ for ep in range(num_episodes):
         a = policy(s)
         s_next, r, done, info = env.step(a)
 
-        buffer.add(s, a, r, done, ep)
+        buffer.add(s, a, r, done, env.ep)
 
         if env.T > buffer_warmup_period:
             Q.batch_update(*buffer.sample())
