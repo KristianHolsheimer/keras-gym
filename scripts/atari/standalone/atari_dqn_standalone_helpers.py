@@ -66,21 +66,20 @@ class ExperienceArrayBuffer:
         idx = []
         for attempt in range(256):
             j0 = self.random.randint(len(self))
-            if self._d[j0] or j0 - self._i in (1, 2, 3, 4):
+            if self._d[j0] or j0 - self._i in (1, 2, 3):
                 continue
             j1 = (j0 + 1) % (self.capacity + 1)
             if self._d[j1]:
                 continue
             j2 = (j1 + 1) % (self.capacity + 1)
             if not self.env.action_space.contains(self._a[j2]):
+                print('j2', j2, self._a[j2])
                 continue
             j3 = (j2 + 1) % (self.capacity + 1)
             if not self.env.action_space.contains(self._a[j3]):
                 continue
-            j4 = (j3 + 1) % (self.capacity + 1)
-            if not self.env.action_space.contains(self._a[j4]):
-                continue
-            idx.append([j0, j1, j2, j3, j4])
+                print('j2', j2, self._a[j2])
+            idx.append([j0, j1, j2, j3])
             if len(idx) == 32:
                 break
 
@@ -89,8 +88,8 @@ class ExperienceArrayBuffer:
 
         idx = np.array(idx).T
 
-        return {'X': idx[:4], 'A': idx[3], 'R': idx[3], 'D': idx[3],
-                'X_next': idx[-4:], 'A_next': idx[4]}
+        return {'X': idx[:3], 'A': idx[2], 'R': idx[2], 'D': idx[2],
+                'X_next': idx[-3:], 'A_next': idx[3]}
 
     def sample(self, n=32):
         idx = self.idx(n=n)
@@ -299,6 +298,7 @@ class MaskedLoss:
             G = K.squeeze(G, axis=1)
         assert K.ndim(G) == 1, "bad shape"
         self.G = K.stop_gradient(G)
+        self.base_loss = base_loss
 
     def __call__(self, A, Q_pred):
         """
@@ -341,8 +341,7 @@ class MaskedLoss:
         Q_pred_projected = self.project_onto_actions(Q_pred, A)
 
         # the actuall loss
-        err = Q_pred_projected - self.G
-        return K.mean(K.square(err))
+        return self.base_loss(self.G, Q_pred_projected)
 
     @staticmethod
     def project_onto_actions(Y, A):
@@ -377,14 +376,14 @@ class MaskedLoss:
 
 
 class AtariDQN:
-    INPUT_SHAPE = (105, 80, 4)
+    INPUT_SHAPE = (105, 80, 3)
     UPDATE_STRATEGIES = ('q_learning', 'double_q_learning', 'sarsa')
 
     def __init__(
             self, env,
             gamma=0.99,
             learning_rate=1e-5,
-            # experience_replay=True,
+            experience_replay=True,
             update_strategy='q_learning'):
 
         self.env = env
@@ -393,45 +392,36 @@ class AtariDQN:
         self.learning_rate = float(learning_rate)
         self.update_strategy = update_strategy
 
-        # self.experience_replay = bool(experience_replay)
-        # self.experience_replay_buffer = None
-        # if self.experience_replay:
-        #     self.experience_replay_buffer = ExperienceTensorBuffer(
-        #         capacity=500000, batch_size=32)
+        self.experience_replay = bool(experience_replay)
+        self.experience_replay_buffer = None
+        if self.experience_replay:
+            self.experience_replay_buffer = ExperienceTensorBuffer(
+                capacity=500000, batch_size=32)
 
         self._init_models()
 
         # internal
         self._x_prev0 = None
         self._x_prev1 = None
-        self._x_prev2 = None
-
-    def __call__(self, s, is_first_step):
-        # get model input
-        x = np.expand_dims(preprocessor(s), axis=0)
-        if is_first_step or self._x_prev0 is None or self._x_prev1 is None or self._x_prev2 is None:
-            self._x_prev0 = x
-            self._x_prev1 = x
-            self._x_prev2 = x
-
-        X = np.stack([self._x_prev2, self._x_prev1, self._x_prev0, x], axis=3)
-
-        # predict
-        Q = self.predict_model.predict_on_batch(X)
-
-        # prepare for next call
-        self._x_prev2 = self._x_prev1
-        self._x_prev1 = self._x_prev0
-        self._x_prev0 = x
-
-        return Q
 
     def epsilon_greedy(self, s, is_first_step, epsilon=0.01):
+        # get model input
+        x = np.expand_dims(preprocessor(s), axis=0)
+        if is_first_step or self._x_prev0 is None or self._x_prev1 is None:
+            self._x_prev0 = x
+            self._x_prev1 = x
+
         if is_first_step or np.random.rand() > epsilon:
-            Q = self(s, is_first_step)  # shape: [1, num_actions]
+            X = np.stack([self._x_prev1, self._x_prev0, x], axis=3)
+            Q = self.predict_model.predict_on_batch(X)  # [1, num_actions]
             a = argmax(Q.ravel())
         else:
             a = self.env.action_space.sample()
+
+        # prepare for next call
+        self._x_prev1 = self._x_prev0
+        self._x_prev0 = x
+
         return a
 
     def update(self, X, A, R, D, X_next, A_next):
@@ -455,15 +445,12 @@ class AtariDQN:
             name='X_next', shape=self.INPUT_SHAPE, dtype=tf.uint8)
         A_next = keras.Input(name='A_next', shape=(1,), dtype=tf.int32)
 
-        # def construct_x_p(X):
-        #     # X.shape = (None, 105, 80, 3)
-        #     x_prev1, x_prev0, x = tf.split(tf.cast(X, tf.float32) / 255., 3, 3)
-        #     dx = x - x_prev0                           # "velocity"
-        #     ddx = (x - x_prev0) - (x_prev0 - x_prev1)  # "acceleration"
-        #     return tf.concat([x, dx, ddx], axis=3)  # shape: (None, 105, 80, 3)
-
         def construct_x_p(X):
-            return tf.cast(X, tf.float32) / 255.
+            # X.shape = (None, 105, 80, 3)
+            x_prev1, x_prev0, x = tf.split(tf.cast(X, tf.float32) / 255., 3, 3)
+            dx = x - x_prev0                           # "velocity"
+            ddx = (x - x_prev0) - (x_prev0 - x_prev1)  # "acceleration"
+            return tf.concat([x, dx, ddx], axis=3)  # shape: (None, 105, 80, 3)
 
         # sequential model
         def layers(variable_scope):
@@ -523,6 +510,38 @@ class AtariDQN:
         self.train_model.compile(
             loss=MaskedLoss(G, tf.losses.huber_loss),
             optimizer=keras.optimizers.Adam(self.learning_rate))
+
+        # experience-replay model
+        self.experience_replay_model = None
+        if self.experience_replay:
+            sample = self.experience_replay_buffer.sample()
+            X = keras.Input(tensor=sample[0])
+            A = keras.Input(tensor=sample[1])
+            R = keras.Input(tensor=sample[2])
+            D = keras.Input(tensor=sample[3])
+            X_next = keras.Input(tensor=sample[4])
+            A_next = keras.Input(tensor=sample[5])
+
+            # bootstrapped target
+            bootstrap = 1 - tf.cast(D, tf.float32)
+            Q = forward_pass(X, variable_scope='primary')
+            Q_next = forward_pass(X_next, variable_scope='target')
+            if self.update_strategy == 'q_learning':
+                G = R + bootstrap * self.gamma * K.max(Q_next, axis=1)
+            elif self.update_strategy == 'sarsa':
+                Q_next_proj = MaskedLoss.project_onto_actions(Q_next, A_next)
+                G = R + bootstrap * self.gamma * Q_next_proj
+            else:
+                raise ValueError(
+                    "bad update_strategy; valid options are: {}"
+                    .format(self.UPDATE_STRATEGIES))
+
+            self.experience_replay_model = keras.Model(
+                inputs=[X, A, R, D, X_next, A_next], outputs=Q)
+            self.experience_replay_model.compile(
+                loss=MaskedLoss(G, tf.losses.huber_loss),
+                optimizer=keras.optimizers.Adam(self.learning_rate),
+                target_tensors=[K.expand_dims(A, axis=1)])
 
         # op for syncing target model
         self._tau = tf.placeholder(tf.float32, shape=())
