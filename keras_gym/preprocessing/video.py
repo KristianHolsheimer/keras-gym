@@ -135,7 +135,6 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
             shape=shape, low=0, high=255, dtype='uint8')
 
     def reset(self):
-        self._i = 0
         frame_shape = tuple(self.env.observation_space.shape)  # [h, w, c?]
         shape = (self.num_frames,) + frame_shape               # [f, h, w, c?]
         self._frames = np.zeros(shape, self.observation_space.dtype)
@@ -148,9 +147,7 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
     def step(self, a):
         self._s_next_orig, r, done, info = self.env.step(a)
         self._add_orig_to_info_dict(info)
-        self._frames[self._i] = self._s_next_orig
-        self._i += 1
-        self._i %= self.num_frames
-        s_next = np.roll(self._frames, -self._i)   # latest frame is last
-        s_next = np.transpose(s_next, self._perm)  # to shape: [h, w, c?, f]
+        self._frames = np.roll(self._frames, -1, axis=0)
+        self._frames[-1] = self._s_next_orig
+        s_next = np.transpose(self._frames, self._perm)  # shape: [h, w, c?, f]
         return s_next, r, done, info
