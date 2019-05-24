@@ -92,7 +92,7 @@ class BaseFunctionApproximator(ABC):
             self._target_model_sync_tau = tf.placeholder(tf.float32, shape=())
             self._target_model_sync_op = tf.group(*(
                 K.update(wt, wt + self._target_model_sync_tau * (wp - wt))
-                for wp, wt in zip(target_weights, primary_weights)))
+                for wt, wp in zip(target_weights, primary_weights)))
 
         K.get_session().run(
             self._target_model_sync_op,
