@@ -32,7 +32,7 @@ class ProjectedSemiGradientLoss:
         check_tensor(G)
 
         if K.ndim(G) == 2:
-            check_tensor(G, axis_size=0, axis=1)
+            check_tensor(G, axis_size=1, axis=1)
             G = K.squeeze(G, axis=1)
 
         check_tensor(G, ndim=1)
