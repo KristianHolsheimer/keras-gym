@@ -212,7 +212,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
     def _init_cache(self, x):
         n = (self.capacity + 1,)
-        self._s = np.zeros(n + x.shape, x.dtype)  # frame
+        self._s = np.empty(n + x.shape, x.dtype)  # frame
         self._a = np.zeros(n, 'int32')      # actions taken (assume Discrete)
         self._r = np.zeros(n, 'float')      # rewards
         self._d = np.zeros(n, 'bool')       # done?
