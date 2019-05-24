@@ -55,13 +55,13 @@ class TestExperienceReplayBuffer:
 
     def test_sample(self):
         buffer = ExperienceReplayBuffer(
-            capacity=17, random_seed=13, batch_size=16, num_frames=1,
+            capacity=17, random_seed=13, batch_size=16, num_frames=3,
             bootstrap_n=2)
 
         for ep in (1, 2, 3):
             for s, a, r, done in self.EPISODE:
                 buffer.add(
-                    s + ep * 100, a + ep * 100, r + ep * 100, done,
+                    s[[0, 0, 0]] + ep * 100, a + ep * 100, r + ep * 100, done,
                     episode_id=ep)
 
         # quickly check content, just to be safe
@@ -70,11 +70,29 @@ class TestExperienceReplayBuffer:
             [304, 305, 306, 103, 104, 105, 106, 200, 201, 202, 203, 204, 205,
              206, 300, 301, 302, 303])
 
+        transitions = [[[304, 305, 306], 0.0000, [306, 103, 104]],
+                       [[203, 204, 205], 0.0000, [205, 206, 300]],
+                       [[304, 305, 306], 0.0000, [306, 103, 104]],
+                       [[200, 200, 201], 0.9801, [201, 202, 203]],
+                       [[104, 105, 106], 0.0000, [106, 200, 201]],
+                       [[202, 203, 204], 0.9801, [204, 205, 206]],
+                       [[203, 204, 205], 0.0000, [205, 206, 300]],
+                       [[103, 104, 105], 0.0000, [105, 106, 200]],
+                       [[203, 204, 205], 0.0000, [205, 206, 300]],
+                       [[104, 105, 106], 0.0000, [106, 200, 201]],
+                       [[200, 200, 201], 0.9801, [201, 202, 203]],
+                       [[200, 200, 200], 0.9801, [200, 201, 202]],
+                       [[203, 204, 205], 0.0000, [205, 206, 300]],
+                       [[202, 203, 204], 0.9801, [204, 205, 206]],
+                       [[204, 205, 206], 0.0000, [206, 300, 301]],
+                       [[104, 105, 106], 0.0000, [106, 200, 201]]]
+
         S, A, Rn, I_next, S_next, A_next = buffer.sample()
+        np.testing.assert_array_equal(I_next, [tr[1] for tr in transitions])
         np.testing.assert_array_equal(
-            I_next,
-            [0., 0.9801, 0.9801, 0.9801, 0., 0., 0.9801, 0.9801,
-             0., 0.9801, 0.9801, 0.9801, 0.9801, 0., 0., 0.])
+            S[:, 0, :], [tr[0] for tr in transitions])
+        np.testing.assert_array_equal(
+            S_next[:, 0, :], [tr[2] for tr in transitions])
 
         # check if actions are separate by bootstrap_n steps
         for a, i_next, a_next in zip(A, I_next, A_next):
@@ -82,8 +100,8 @@ class TestExperienceReplayBuffer:
                 assert a_next - a == buffer.bootstrap_n
 
         # check if states and actions are aligned
-        np.testing.assert_array_equal(S[:, -1], A)
-        np.testing.assert_array_equal(S_next[:, -1], A_next)
+        np.testing.assert_array_equal(S[:, 0, -1], A)
+        np.testing.assert_array_equal(S_next[:, 0, -1], A_next)
 
     def test_shape(self):
         buffer = ExperienceReplayBuffer(
