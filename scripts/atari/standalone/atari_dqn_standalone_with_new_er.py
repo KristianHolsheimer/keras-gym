@@ -24,9 +24,7 @@ def replace_frames_for_new_er(s):
 
 
 buffer_new = ExperienceReplayBuffer(capacity=1000000, num_frames=3)
-Q = AtariDQN(
-    env, learning_rate=0.00025, experience_replay=False,
-    update_strategy='q_learning')
+Q = AtariDQN(env, learning_rate=0.00025, update_strategy='q_learning')
 
 # one object to keep track of all counters
 scheduler = Scheduler(
@@ -43,8 +41,6 @@ while True:
         scheduler.reset_G()
         scheduler.clear_frames()
         scheduler.add_frame(s)
-        lives = 0
-        lost_lives = True
 
         for t in range(10000):
             a = Q.epsilon_greedy(s, t == 0, epsilon=0.001)
@@ -58,22 +54,17 @@ while True:
                 sys.stdout.flush()
                 break
 
-            lost_lives = info['ale.lives'] < lives
-            lives = info['ale.lives']
-
         scheduler.generate_gif() if t < 9999 else None
         scheduler.clear_frames()
 
     s = env.reset()
     scheduler.incr_ep()
     scheduler.reset_G()
-    lives = 0
-    lost_lives = True
 
     for t in range(env._max_episode_steps):
         scheduler.incr_T()
 
-        a = Q.epsilon_greedy(s, lost_lives, scheduler.epsilon)
+        a = Q.epsilon_greedy(s, t == 0, scheduler.epsilon)
         s_next, r, done, info = env.step(a)
         scheduler.incr_G(r)
 
@@ -90,8 +81,6 @@ while True:
 
         # prepare for next timestep
         s = s_next
-        lost_lives = info['ale.lives'] < lives
-        lives = info['ale.lives']
 
     scheduler.print()
     if scheduler.done:

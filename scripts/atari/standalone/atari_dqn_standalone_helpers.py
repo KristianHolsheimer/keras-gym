@@ -383,7 +383,6 @@ class AtariDQN:
             self, env,
             gamma=0.99,
             learning_rate=1e-5,
-            experience_replay=True,
             update_strategy='q_learning'):
 
         self.env = env
@@ -391,12 +390,6 @@ class AtariDQN:
         self.gamma = float(gamma)
         self.learning_rate = float(learning_rate)
         self.update_strategy = update_strategy
-
-        self.experience_replay = bool(experience_replay)
-        self.experience_replay_buffer = None
-        if self.experience_replay:
-            self.experience_replay_buffer = ExperienceTensorBuffer(
-                capacity=500000, batch_size=32)
 
         self._init_models()
 
@@ -426,10 +419,6 @@ class AtariDQN:
 
     def update(self, X, A, R, D, X_next, A_next):
         self.train_model.train_on_batch([X, R, D, X_next, A_next], A)
-
-    def update_with_experience_replay(self, s, a, r, done, info):
-        self.experience_replay_buffer.add(s, a, r, done, info)
-        self.experience_replay_model.fit(steps_per_epoch=1, verbose=0)
 
     def sync_target_model(self, tau=1.0):
         sess = K.get_session()
@@ -510,38 +499,6 @@ class AtariDQN:
         self.train_model.compile(
             loss=MaskedLoss(G, tf.losses.huber_loss),
             optimizer=keras.optimizers.Adam(self.learning_rate))
-
-        # experience-replay model
-        self.experience_replay_model = None
-        if self.experience_replay:
-            sample = self.experience_replay_buffer.sample()
-            X = keras.Input(tensor=sample[0])
-            A = keras.Input(tensor=sample[1])
-            R = keras.Input(tensor=sample[2])
-            D = keras.Input(tensor=sample[3])
-            X_next = keras.Input(tensor=sample[4])
-            A_next = keras.Input(tensor=sample[5])
-
-            # bootstrapped target
-            bootstrap = 1 - tf.cast(D, tf.float32)
-            Q = forward_pass(X, variable_scope='primary')
-            Q_next = forward_pass(X_next, variable_scope='target')
-            if self.update_strategy == 'q_learning':
-                G = R + bootstrap * self.gamma * K.max(Q_next, axis=1)
-            elif self.update_strategy == 'sarsa':
-                Q_next_proj = MaskedLoss.project_onto_actions(Q_next, A_next)
-                G = R + bootstrap * self.gamma * Q_next_proj
-            else:
-                raise ValueError(
-                    "bad update_strategy; valid options are: {}"
-                    .format(self.UPDATE_STRATEGIES))
-
-            self.experience_replay_model = keras.Model(
-                inputs=[X, A, R, D, X_next, A_next], outputs=Q)
-            self.experience_replay_model.compile(
-                loss=MaskedLoss(G, tf.losses.huber_loss),
-                optimizer=keras.optimizers.Adam(self.learning_rate),
-                target_tensors=[K.expand_dims(A, axis=1)])
 
         # op for syncing target model
         self._tau = tf.placeholder(tf.float32, shape=())
