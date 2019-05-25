@@ -1,10 +1,15 @@
+import os
+import logging
 import gym
 
 from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
-from keras_gym.utils import TrainMonitor
+from keras_gym.utils import TrainMonitor, generate_gif
 from keras_gym.value_functions import AtariQ
 from keras_gym.policies import EpsilonGreedy  # or BoltzmannPolicy
 from keras_gym.caching import ExperienceReplayBuffer
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 # env with preprocessing
@@ -16,8 +21,7 @@ env = TrainMonitor(env)
 
 # value function
 Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1)
-buffer = ExperienceReplayBuffer(
-    gamma=0.99, bootstrap_n=1, capacity=1000000, batch_size=32, num_frames=3)
+buffer = ExperienceReplayBuffer.from_q_function(Q, capacity=1e6, batch_size=32)
 policy = EpsilonGreedy(Q)
 
 
@@ -39,43 +43,14 @@ buffer_warmup_period = 50000
 target_model_sync_period = 10000
 
 
-def generate_gif(env):
-    """
-    This function was taken from this `blog post <https://towardsdatascience.com/tutorial-double-deep-q-learning-with-dueling-network-architectures-4c1b3fb7f756>`_.
-
-    """  # noqa: E501
-    import os
-    import imageio
-    from skimage.transform import resize
-
-    shape = (420, 320, 3)
-    duration = 1 / 30
-
-    # collect frames
-    frames = []
-    s = env.reset()
-    for t in range(2000):
-        policy.epsilon = 0.01
-        a = policy(s)
-        s, r, done, info = env.step(a)
-
-        # get original (non-preprocessed) frame, resize and store
-        frame = info['s_orig'][0]
-        frame = resize(
-            frame, shape, preserve_range=True, order=0).astype('uint8')
-        frames.append(frame)
-
-        if done:
-            break
-
-    os.makedirs('data/gifs', exist_ok=True)
-    imageio.mimsave(
-        'data/gifs/ep{:06d}.gif'.format(env.ep), frames, duration=duration)
-
-
 for _ in range(num_episodes):
     if env.ep % 10 == 0 and env.T > buffer_warmup_period:
-        generate_gif(env)
+        os.makedirs('./data/gifs/', exist_ok=True)
+        generate_gif(
+            env=env,
+            policy=policy.set_epsilon(0.01),
+            filepath='./data/gifs/ep{:06d}.gif'.format(env.ep),
+            resize_to=(320, 420))
 
     s = env.reset()
 
