@@ -26,6 +26,7 @@ Documentation
     value_functions/index
     policies/index
     caching/index
+    environments/index
     misc/utils
     misc/glossary
     misc/release_notes

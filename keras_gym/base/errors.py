@@ -28,5 +28,9 @@ class MissingModelError(KerasGymError):
     pass
 
 
+class MissingAdversaryError(KerasGymError):
+    pass
+
+
 class UnavailableActionError(KerasGymError):
     pass
