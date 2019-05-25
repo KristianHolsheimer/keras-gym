@@ -75,6 +75,17 @@ class AtariQ(GenericQTypeII):
                     G^{(n)}_t\\ =\\ R^{(n)}_t
                         + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
 
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the Adam optimizer is used,
+        :class:`keras.optimizers.Adam`. See `keras documentation
+        <https://keras.io/optimizers/>`_ for more details.
+
+    **adam_kwargs : keyword arguments
+
+        Keyword arguments for :class:`keras.optimizers.Adam`. See `keras docs
+        <https://keras.io/optimizers/#adam>`_ for more details.
+
     """  # noqa: E501
     def __init__(
             self, env,
@@ -104,10 +115,6 @@ class AtariQ(GenericQTypeII):
 
         S = keras.Input(name='S', shape=shape, dtype=dtype)
         G = keras.Input(name='G', shape=(), dtype='float')
-        Rn = keras.Input(name='Rn', shape=(), dtype='float')
-        I_next = keras.Input(name='I_next', shape=(), dtype='float')
-        S_next = keras.Input(name='S_next', shape=shape, dtype=dtype)
-        A_next = keras.Input(name='A_next', shape=(), dtype='int32')
 
         def diff_transform(S):
             S = K.cast(S, 'float32') / 255
@@ -152,16 +159,10 @@ class AtariQ(GenericQTypeII):
         self.predict_model = keras.Model(inputs=S, outputs=Q)
 
         # target model
-        Q_target = forward_pass(S_next, variable_scope='target')
-        self.target_model = keras.Model(S_next, Q_target)
+        Q_target = forward_pass(S, variable_scope='target')
+        self.target_model = keras.Model(inputs=S, outputs=Q_target)
 
-        # bootstrap model (requires self.target_model is set)
-        bootstrap_loss = ProjectedSemiGradientLoss(
-            G=self.bootstrap_target_tf(Rn, I_next, S_next, A_next),
-            base_loss=tf.losses.huber_loss)
-        self.bootstrap_model = keras.Model([S, Rn, I_next, S_next, A_next], Q)
-        self.bootstrap_model.compile(
-            loss=bootstrap_loss, optimizer=self.optimizer)
+        self.bootstrap_model = None
 
     def _init_optimizer(self, optimizer, adam_kwargs):
         if optimizer is None:
