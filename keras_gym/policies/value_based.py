@@ -51,8 +51,15 @@ class EpsilonGreedy(BasePolicy, RandomStateMixin):
 
             The probability of selecting an action uniformly at random.
 
+        Returns
+        -------
+        self
+
+            The updated instance.
+
         """
         self.epsilon = epsilon
+        return self
 
     def greedy(self, s):
         Q = self.q_function(s)  # shape: [num_actions]
