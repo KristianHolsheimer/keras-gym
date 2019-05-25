@@ -1,10 +1,12 @@
 import time
+import logging
 
 import gym
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from scipy.special import binom
+from PIL import Image
 
 from ..base.errors import NumpyArrayCheckError, TensorCheckError
 from ..base.mixins import LoggerMixin
@@ -17,6 +19,7 @@ __all__ = (
     'check_numpy_array',
     'check_tensor',
     'diff_transform_matrix',
+    'generate_gif',
     'get_env_attr',
     'get_transition',
     'has_env_attr',
@@ -572,3 +575,73 @@ def get_env_attr(env, attr, default='__ERROR__', max_depth=100):
         raise AttributeError("env is missing attribute: {}".format(attr))
 
     return default
+
+
+def generate_gif(env, policy, filepath, resize_to=None, duration=50):
+    """
+    Store a gif from the episode frames.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        The environment to record from.
+
+    policy : keras-gym policy object
+
+        The policy that is used to take actions.
+
+    filepath : str
+
+        Location of the output gif file.
+
+    resize_to : tuple of ints, optional
+
+        The size of the output frames, ``(width, height)``. Notice the
+        ordering: first **width**, then **height**. This is the convention PIL
+        uses.
+
+    duration : float, optional
+
+        Time between frames in the animated gif, in milliseconds.
+
+    """
+    logger = logging.getLogger('generate_gif')
+
+    # collect frames
+    frames = []
+    s = env.reset()
+    for t in range(env.spec.max_episode_steps):
+        a = policy(s)
+        s_next, r, done, info = env.step(a)
+
+        # store frame
+        frame = info.get('s_orig', [s])[0]
+        frame = Image.fromarray(frame)
+        frame = frame.convert('P', palette=Image.ADAPTIVE)
+        if resize_to is not None:
+            if len(resize_to) != 2:
+                raise TypeError("expected a tuple of size 2, resize_to=(w, h)")
+            frame = frame.resize(resize_to)
+
+        frames.append(frame)
+
+        if done:
+            break
+
+        s = s_next
+
+    # store last frame
+    frame = info.get('s_next_orig', [s])[0]
+    frame = Image.fromarray(frame)
+    frame = frame.convert('P', palette=Image.ADAPTIVE)
+    if resize_to is not None:
+        frame = frame.resize(resize_to)
+    frames.append(frame)
+
+    # generate gif
+    frames[0].save(
+        fp=filepath, format='GIF', append_images=frames[1:], save_all=True,
+        duration=duration, loop=0)
+
+    logger.info("recorded episode to: {}".format(filepath))
