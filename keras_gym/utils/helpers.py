@@ -1,4 +1,3 @@
-import sys
 import time
 
 import gym
@@ -8,6 +7,7 @@ from tensorflow.keras import backend as K
 from scipy.special import binom
 
 from ..base.errors import NumpyArrayCheckError, TensorCheckError
+from ..base.mixins import LoggerMixin
 
 
 __all__ = (
@@ -25,11 +25,11 @@ __all__ = (
 )
 
 
-class TrainMonitor(gym.Wrapper):
+class TrainMonitor(gym.Wrapper, LoggerMixin):
     """
     Environment wrapper for monitoring the training process.
 
-    This wrapper prints some diagnostics at the end of each episode and it also
+    This wrapper logs some diagnostics at the end of each episode and it also
     gives us some handy attributes (listed below).
 
     Parameters
@@ -37,10 +37,6 @@ class TrainMonitor(gym.Wrapper):
     env : gym environment
 
         A gym environment.
-
-    io : writable object, optional
-
-        The default value is ``sys.stderr``.
 
     Attributes
     ----------
@@ -71,9 +67,8 @@ class TrainMonitor(gym.Wrapper):
         The average wall time of a single step, in milliseconds.
 
     """
-    def __init__(self, env, io=sys.stderr):
+    def __init__(self, env):
         super().__init__(env)
-        self.io = io
         self.reset_global()
 
     def reset_global(self):
@@ -115,12 +110,11 @@ class TrainMonitor(gym.Wrapper):
         self.T += 1
         self.G += r
         if done:
-            print(
+            self.logger.info(
                 "ep: {:d}, T: {:,d}, G: {:.3g}, avg(r): {:.3f}, t: {:d}, "
                 "dt: {:.3f}ms"
                 .format(
-                    self.ep, self.T, self.G, self.avg_r, self.t, self.dt_ms),
-                file=self.io)
+                    self.ep, self.T, self.G, self.avg_r, self.t, self.dt_ms))
 
         return s_next, r, done, info
 

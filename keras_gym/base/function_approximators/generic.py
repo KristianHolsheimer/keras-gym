@@ -9,10 +9,8 @@ from ...utils import (
     softmax, argmax)
 from ...caching import NStepCache
 from ..errors import MissingModelError
-from ..mixins import RandomStateMixin, NumActionsMixin
+from ..mixins import RandomStateMixin, NumActionsMixin, LoggerMixin
 from ..policy import BasePolicy
-
-logger = tf.get_logger()
 
 
 __all__ = (
@@ -23,7 +21,7 @@ __all__ = (
 )
 
 
-class BaseFunctionApproximator(ABC):
+class BaseFunctionApproximator(ABC, LoggerMixin):
     @abstractmethod
     def __call__(self, *args, **kwargs):
         pass
@@ -97,7 +95,7 @@ class BaseFunctionApproximator(ABC):
         K.get_session().run(
             self._target_model_sync_op,
             feed_dict={self._target_model_sync_tau: tau})
-        logger.info("updated target_model")
+        self.logger.info("updated target_model")
 
 
 class GenericV(BaseFunctionApproximator):
