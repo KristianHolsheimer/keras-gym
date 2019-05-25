@@ -17,7 +17,9 @@ __all__ = (
     'check_numpy_array',
     'check_tensor',
     'diff_transform_matrix',
+    'get_env_attr',
     'get_transition',
+    'has_env_attr',
     'idx',
     'project_onto_actions_np',
     'project_onto_actions_tf',
@@ -502,3 +504,71 @@ def diff_transform_matrix(num_frames, dtype='float32'):
             k = num_frames - j - 1
             M[k, i] = pow(-1, j) * binom(i, j)
     return K.constant(M, dtype=dtype)
+
+
+def has_env_attr(env, attr, max_depth=100):
+    """
+    Check if a potentially wrapped environment has a given attribute.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A potentially wrapped environment.
+
+    attr : str
+
+        The attribute name.
+
+    max_depth : positive int, optional
+
+        The maximum depth of wrappers to traverse.
+
+    """
+    e = env
+    for i in range(max_depth):
+        if hasattr(e, attr):
+            return True
+        if not hasattr(e, 'env'):
+            break
+        e = e.env
+
+    return False
+
+
+def get_env_attr(env, attr, default='__ERROR__', max_depth=100):
+    """
+    Get the given attribute from a potentially wrapped environment.
+
+    Note that the wrapped envs are traversed from the outside in. Once the
+    attribute is found, the search stops. This means that an inner wrapped env
+    may carry the same (possibly conflicting) attribute. This situation is
+    *not* resolved by this function.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A potentially wrapped environment.
+
+    attr : str
+
+        The attribute name.
+
+    max_depth : positive int, optional
+
+        The maximum depth of wrappers to traverse.
+
+    """
+    e = env
+    for i in range(max_depth):
+        if hasattr(e, attr):
+            return getattr(e, attr)
+        if not hasattr(e, 'env'):
+            break
+        e = e.env
+
+    if default == '__ERROR__':
+        raise AttributeError("env is missing attribute: {}".format(attr))
+
+    return default

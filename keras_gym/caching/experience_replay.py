@@ -2,7 +2,7 @@ import numpy as np
 
 from ..base.mixins import RandomStateMixin
 from ..base.errors import NumpyArrayCheckError
-from ..utils import check_numpy_array
+from ..utils import check_numpy_array, get_env_attr
 
 
 __all__ = (
@@ -69,6 +69,16 @@ class ExperienceReplayBuffer(RandomStateMixin):
         self._i = 0
         self._len = 0
         self._initialized = False
+
+    @classmethod
+    def from_q_function(cls, q_function, capacity=1000000, batch_size=32):
+        self = cls(
+            capacity=capacity,
+            batch_size=batch_size,
+            gamma=q_function.gamma,
+            bootstrap_n=q_function.bootstrap_n,
+            num_frames=get_env_attr(q_function.env, 'num_frames'))
+        return self
 
     def add(self, s, a, r, done, episode_id):
         """
