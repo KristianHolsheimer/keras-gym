@@ -85,6 +85,16 @@ below, in which we implement the REINFORCE algorithm:
         s = s_next
 
 
+Special Policies
+----------------
+
+We've also got some special policies, which are policies that don't depend on
+any learned function approximator. The two main examples that are available
+right now are :class:`RandomPolicy <keras_gym.policies.RandomPolicy>` and
+:class:`UserInputPolicy <keras_gym.policies.UserInputPolicy>`. The latter
+allows you to pick the actions yourself as the episode runs.
+
+
 Reference
 ---------
 
@@ -95,3 +105,4 @@ Reference
     base
     value_based
     updateable
+    special

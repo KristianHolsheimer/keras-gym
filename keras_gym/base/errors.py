@@ -26,3 +26,7 @@ class TensorCheckError(KerasGymError):
 
 class MissingModelError(KerasGymError):
     pass
+
+
+class UnavailableActionError(KerasGymError):
+    pass
