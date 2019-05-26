@@ -3,6 +3,7 @@ PYTHON_EXEC = python3
 all: clean src wheel
 
 clean:
+	find . -name __pycache__ | xargs rm -r
 	$(PYTHON_EXEC) setup.py clean
 	rm -rf dist build *.egg-info
 
