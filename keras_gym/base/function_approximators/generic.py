@@ -217,7 +217,7 @@ class GenericV(BaseFunctionApproximator):
 
     def batch_update(self, S, Rn, I_next, S_next):
         """
-        Update the policy on a batch of transitions.
+        Update the value function on a batch of transitions.
 
         Parameters
         ----------
@@ -362,9 +362,9 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
-    def batch_update(self, S, A, Rn, I_next, S_next, A_next):
+    def batch_update(self, S, A, Rn, I_next, S_next, A_next=None):
         """
-        Update the policy on a batch of transitions.
+        Update the value function on a batch of transitions.
 
         Parameters
         ----------
@@ -403,7 +403,8 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
         A_next : 1d array, dtype: int, shape: [batch_size]
 
-            A batch of next-actions that were taken.
+            A batch of next-actions that were taken. This is only required for
+            SARSA (on-policy) updates.
 
         """
         if self.bootstrap_model is not None:
