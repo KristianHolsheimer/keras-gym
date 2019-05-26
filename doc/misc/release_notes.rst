@@ -1,6 +1,29 @@
 Release Notes
 =============
 
+v0.2.10
+-------
+
+This is the second overhaul, a complete rewrite in fact. There was just too
+much of the old scikit-gym structure that was standing in the way of progress.
+
+The main thing that changed in this version is that I ditch the notion of an
+algorithm. Instead, function approximators carry their own "update strategy".
+In the case of Q-functions, this is 'sarsa', 'q_learning' etc., while policies
+have the options 'vanilla', 'ppo', etc.
+
+Value functions carry another property that was previously attributed to
+algorithm objects. This is the bootstrap-n, i.e. the number of steps over which
+to delay bootstrapping.
+
+This new structure accommodates for modularity much much better than the old
+structure.
+
+- removed algorithms, replaced by 'bootstrap_n' and 'update_strategy' settings on function approximators
+- implemented :class:`ExperienceReplayBuffer <keras_gym.caching.ExperienceReplayBuffer>`
+- milestone: added DQN implementation for Atari 2600 envs.
+- other than that.. too much to mention. It really was a complete rewrite
+
 
 v0.2.9
 ------
