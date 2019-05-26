@@ -32,8 +32,12 @@ These policies are derived from a Q-function object. See example below:
 
     from keras_gym.value_functions import LinearQTypeI
     from keras_gym.policies import EpsilonGreedy
+    from keras_gym.preprocessing import DefaultPreprocessor
 
+
+    # env with preprocessing
     env = gym.make(...)
+    env = DefaultPreprocessor(env)
 
     # use linear function approximator for Q(s,a)
     Q = LinearQTypeI(env, ...)
@@ -58,8 +62,11 @@ below, in which we implement the REINFORCE algorithm:
 
     from keras_gym.caching import MonteCarloCache
     from keras_gym.policies import LinearSoftmaxPolicy
+    from keras_gym.preprocessing import DefaultPreprocessor
 
+    # env with preprocessing
     env = gym.make(...)
+    env = DefaultPreprocessor(env)
 
     # use linear function approximator for pi(a|s)
     policy = LinearSoftmaxPolicy(env, lr=0.1, ...)
@@ -69,32 +76,69 @@ below, in which we implement the REINFORCE algorithm:
     s = env.reset()
     cache.reset()
 
-    # run episode
-    for t in range(num_steps):
-        a = policy(s)
-        s_next, r, done, info = env.step(a)
-        cache.add(s, a, r, done)
+    # run episodes
+    for ep in range(num_episodes):
+        s = env.reset()
 
-        if done:
-            # update at the end of the episode
-            while cache:
-                s, a, g = cache.pop()
-                policy.update(s, a, g)
-            break
+        for t in range(num_steps):
+            a = policy(s)
+            s_next, r, done, info = env.step(a)
+            cache.add(s, a, r, done)
 
-        s = s_next
+            if done:
+                # update at the end of the episode
+                while cache:
+                    s, a, g = cache.pop()
+                    policy.update(s, a, g)
+
+                break
+
+            s = s_next
+
+    env.close()
 
 
 Actor-Critic
 ------------
 
-An `ActorCritic <keras_gym.policies.ActorCritic>` combines an updateable policy
-with a :doc:`value function <../value_functions/index>`. For example, below
-we define an actor-critic with linear function approximators:
+An :class:`ActorCritic <keras_gym.policies.ActorCritic>` combines an
+:term:`updateable policy` with a :doc:`value function
+<../value_functions/index>`. For example, below we define an actor-critic with
+linear function approximators:
 
 .. code:: python
 
-    #TODO
+    import gym
+
+    from keras_gym.policies import LinearSoftmaxPolicy, ActorCritic
+    from keras_gym.value_functions import LinearV
+    from keras_gym.preprocessing import DefaultPreprocessor
+
+    # env with preprocessing
+    env = gym.make(...)
+    env = DefaultPreprocessor(env)
+
+    # define actor-critic
+    policy = LinearSoftmaxPolicy(env, lr=0.1, update_strategy='vanilla')
+    V = LinearV(env, lr=0.1, gamma=0.9, bootstrap_n=1)
+    actor_critic = ActorCritic(policy, V)
+
+    # run episodes
+    for ep in range(num_episodes):
+        s = env.reset()
+
+        for t in range(num_steps):
+            a = policy(s)
+            s_next, r, done, info = env.step(a)
+
+            actor_critic.update(s, a, r, done)
+
+            if done:
+                break
+
+            s = s_next
+
+    env.close()
 
 
 Special Policies

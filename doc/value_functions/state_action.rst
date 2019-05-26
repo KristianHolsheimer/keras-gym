@@ -8,9 +8,11 @@ State-Action Value Functions
     keras_gym.value_functions.GenericQTypeII
     keras_gym.value_functions.LinearQTypeI
     keras_gym.value_functions.LinearQTypeII
+    keras_gym.value_functions.AtariQ
 
 
 .. autoclass:: keras_gym.value_functions.GenericQTypeI
 .. autoclass:: keras_gym.value_functions.GenericQTypeII
 .. autoclass:: keras_gym.value_functions.LinearQTypeI
 .. autoclass:: keras_gym.value_functions.LinearQTypeII
+.. autoclass:: keras_gym.value_functions.AtariQ

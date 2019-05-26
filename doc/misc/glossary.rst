@@ -60,7 +60,8 @@ In this package we have four distinct types of :term:`function approximators
     updateable policy
 
         This function approximator represents a policy directly. It is
-        implemented by :class:`Policy <keras_gym.policies.Policy>`.
+        implemented by e.g. :class:`GenericSoftmaxPolicy
+        <keras_gym.policies.GenericSoftmaxPolicy>`.
 
 
 .. note::
@@ -188,3 +189,13 @@ inputs/outputs to our keras models.
 
         A batch of Q-values :math:`Q(s,.)` of shape
         ``[batch_size, num_actions]``.
+
+    Adv
+
+        A batch of advantages :math:`\mathcal{A}(s,a) = Q(s,a) - V(s)`, which
+        has shape: ``[batch_size]``.
+
+    Logits
+
+        A batch of logits, typically used in softmax policies. The expected
+        shape is: ``[batch_size, num_actions]``.

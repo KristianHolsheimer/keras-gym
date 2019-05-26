@@ -1,7 +1,10 @@
-Cartpole with SARSA and Linear Function Approximator
-====================================================
+Cartpole with SARSA
+===================
 
-In this notebook we solve the `CartPole-v0 <https://gym.openai.com/envs/CartPole-v0/>`_ environment using SARSA algorithm:
+In this notebook we solve the `CartPole-v0
+<https://gym.openai.com/envs/CartPole-v0/>`_ environment using the SARSA
+algorithm. We'll use a linear function approximator for our :term:`Q-function
+<type-I state-action value function>`.
 
 
 GitHub version

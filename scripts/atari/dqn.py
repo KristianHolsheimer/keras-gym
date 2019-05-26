@@ -27,7 +27,7 @@ policy = EpsilonGreedy(Q)
 
 # exploration schedule
 def epsilon(T):
-    """ piecewise linear annealing """
+    """ stepwise linear annealing """
     M = 1000000
     if T < M:
         return 1 - 0.9 * T / M

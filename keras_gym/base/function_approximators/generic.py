@@ -808,6 +808,89 @@ class GenericSoftmaxPolicy(
         BasePolicy, BaseFunctionApproximator, NumActionsMixin,
         RandomStateMixin):
 
+    """
+    Base class for modeling :term:`updateable policies <updateable policy>` for
+    discrete action spaces.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    train_model : keras.Model([:term:`S`, :term:`Adv`], :term:`Logits`)
+
+        Used for training.
+
+    predict_model : keras.Model(:term:`S`, :term:`Logits`)
+
+        Used for predicting.
+
+    target_model : keras.Model(:term:`S`, :term:`Logits`), optional
+
+        A :term:`target_model` is used to make predictions on a bootstrapping
+        scenario. It can be advantageous to use a point-in-time copy of the
+        :term:`predict_model` to construct a bootstrapped target.
+
+    bootstrap_model : keras.Model([:term:`S`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`], :term:`Logits`), optional
+
+        A :term:`bootstrap_model` can be used for training. It differs from the
+        :term:`train_model` in that it computes the bootstrapped target
+        internally (instead of receiving it as input). The use of a
+        :term:`bootstrap_model` can speed up the training process.
+
+    gamma : float, optional
+
+        The discount factor for discounting future rewards.
+
+    bootstrap_n : positive int, optional
+
+        The number of steps in n-step bootstrapping. It specifies the number of
+        steps over which we're willing to delay bootstrapping. Large :math:`n`
+        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
+        TD(0).
+
+    update_strategy : str, optional
+
+        The strategy for updating our policy. This typically determines the
+        loss function that we use for our policy function approximator.
+
+        Options are:
+
+            'vanilla'
+                Plain vanilla policy gradient. The corresponding (surrogate)
+                loss function that we use is:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ -\\mathcal{A}(s,a)\\,\\ln\\pi(a|s,\\theta)
+
+            'ppo'
+                `Proximal policy optimization
+                <https://arxiv.org/abs/1707.06347>`_ uses a clipped proximal
+                loss:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ \\min\\Big(
+                        r(\\theta)\\,\\mathcal{A}(s,a)\\,,\\
+                        \\text{clip}\\big(
+                            r(\\theta), 1-\\epsilon, 1+\\epsilon\\big)
+                                \\,\\mathcal{A}(s,a)\\Big)
+
+                where :math:`r(\\theta)` is the probability ratio:
+
+                .. math::
+
+                    r(\\theta)\\ =\\ \\frac
+                        {\\pi(a|s,\\theta)}
+                        {\\pi(a|s,\\theta_\\text{old})}
+
+                #TODO: to be implemented -Kris
+
+
+    """  # noqa: E501
+
     UPDATE_STRATEGIES = ('vanilla', 'trpo', 'ppo')
 
     def __init__(

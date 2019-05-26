@@ -16,6 +16,66 @@ __all__ = (
 
 
 class LinearV(GenericV, LinearFunctionMixin):
+    """
+    Linear-model implementation of a :term:`state value function`.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    gamma : float, optional
+
+        The discount factor for discounting future rewards.
+
+    bootstrap_n : positive int, optional
+
+        The number of steps in n-step bootstrapping. It specifies the number of
+        steps over which we're willing to delay bootstrapping. Large :math:`n`
+        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
+        TD(0).
+
+    interaction : str or keras.layers.Layer, optional
+
+        The desired feature interactions that are fed to the linear regression
+        model. Available predefined preprocessors can be chosen by passing a
+        string, one of the following:
+
+            'full_quadratic'
+                This option generates full-quadratic interactions, which
+                include all linear, bilinear and quadratic terms. It does *not*
+                include an intercept. Let :math:`b` and :math:`n` be the batch
+                size and number of features. Then, the input shape is
+                :math:`(b, n)` and the output shape is :math:`(b, (n + 1) (n
+                + 2) / 2 - 1))`.
+
+                **Note:** This option requires the `tensorflow` backend.
+
+            'elementwise_quadratic'
+                This option generates element-wise quadratic interactions,
+                which only include linear and quadratic terms. It does *not*
+                include bilinear terms or an intercept. Let :math:`b` and
+                :math:`n` be the batch size and number of features. Then, the
+                input shape is :math:`(b, n)` and the output shape is
+                :math:`(b, 2n)`.
+
+        Otherwise, a custom interaction layer can be passed as well. If left
+        unspecified (`interaction=None`), the interaction layer is omitted
+        altogether.
+
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the plain vanilla SGD
+        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
+        documentation <https://keras.io/optimizers/>`_ for more details.
+
+    **sgd_kwargs : keyword arguments
+
+        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
+        <https://keras.io/optimizers/#sgd>`_ for more details.
+
+    """
     def __init__(
             self, env,
             gamma=0.9,
@@ -76,6 +136,111 @@ class LinearV(GenericV, LinearFunctionMixin):
 
 
 class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
+    """
+    Linear-model implementation of a :term:`type-I <type-I state-action value
+    function>` Q-function.
+
+    A :term:`type-I <type-I state-action value function>` Q-function is
+    implemented by mapping :math:`(s, a)\\mapsto Q(s,a)`.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    gamma : float, optional
+
+        The discount factor for discounting future rewards.
+
+    bootstrap_n : positive int, optional
+
+        The number of steps in n-step bootstrapping. It specifies the number of
+        steps over which we're willing to delay bootstrapping. Large :math:`n`
+        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
+        TD(0).
+
+    update_strategy : str, optional
+
+        The update strategy that we use to select the (would-be) next-action
+        :math:`A_{t+n}` in the bootsrapped target:
+
+        .. math::
+
+            G^{(n)}_t\\ =\\ R^{(n)}_t + \\gamma^n Q(S_{t+n}, A_{t+n})
+
+        Options are:
+
+            'sarsa'
+                Sample the next action, i.e. use the action that was actually
+                taken.
+
+            'q_learning'
+                Take the action with highest Q-value under the current
+                estimate, i.e. :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n}, a)`.
+                This is an off-policy method.
+
+            'double_q_learning'
+                Same as 'q_learning', :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n},
+                a)`, except that the value itself is computed using the
+                :term:`target_model` rather than the primary model, i.e.
+
+                .. math::
+
+                    A_{t+n}\\ &=\\
+                        \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
+                    G^{(n)}_t\\ &=\\ R^{(n)}_t
+                        + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
+
+            'expected_sarsa'
+                Similar to SARSA in that it's on-policy, except that we take
+                the expectated Q-value rather than a sample of it, i.e.
+
+                .. math::
+
+                    G^{(n)}_t\\ =\\ R^{(n)}_t
+                        + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
+
+    interaction : str or keras.layers.Layer, optional
+
+        The desired feature interactions that are fed to the linear regression
+        model. Available predefined preprocessors can be chosen by passing a
+        string, one of the following:
+
+            'full_quadratic'
+                This option generates full-quadratic interactions, which
+                include all linear, bilinear and quadratic terms. It does *not*
+                include an intercept. Let :math:`b` and :math:`n` be the batch
+                size and number of features. Then, the input shape is
+                :math:`(b, n)` and the output shape is :math:`(b, (n + 1) (n
+                + 2) / 2 - 1))`.
+
+                **Note:** This option requires the `tensorflow` backend.
+
+            'elementwise_quadratic'
+                This option generates element-wise quadratic interactions,
+                which only include linear and quadratic terms. It does *not*
+                include bilinear terms or an intercept. Let :math:`b` and
+                :math:`n` be the batch size and number of features. Then, the
+                input shape is :math:`(b, n)` and the output shape is
+                :math:`(b, 2n)`.
+
+        Otherwise, a custom interaction layer can be passed as well. If left
+        unspecified (`interaction=None`), the interaction layer is omitted
+        altogether.
+
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the plain vanilla SGD
+        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
+        documentation <https://keras.io/optimizers/>`_ for more details.
+
+    **sgd_kwargs : keyword arguments
+
+        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
+        <https://keras.io/optimizers/#sgd>`_ for more details.
+
+    """
     def __init__(
             self, env,
             gamma=0.9,
@@ -145,6 +310,111 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
 
 
 class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
+    """
+    Linear-model implementation of a :term:`type-II <type-II state-action value
+    function>` Q-function.
+
+    A :term:`type-II <type-II state-action value function>` Q-function is
+    implemented by mapping :math:`s\\mapsto Q(s,.)`.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    gamma : float, optional
+
+        The discount factor for discounting future rewards.
+
+    bootstrap_n : positive int, optional
+
+        The number of steps in n-step bootstrapping. It specifies the number of
+        steps over which we're willing to delay bootstrapping. Large :math:`n`
+        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
+        TD(0).
+
+    update_strategy : str, optional
+
+        The update strategy that we use to select the (would-be) next-action
+        :math:`A_{t+n}` in the bootsrapped target:
+
+        .. math::
+
+            G^{(n)}_t\\ =\\ R^{(n)}_t + \\gamma^n Q(S_{t+n}, A_{t+n})
+
+        Options are:
+
+            'sarsa'
+                Sample the next action, i.e. use the action that was actually
+                taken.
+
+            'q_learning'
+                Take the action with highest Q-value under the current
+                estimate, i.e. :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n}, a)`.
+                This is an off-policy method.
+
+            'double_q_learning'
+                Same as 'q_learning', :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n},
+                a)`, except that the value itself is computed using the
+                :term:`target_model` rather than the primary model, i.e.
+
+                .. math::
+
+                    A_{t+n}\\ &=\\
+                        \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
+                    G^{(n)}_t\\ &=\\ R^{(n)}_t
+                        + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
+
+            'expected_sarsa'
+                Similar to SARSA in that it's on-policy, except that we take
+                the expectated Q-value rather than a sample of it, i.e.
+
+                .. math::
+
+                    G^{(n)}_t\\ =\\ R^{(n)}_t
+                        + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
+
+    interaction : str or keras.layers.Layer, optional
+
+        The desired feature interactions that are fed to the linear regression
+        model. Available predefined preprocessors can be chosen by passing a
+        string, one of the following:
+
+            'full_quadratic'
+                This option generates full-quadratic interactions, which
+                include all linear, bilinear and quadratic terms. It does *not*
+                include an intercept. Let :math:`b` and :math:`n` be the batch
+                size and number of features. Then, the input shape is
+                :math:`(b, n)` and the output shape is :math:`(b, (n + 1) (n
+                + 2) / 2 - 1))`.
+
+                **Note:** This option requires the `tensorflow` backend.
+
+            'elementwise_quadratic'
+                This option generates element-wise quadratic interactions,
+                which only include linear and quadratic terms. It does *not*
+                include bilinear terms or an intercept. Let :math:`b` and
+                :math:`n` be the batch size and number of features. Then, the
+                input shape is :math:`(b, n)` and the output shape is
+                :math:`(b, 2n)`.
+
+        Otherwise, a custom interaction layer can be passed as well. If left
+        unspecified (`interaction=None`), the interaction layer is omitted
+        altogether.
+
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the plain vanilla SGD
+        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
+        documentation <https://keras.io/optimizers/>`_ for more details.
+
+    **sgd_kwargs : keyword arguments
+
+        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
+        <https://keras.io/optimizers/#sgd>`_ for more details.
+
+    """
     def __init__(
             self, env,
             gamma=0.9,

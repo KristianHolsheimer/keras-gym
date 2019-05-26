@@ -9,3 +9,6 @@ learning by example.
     :maxdepth: 1
 
     cartpole/sarsa
+    frozen_lake/reinforce
+    frozen_lake/actor_critic
+    atari/dqn
