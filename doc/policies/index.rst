@@ -85,6 +85,18 @@ below, in which we implement the REINFORCE algorithm:
         s = s_next
 
 
+Actor-Critic
+------------
+
+An `ActorCritic <keras_gym.policies.ActorCritic>` combines an updateable policy
+with a :doc:`value function <../value_functions/index>`. For example, below
+we define an actor-critic with linear function approximators:
+
+.. code:: python
+
+    #TODO
+
+
 Special Policies
 ----------------
 
@@ -105,4 +117,5 @@ Reference
     base
     value_based
     updateable
+    actor_critic
     special
