@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.keras.losses import Loss
 from tensorflow.keras import backend as K
 
 from ..utils import project_onto_actions_tf, check_tensor
@@ -9,7 +10,7 @@ __all__ = (
 )
 
 
-class SoftmaxPolicyLossWithLogits:
+class SoftmaxPolicyLossWithLogits(Loss):
     """
     Softmax-policy loss (with logits).
 
@@ -37,7 +38,12 @@ class SoftmaxPolicyLossWithLogits:
         The advantages, one for each time step.
 
     """
+    name = 'SoftmaxPolicyLossWithLogits'
+
     def __init__(self, Adv):
+        self.set_advantage(Adv)
+
+    def set_advantage(self, Adv):
         check_tensor(Adv, dtype='float')
 
         if K.ndim(Adv) == 2:
@@ -46,6 +52,7 @@ class SoftmaxPolicyLossWithLogits:
 
         check_tensor(Adv, ndim=1)
         self.Adv = K.stop_gradient(Adv)
+        return self
 
     @staticmethod
     def logpi_surrogate(logits):
@@ -100,7 +107,7 @@ class SoftmaxPolicyLossWithLogits:
         mean_logits = tf.expand_dims(tf.einsum('ij,ij->i', pi, logits), axis=1)
         return logits - mean_logits
 
-    def __call__(self, A, logits):
+    def __call__(self, A, logits, sample_weight=None):
         """
         Compute the policy-gradient surrogate loss.
 
@@ -119,13 +126,19 @@ class SoftmaxPolicyLossWithLogits:
 
             The predicted logits of the softmax policy, a.k.a. ``y_pred``.
 
+        sample_weight : 1d Tensor, dtype = float, shape = [batch_size], optional
+
+            Not yet implemented; will be ignored.
+
+            #TODO: implement this -Kris
+
         Returns
         -------
         loss : 0d Tensor (scalar)
 
             The batch loss.
 
-        """
+        """  # noqa: E501
         batch_size = K.int_shape(self.Adv)[0]
 
         # input shape of A is generally [None, None]
