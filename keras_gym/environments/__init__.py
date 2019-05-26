@@ -1,2 +1,2 @@
 # flake8: noqa
-from .adversarial import ConnectFour
+from .adversarial import *

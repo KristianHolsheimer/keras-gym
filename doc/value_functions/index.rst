@@ -4,87 +4,46 @@
 Value Functions
 ===============
 
-Value functions play a cetral role in reinforcement learning. For instance, in
+Value functions play a central role in reinforcement learning. For instance, in
 value-based RL, we derive a policy from a state-action value function
 :math:`Q(s,a)`. In other situations such as actor-critic type approaches we
 make heavy use of value functions to estimate the advantage function
 :math:`\mathcal{A}(s,a) = Q(s,a) - V(s)`.
 
-Predefined Value Functions
---------------------------
 
-Here we provide some value functions with predefined function approximators.
-For instance, here's how you might use a value function with a linear function
-approximator:
+State Value Functions
+---------------------
 
+The simplest type of value function :math:`V(s)` evaluates the value of a state
+:math:`s`, which is the amount of future return expected to be collected from
+that state onwards.
 
-.. code:: python
-
-    import gym
-
-    from keras_gym.value_functions import LinearQ
-    from keras_gym.policies import ValueBasedPolicy
-    from keras_gym.algorithms import Sarsa
+This type of value function cannot be used to select actions directly, but it
+may be used e.g. in actor-critic scenarios to assist the policy object in their
+learning process.
 
 
-    env = gym.make(...)
+State-Action Value Functions
+----------------------------
 
-    # define Q, its induced policy and update algorithm
-    Q = LinearQ(env, lr=0.08, interaction='elementwise_quadratic')
-    policy = ValueBasedPolicy(Q)
-    algo = Sarsa(Q, gamma=0.8)
+We can also break down the value function by actions :math:`Q(s, a)`, which
+represents the amount of future return expected to be collected from the
+state-action pair :math:`(s,a)`.
 
-    # the rest of your code
-    ...
-
-
-Generic Value Functions
------------------------
-
-We also provide a generic interface if the predefined value functions don't
-fit your specific needs. Here's an example that closely resembles the LinearQ
-example above:
+For a discrete action space, there are two ways to implement Q-function, which
+we call :term:`type-I <type-I state-action value function>` and :term:`type-II
+<type-II state-action value function>` Q-functions. A type-I Q-function
+implements the straighforward mapping :math:`(s,a)\mapsto Q(s,a)`, while a
+type-II Q-function implements :math:`s\mapsto Q(s,.)`.
 
 
-.. code:: python
 
-    import gym
-
-    from tensorflow import keras
-    from tensorflow.keras import backend as K
-
-    from keras_gym.value_functions import GenericQ
-    from keras_gym.policies import ValueBasedPolicy
-    from keras_gym.algorithms import QLearning
-
-
-    env = gym.make(...)
-
-    # custom function apprixmator (linear regression)
-    model = keras.Sequential(layers=[
-        keras.layers.Lambda(lambda x: K.concatenate([x, x ** 2])),
-        keras.layers.Dense(1),
-    ])
-    model.compile(
-        optimizer=keras.optimizers.SGD(lr=0.05, momentum=0.5),
-        loss=keras.losses.mean_squared_error)
-
-
-    # define Q, its induced policy and update algorithm
-    Q = GenericQ(env, model)
-    policy = ValueBasedPolicy(Q)
-    algo = QLearning(Q, gamma=0.8)
-
-    # the rest of your code
-    ...
-
-
-References
-----------
+Reference
+---------
 
 .. toctree::
     :maxdepth: 2
     :glob:
 
-    predefined
-    generic
+    state
+    state_action

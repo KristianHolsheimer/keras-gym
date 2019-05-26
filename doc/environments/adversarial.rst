@@ -4,7 +4,7 @@ Adversarial Environments
 .. autosummary::
     :nosignatures:
 
-    keras_gym.environments.ConnectFour
+    keras_gym.environments.ConnectFourEnv
 
 
-.. autoclass:: keras_gym.environments.ConnectFour
+.. autoclass:: keras_gym.environments.ConnectFourEnv

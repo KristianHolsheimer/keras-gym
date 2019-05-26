@@ -8,7 +8,7 @@ learning by example.
 .. toctree::
     :maxdepth: 1
 
-    cartpole-linear-model-td0.rst
-    cartpole-linear-model-nstep-bootstrap.rst
-    blackjack-linear-model-monte-carlo
-    frozenlake-linear-model-montecarloq-and-reinforce
+    cartpole/sarsa
+    frozen_lake/reinforce
+    frozen_lake/actor_critic
+    atari/dqn

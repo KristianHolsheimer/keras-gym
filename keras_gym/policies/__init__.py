@@ -1,5 +1,6 @@
 # flake8: noqa
-from .value_based import ValueBasedPolicy
-from .generic import GenericSoftmaxPolicy
-from .predefined.linear_models import (
-    LinearSoftmaxPolicy, LinearSoftmaxActorCritic)
+from ..base.function_approximators.generic import GenericSoftmaxPolicy
+from .value_based import *
+from .linear import *
+from .special import *
+from .actor_critic import *

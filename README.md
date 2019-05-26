@@ -7,7 +7,8 @@ Create simple, reproducible RL solutions with Keras function approximators.
 
 ## Documentation
 
-For the full documentation, go to [keras-gym.readthedocs.io](https://keras-gym.readthedocs.io/)
+For the full documentation, go to
+[keras-gym.readthedocs.io](https://keras-gym.readthedocs.io/)
 
 
 ## Install
@@ -40,73 +41,68 @@ approximator for Q(s, a):
 ```python
 import gym
 
-from keras_gym.value_functions import LinearQ
-from keras_gym.policies import ValueBasedPolicy
-from keras_gym.algorithms import Sarsa
+from keras_gym.preprocessing import DefaultPreprocessor
+from keras_gym.value_functions import LinearQTypeI
+from keras_gym.policies import EpsilonGreedy
 
 
-# the Gym environment
+# env with preprocessing
 env = gym.make('CartPole-v0')
+env = DefaultPreprocessor(env)
 
+# value function and its derived policy
+Q = LinearQTypeI(env, lr=0.05, momentum=0.9, gamma=0.8,
+                 update_strategy='sarsa', bootstrap_n=1)
+policy = EpsilonGreedy(Q)
 
-# define Q, its induced policy and update algorithm
-Q = LinearQ(env, lr=0.08, interaction='elementwise_quadratic')
-policy = ValueBasedPolicy(Q)
-algo = Sarsa(Q, gamma=0.8)
-
-
-# number of iterations
+# static parameters
 num_episodes = 200
-max_episode_steps = env._max_episode_steps
-
+num_steps = env.spec.max_episode_steps
 
 # used for early stopping
 num_consecutive_successes = 0
 
 
-# run the episodes
-for episode in range(1, num_episodes + 1):
-    last_episode = episode == num_episodes or num_consecutive_successes == 9
-
-    # init
+# train
+for ep in range(num_episodes):
     s = env.reset()
-    a = env.action_space.sample()
+    policy.epsilon = 0.1 if ep < 10 else 0.01
 
-    # exploration schedule
-    epsilon = 0.1 if episode < 10 else 0.01
-
-    if last_episode:
-        epsilon = 0  # no more exploration
-        env.render()
-
-    # run episode
-    for t in range(1, max_episode_steps + 1):
+    for t in range(num_steps):
+        a = policy(s)
         s_next, r, done, info = env.step(a)
-        a_next = policy.epsilon_greedy(s, epsilon)
 
-        # update or render
-        if not last_episode:
-            algo.update(s, a, r, s_next, a_next)
-        else:
-            env.render()
+        Q.update(s, a, r, done)
 
-        # keep track of consecutive successes
         if done:
-            if t == max_episode_steps:
+            if t == num_steps - 1:
                 num_consecutive_successes += 1
-                print(f"episode = {episode}, num_consecutive_successes = {num_consecutive_successes}")
+                print("num_consecutive_successes: {}"
+                      .format(num_consecutive_successes))
             else:
                 num_consecutive_successes = 0
-                print(f"episode = {episode}, failed after {t} steps")
+                print("failed after {} steps".format(t))
             break
 
-        # prepare for next step
-        s, a = s_next, a_next
+        s = s_next
 
-
-    if last_episode:
+    if num_consecutive_successes == 10:
         break
 
+
+# run env one more time to render
+s = env.reset()
+env.render()
+policy.epsilon = 0
+
+for t in range(num_steps):
+
+    a = policy(s)
+    s, r, done, info = env.step(a)
+    env.render()
+
+    if done:
+        break
 
 env.close()
 
@@ -116,11 +112,3 @@ The last episode is rendered, which shows something like this:
 
 ![cartpole_video](doc/_static/img/cartpole.gif)
 
-
-## TODO
-
-* add support for continuous action spaces
-* implement policy gradient algorithms
-* implement sparse one-hot vectors
-* implement `utils.feature_vector` for `gym.spaces.Dict` space.
-* fix slow monte-carlo algorithm (standalone benchmark in notebook is faster)

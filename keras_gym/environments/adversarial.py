@@ -1,10 +1,15 @@
 from gym.spaces import Discrete, MultiDiscrete
 import numpy as np
 
-from ..errors import NoAdversaryError, UnavailableActionError
+from ..base.errors import MissingAdversaryError, UnavailableActionError
 
 
-class ConnectFour:
+__all__ = (
+    'ConnectFourEnv',
+)
+
+
+class ConnectFourEnv:
     """
     An adversarial environment for playing the `Connect-Four game
     <https://en.wikipedia.org/wiki/Connect_Four>`_.
@@ -131,7 +136,7 @@ class ConnectFour:
 
         """
         if self.adversary_policy is None:
-            raise NoAdversaryError(
+            raise MissingAdversaryError(
                 "must specify adversary in order to run the environment")
         if not self.action_space.contains(a):
             raise ValueError("invalid action")
@@ -185,7 +190,7 @@ class ConnectFour:
         if self.greedy_adversary:
             a = self.adversary_policy.greedy(self.state)
         else:
-            a = self.adversary_policy.thompson(self.state)
+            a = self.adversary_policy(self.state)
 
         if a not in self.available_actions:
             a = self.rnd.choice(self.available_actions)

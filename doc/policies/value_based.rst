@@ -4,8 +4,7 @@ Value-Based Policies
 .. autosummary::
     :nosignatures:
 
-    keras_gym.policies.ValueBasedPolicy
+    keras_gym.policies.EpsilonGreedy
 
 
-.. autoclass:: keras_gym.policies.ValueBasedPolicy
-
+.. autoclass:: keras_gym.policies.EpsilonGreedy

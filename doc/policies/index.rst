@@ -12,138 +12,143 @@ quite a bit between the two approaches.
 
 For value-based RL, we have algorithms like TD(0), Monte Carlo and everything
 in between. The optimization problem that we use to update our function
-approximator is typically plain-vanilla least-squares regression.
+approximator is typically ordinary least-squares regression (or Huber loss).
 
 In policy-based RL, on the other hand, we update our function approximators
 using direct policy gradient techniques. This makes the optimization problem
-quite different from ordinary supervised learning. In the `Generic Policies`_
-section below you'll find in the code example, which illustrates the non-
-standard nature of this optimization problem. In particular, the definition of
-loss function :class:`SoftmaxPolicyLossWithLogits
-<keras_gym.losses.SoftmaxPolicyLossWithLogits>` shows that we really require
-the full flexibility of an auto-diff package like keras in order to make it
-work.
+quite different from ordinary supervised learning.
+
+Below you'll find the generic specification for all policy objects:
 
 
 Value-Based Policies
 --------------------
 
-These are policies based on a state-action value function :math:`Q(s,a)`. These
-policies are updated implicitly by updating the underlying value function, see
-example below:
+These policies are derived from a Q-function object. See example below:
 
 .. code:: python
 
     import gym
 
-    from keras_gym.value_functions import LinearQ
-    from keras_gym.policies import ValueBasedPolicy
-    from keras_gym.algorithms import QLearning
+    from keras_gym.value_functions import LinearQTypeI
+    from keras_gym.policies import EpsilonGreedy
+    from keras_gym.preprocessing import DefaultPreprocessor
 
+
+    # env with preprocessing
     env = gym.make(...)
+    env = DefaultPreprocessor(env)
 
-    # use linear function approximator for Q
-    Q = LinearQ(env, lr=0.1)
-    policy = ValueBasedPolicy(Q)
-    algo = QLearning(Q)
+    # use linear function approximator for Q(s,a)
+    Q = LinearQTypeI(env, ...)
+    policy = EpsilonGreedy(Q, epsilon=0.1)
 
     # get some dummy state observation
     s = env.reset()
 
     # draw an action, given state s
-    a = policy.epsilon_greedy(s, epsilon=0.1)
-
-    ...
+    a = policy(s)
 
 
-
-Predefined Policies
+Updateable Policies
 -------------------
 
-These are policies that are directly updateable through policy-gradient
-updates. They are specific implementations of generic policies (see section
-below) and they're included in this package for convenience.
-
+These policies can be updated directly by policy-gradient methods. See example
+below, in which we implement the REINFORCE algorithm:
 
 .. code:: python
 
     import gym
-    from tensorflow import keras
 
+    from keras_gym.caching import MonteCarloCache
     from keras_gym.policies import LinearSoftmaxPolicy
-    from keras_gym.algorithms import Reinforce
+    from keras_gym.preprocessing import DefaultPreprocessor
 
-
+    # env with preprocessing
     env = gym.make(...)
+    env = DefaultPreprocessor(env)
 
-    # the policy and its updating algorithm
-    policy = LinearSoftmaxPolicy(env, model)
-    algo = Reinforce(policy, gamma=1.0)
+    # use linear function approximator for pi(a|s)
+    policy = LinearSoftmaxPolicy(env, lr=0.1, ...)
+    cache = MonteCarloCache(gamma=0.99)
 
-    # rest of the code
-    ...
+    # initialize env
+    s = env.reset()
+    cache.reset()
+
+    # run episodes
+    for ep in range(num_episodes):
+        s = env.reset()
+
+        for t in range(num_steps):
+            a = policy(s)
+            s_next, r, done, info = env.step(a)
+            cache.add(s, a, r, done)
+
+            if done:
+                # update at the end of the episode
+                while cache:
+                    s, a, g = cache.pop()
+                    policy.update(s, a, g)
+
+                break
+
+            s = s_next
+
+    env.close()
 
 
+Actor-Critic
+------------
 
-Generic Policies
+An :class:`ActorCritic <keras_gym.policies.ActorCritic>` combines an
+:term:`updateable policy` with a :doc:`value function
+<../value_functions/index>`. For example, below we define an actor-critic with
+linear function approximators:
+
+.. code:: python
+
+    import gym
+
+    from keras_gym.policies import LinearSoftmaxPolicy, ActorCritic
+    from keras_gym.value_functions import LinearV
+    from keras_gym.preprocessing import DefaultPreprocessor
+
+    # env with preprocessing
+    env = gym.make(...)
+    env = DefaultPreprocessor(env)
+
+    # define actor-critic
+    policy = LinearSoftmaxPolicy(env, lr=0.1, update_strategy='vanilla')
+    V = LinearV(env, lr=0.1, gamma=0.9, bootstrap_n=1)
+    actor_critic = ActorCritic(policy, V)
+
+    # run episodes
+    for ep in range(num_episodes):
+        s = env.reset()
+
+        for t in range(num_steps):
+            a = policy(s)
+            s_next, r, done, info = env.step(a)
+
+            actor_critic.update(s, a, r, done)
+
+            if done:
+                break
+
+            s = s_next
+
+    env.close()
+
+
+Special Policies
 ----------------
 
-These policies are updateable through policy-gradient updates. They're generic
-in the sense that the specific function approximator (`keras.Model` object)
-must be supplied by the user.
-
-Here's an example of how to construct a custom function approximator. Note that
-this example is gives us a model that's basically the same as the predefined
-:class:`LinearSoftmaxPolicy <keras_gym.policies.LinearSoftmaxPolicy>`.
-
-.. code:: python
-
-    import gym
-    from tensorflow import keras
-
-    from keras_gym.policies import GenericSoftmaxPolicy
-    from keras_gym.losses import SoftmaxPolicyLossWithLogits
-    from keras_gym.algorithms import Reinforce
-
-
-    def create_model(num_features, num_actions):
-
-        # inputs
-        X = keras.Input(shape=[num_features])
-        advantages = keras.Input(shape=[1])
-
-        # computation graph
-        dense = keras.layers.Dense(num_actions, kernel_initializer='zeros')
-        logits = dense(X)
-
-        # loss
-        loss_function = SoftmaxPolicyLossWithLogits(advantages)
-
-        # the final model
-        model = keras.Model(inputs=[X, advantages], outputs=logits)
-        model.compile(
-            loss=loss_function,
-            optimizer=keras.optimizers.SGD(lr=0.1))
-
-        return model
-
-
-    # some environment with discrete action space
-    env = gym.make(...)
-
-    # create a dummy feature vector to figure out the input dimension
-    x = feature_vector(env.observation_space.sample(), env.observation_space)
-
-    # function approximator
-    model = create_model(num_features=x.size, num_actions=env.action_space.n)
-
-    # the policy and its updating algorithm
-    policy = GenericSoftmaxPolicy(env, model)
-    algo = Reinforce(policy, gamma=1.0)
-
-    # rest of the code
-    ...
-
+We've also got some special policies, which are policies that don't depend on
+any learned function approximator. The two main examples that are available
+right now are :class:`RandomPolicy <keras_gym.policies.RandomPolicy>` and
+:class:`UserInputPolicy <keras_gym.policies.UserInputPolicy>`. The latter
+allows you to pick the actions yourself as the episode runs.
 
 
 Reference
@@ -153,6 +158,8 @@ Reference
     :maxdepth: 2
     :glob:
 
+    base
     value_based
-    predefined
-    generic
+    updateable
+    actor_critic
+    special
