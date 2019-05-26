@@ -24,6 +24,9 @@ __all__ = (
     'get_transition',
     'has_env_attr',
     'idx',
+    'is_policy',
+    'is_qfunction',
+    'is_vfunction',
     'project_onto_actions_np',
     'project_onto_actions_tf',
     'softmax',
@@ -645,3 +648,93 @@ def generate_gif(env, policy, filepath, resize_to=None, duration=50):
         duration=duration, loop=0)
 
     logger.info("recorded episode to: {}".format(filepath))
+
+
+def is_vfunction(obj):
+    """
+    Check whether an object is a :term:`state value function`, or V-function.
+
+    Parameters
+    ----------
+    obj
+
+        Object to check.
+
+    Returns
+    -------
+    bool
+
+        Whether ``obj`` is a V-function.
+
+    """
+    # import at runtime to avoid circular dependence
+    from ..base.function_approximators.generic import GenericV
+    return isinstance(obj, GenericV)
+
+
+def is_qfunction(obj, qtype=None):
+    """
+    Check whether an object is a state-action value function, or Q-function.
+
+    Parameters
+    ----------
+    obj
+
+        Object to check.
+
+    qtype : 1 or 2, optional
+
+        Check for specific Q-function type, i.e. :term:`type-I <type-I
+        state-action value function>` or :term:`type-II <type-II state-action
+        value function>`.
+
+    Returns
+    -------
+    bool
+
+        Whether ``obj`` is a (type-I/II) Q-function.
+
+    """
+    # import at runtime to avoid circular dependence
+    from ..base.function_approximators.generic import (
+        GenericQTypeI, GenericQTypeII)
+
+    if qtype is None:
+        return isinstance(obj, (GenericQTypeI, GenericQTypeII))
+    elif qtype in (1, 1., '1', 'i', 'I'):
+        return isinstance(obj, GenericQTypeI)
+    elif qtype in (2, 2., '2', 'ii', 'II'):
+        return isinstance(obj, GenericQTypeII)
+    else:
+        raise ValueError("unexpected qtype: {}".format(qtype))
+
+
+def is_policy(obj, check_updateable=False):
+    """
+    Check whether an object is a :term:`state value function`, or V-function.
+
+    Parameters
+    ----------
+    obj
+
+        Object to check.
+
+    check_updateable : bool, optional
+
+        If the obj is a policy, also check whether or not the policy is
+        updateable.
+
+    Returns
+    -------
+    bool
+
+        Whether ``obj`` is a (updateable) policy.
+
+    """
+    # import at runtime to avoid circular dependence
+    from ..base.policy import BasePolicy
+    from ..base.function_approximators.generic import GenericSoftmaxPolicy
+
+    if isinstance(obj, BasePolicy):
+        return isinstance(obj, GenericSoftmaxPolicy) if check_tensor else True
+    return False

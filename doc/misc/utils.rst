@@ -19,6 +19,9 @@ Utilities
     keras_gym.utils.get_transition
     keras_gym.utils.has_env_attr
     keras_gym.utils.idx
+    keras_gym.utils.is_policy
+    keras_gym.utils.is_qfunction
+    keras_gym.utils.is_vfunction
     keras_gym.utils.project_onto_actions_np
     keras_gym.utils.project_onto_actions_tf
     keras_gym.utils.softmax
@@ -36,6 +39,9 @@ Utilities
 .. autofunction:: keras_gym.utils.get_transition
 .. autofunction:: keras_gym.utils.has_env_attr
 .. autofunction:: keras_gym.utils.idx
+.. autofunction:: keras_gym.utils.is_policy
+.. autofunction:: keras_gym.utils.is_qfunction
+.. autofunction:: keras_gym.utils.is_vfunction
 .. autofunction:: keras_gym.utils.project_onto_actions_np
 .. autofunction:: keras_gym.utils.project_onto_actions_tf
 .. autofunction:: keras_gym.utils.softmax
