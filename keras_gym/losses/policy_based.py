@@ -1,7 +1,7 @@
 import tensorflow as tf
-from tensorflow.python.keras.losses import Loss
 from tensorflow.keras import backend as K
 
+from ..base.losses import BasePolicyLoss
 from ..utils import project_onto_actions_tf, check_tensor
 
 
@@ -10,7 +10,7 @@ __all__ = (
 )
 
 
-class SoftmaxPolicyLossWithLogits(Loss):
+class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
     """
     Softmax-policy loss (with logits).
 
@@ -38,22 +38,6 @@ class SoftmaxPolicyLossWithLogits(Loss):
         The advantages, one for each time step.
 
     """
-    name = 'SoftmaxPolicyLossWithLogits'
-
-    def __init__(self, Adv):
-        self.set_advantage(Adv)
-
-    def set_advantage(self, Adv):
-        check_tensor(Adv, dtype='float')
-
-        if K.ndim(Adv) == 2:
-            check_tensor(Adv, axis_size=1, axis=1)
-            Adv = K.squeeze(Adv, axis=1)
-
-        check_tensor(Adv, ndim=1)
-        self.Adv = K.stop_gradient(Adv)
-        return self
-
     @staticmethod
     def logpi_surrogate(logits):
         """

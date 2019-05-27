@@ -1,16 +1,15 @@
 import tensorflow as tf
-from tensorflow.python.keras.losses import Loss
 from tensorflow.keras import backend as K
 
 from ..utils import project_onto_actions_tf, check_tensor
-
+from ..base.losses import BaseLoss
 
 __all__ = (
     'ProjectedSemiGradientLoss',
 )
 
 
-class ProjectedSemiGradientLoss(Loss):
+class ProjectedSemiGradientLoss(BaseLoss):
     """
     Loss function for type-II Q-function.
 
@@ -29,8 +28,6 @@ class ProjectedSemiGradientLoss(Loss):
         <tensorflow.losses.huber_loss>`.
 
     """
-    name = 'ProjectedSemiGradientLoss'
-
     def __init__(self, G, base_loss=tf.losses.huber_loss):
         check_tensor(G)
 
