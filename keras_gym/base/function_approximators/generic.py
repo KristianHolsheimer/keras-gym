@@ -2,12 +2,13 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ...utils import (
-    project_onto_actions_np, project_onto_actions_tf, check_numpy_array,
-    softmax, argmax)
+    project_onto_actions_np, check_numpy_array, softmax, argmax)
 from ...caching import NStepCache
+from ...losses import SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss
 from ..errors import MissingModelError
 from ..mixins import RandomStateMixin, NumActionsMixin, LoggerMixin
 from ..policy import BasePolicy
@@ -41,10 +42,9 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
     def _check_attrs(self):
         required_attrs = [
             'env', 'gamma', 'bootstrap_n', 'train_model', 'predict_model',
-            'target_model', 'bootstrap_model', '_cache']
+            'target_model', '_cache']
 
         if isinstance(self, GenericSoftmaxPolicy):
-            required_attrs.remove('bootstrap_model')
             required_attrs.remove('bootstrap_n')
             required_attrs.remove('gamma')
             required_attrs.remove('_cache')
@@ -126,15 +126,6 @@ class GenericV(BaseFunctionApproximator):
         scenario. It can be advantageous to use a point-in-time copy of the
         :term:`predict_model` to construct a bootstrapped target.
 
-    bootstrap_model : keras.Model([:term:`S`, :term:`Rn`, :term:`I_next`, :term:`S_next`]), optional
-
-        A :term:`bootstrap_model` can be used for training. It differs from the
-        :term:`train_model` in that it computes the bootstrapped target
-        internally (instead of receiving it as input). The use of a
-        :term:`bootstrap_model` can speed up the training process. Notice that
-        the :term:`bootstrap_model` requires no external output. Instead, the
-        output is passed to the model using keras's ``target_tensors`` kwarg.
-
     gamma : float, optional
 
         The discount factor for discounting future rewards.
@@ -146,25 +137,31 @@ class GenericV(BaseFunctionApproximator):
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
 
-    """  # noqa: E501
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
+
+    """
     def __init__(
             self, env, train_model, predict_model,
             target_model=None,
-            bootstrap_model=None,
             gamma=0.9,
-            bootstrap_n=1):
+            bootstrap_n=1,
+            bootstrap_with_target_model=False):
 
         self.env = env
         self.train_model = train_model
         self.predict_model = predict_model
         self.target_model = target_model
-        self.bootstrap_model = bootstrap_model
         self.gamma = float(gamma)
         self.bootstrap_n = int(bootstrap_n)
+        self.bootstrap_with_target_model = bool(bootstrap_with_target_model)
 
         self._cache = NStepCache(self.bootstrap_n, self.gamma)
 
-    def __call__(self, s):
+    def __call__(self, s, use_target_model=False):
         """
         Evaluate the Q-function.
 
@@ -173,6 +170,11 @@ class GenericV(BaseFunctionApproximator):
         s : state observation
 
             A single state observation.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
 
         Returns
         -------
@@ -183,7 +185,7 @@ class GenericV(BaseFunctionApproximator):
         """
         assert self.env.observation_space.contains(s)
         S = np.expand_dims(s, axis=0)
-        V = self.batch_eval(S)
+        V = self.batch_eval(S, use_target_model=use_target_model)
         check_numpy_array(V, shape=(1,))
         V = np.squeeze(V, axis=0)
         return V
@@ -251,18 +253,17 @@ class GenericV(BaseFunctionApproximator):
             A batch of next-state observations.
 
         """
-        if self.bootstrap_model is not None:
-            self.bootstrap_model.train_on_batch([S, Rn, I_next, S_next])
-        else:
-            V_next = self.batch_eval(S_next, use_target_model=True)
-            Gn = Rn + I_next * V_next
-            self.train_model.train_on_batch(S, Gn)
+        V_next = self.batch_eval(
+            S_next, use_target_model=self.bootstrap_with_target_model)
+        Gn = Rn + I_next * V_next
+        self.train_model.train_on_batch(S, Gn)
 
     def batch_eval(self, S, use_target_model=False):
-        if use_target_model and self.target_model is not None:
-            model = self.target_model
-        else:
-            model = self.predict_model
+        """
+        #TODO: docstring
+
+        """
+        model = self.target_model if use_target_model else self.predict_model
 
         V = model.predict_on_batch(S)
         check_numpy_array(V, ndim=2, axis_size=1, axis=1)
@@ -276,23 +277,23 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
     def __init__(
             self, env, train_model, predict_model,
             target_model=None,
-            bootstrap_model=None,
             gamma=0.9,
             bootstrap_n=1,
+            bootstrap_with_target_model=False,
             update_strategy='sarsa'):
 
         self.env = env
         self.train_model = train_model
         self.predict_model = predict_model
         self.target_model = target_model
-        self.bootstrap_model = bootstrap_model
         self.gamma = float(gamma)
         self.bootstrap_n = int(bootstrap_n)
+        self.bootstrap_with_target_model = bool(bootstrap_with_target_model)
         self.update_strategy = update_strategy
 
         self._cache = NStepCache(self.bootstrap_n, self.gamma)
 
-    def __call__(self, s, a=None):
+    def __call__(self, s, a=None, use_target_model=False):
         """
         Evaluate the Q-function.
 
@@ -305,6 +306,11 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         a : action, optional
 
             A single action.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
 
         Returns
         -------
@@ -322,11 +328,11 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         if a is not None:
             assert self.env.action_space.contains(a)
             A = np.expand_dims(a, axis=0)
-            Q = self.batch_eval(S, A)
+            Q = self.batch_eval(S, A, use_target_model=use_target_model)
             check_numpy_array(Q, shape=(1,))
             Q = np.squeeze(Q, axis=0)
         else:
-            Q = self.batch_eval(S)
+            Q = self.batch_eval(S, use_target_model=use_target_model)
             check_numpy_array(Q, shape=(1, self.num_actions))
             Q = np.squeeze(Q, axis=0)
         return Q
@@ -407,12 +413,8 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             SARSA (on-policy) updates.
 
         """
-        if self.bootstrap_model is not None:
-            self.bootstrap_model.train_on_batch(
-                [S, Rn, I_next, S_next, A_next], A)
-        else:
-            G = self.bootstrap_target_np(Rn, I_next, S_next, A_next)
-            self.train_model.train_on_batch([S, G], A)
+        G = self.bootstrap_target_np(Rn, I_next, S_next, A_next)
+        self.train_model.train_on_batch([S, G], A)
 
     def bootstrap_target_np(self, Rn, I_next, S_next, A_next=None):
         """
@@ -462,11 +464,20 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         """
         if self.update_strategy == 'sarsa':
             assert A_next is not None
-            Q_next = self.batch_eval(S_next, A_next, use_target_model=True)
+            Q_next = self.batch_eval(
+                S_next, A_next,
+                use_target_model=self.bootstrap_with_target_model)
         elif self.update_strategy == 'q_learning':
             Q_next = np.max(
-                self.batch_eval(S_next, use_target_model=True), axis=1)
+                self.batch_eval(
+                    S_next, use_target_model=self.bootstrap_with_target_model),
+                axis=1)
         elif self.update_strategy == 'double_q_learning':
+            if not self.bootstrap_with_target_model:
+                raise ValueError(
+                    "incompatible settings: "
+                    "update_strategy='double_q_learning' requires that "
+                    "bootstrap_with_target_model=True")
             A_next = np.argmax(
                 self.batch_eval(S_next, use_target_model=False), axis=1)
             Q_next = self.batch_eval(S_next, use_target_model=True)
@@ -476,54 +487,6 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
         Gn = Rn + I_next * Q_next
         return Gn
-
-    def bootstrap_target_tf(self, Rn, I_next, S_next, A_next=None):
-        """
-        Get the bootstrapped target
-        :math:`G^{(n)}_t=R^{(n)}_t+\\gamma^nQ(S_{t+n}, A_{t+n})`.
-
-        This is the *tensorflow* implementation.
-
-        Parameters
-        ----------
-        Rn : 1d tensor, dtype: float, shape: [batch_size]
-
-            A batch of partial returns. For example, in n-step bootstrapping
-            this is given by:
-
-            .. math::
-
-                R^{(n)}_t\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
-                    \\gamma^{n-1}\\,R_{t+n-1}
-
-            In other words, it's the non-bootstrapped part of the n-step
-            return.
-
-        I_next : 1d tensor, dtype: float, shape: [batch_size]
-
-            A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
-            and :I_t=0: otherwise. This allows us to write the bootstrapped
-            target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})`.
-
-        S_next : nd tensor, shape: [batch_size, ...]
-
-            A batch of next-state observations.
-
-        A_next : 1d tensor, dtype: int, shape: [batch_size], optional
-
-            A batch of next-actions that were taken.
-
-        Returns
-        -------
-        Gn : 1d tensor, dtype: int, shape: [batch_size]
-
-            A batch of bootstrap-estimated returns
-            :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})` computed
-            according to given ``update_strategy``.
-
-        """
-        raise NotImplementedError('bootstrap_target_tf')
 
     @abstractmethod
     def batch_eval(self, S, A=None, use_target_model=False):
@@ -543,8 +506,8 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
         use_target_model : bool, optional
 
-            Whether to use the ``target_model``. If ``False`` (default), the
-            primary ``predict_model`` is used.
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
 
         Returns
         -------
@@ -592,15 +555,6 @@ class GenericQTypeI(BaseGenericQ):
         scenario. It can be advantageous to use a point-in-time copy of the
         :term:`predict_model` to construct a bootstrapped target.
 
-    bootstrap_model : keras.Model([:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`]), optional
-
-        A :term:`bootstrap_model` can be used for training. It differs from the
-        :term:`train_model` in that it computes the bootstrapped target
-        internally (instead of receiving it as input). The use of a
-        :term:`bootstrap_model` can speed up the training process. Notice that
-        the :term:`bootstrap_model` requires no external output. Instead, the
-        output is passed to the model using keras's ``target_tensors`` kwarg.
-
     gamma : float, optional
 
         The discount factor for discounting future rewards.
@@ -611,6 +565,12 @@ class GenericQTypeI(BaseGenericQ):
         steps over which we're willing to delay bootstrapping. Large :math:`n`
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
+
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
 
     update_strategy : str, optional
 
@@ -653,12 +613,9 @@ class GenericQTypeI(BaseGenericQ):
                     G^{(n)}_t\\ =\\ R^{(n)}_t
                         + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
 
-    """  # noqa: E501
+    """
     def batch_eval(self, S, A=None, use_target_model=False):
-        if use_target_model and self.target_model is not None:
-            model = self.target_model
-        else:
-            model = self.predict_model
+        model = self.target_model if use_target_model else self.predict_model
 
         if A is not None:
             Q = model.predict_on_batch([S, A])
@@ -703,13 +660,6 @@ class GenericQTypeII(BaseGenericQ):
         scenario. It can be advantageous to use a point-in-time copy of the
         :term:`predict_model` to construct a bootstrapped target.
 
-    bootstrap_model : keras.Model([:term:`S`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`], :term:`Q_sa`), optional
-
-        A :term:`bootstrap_model` can be used for training. It differs from the
-        :term:`train_model` in that it computes the bootstrapped target
-        internally (instead of receiving it as input). The use of a
-        :term:`bootstrap_model` can speed up the training process.
-
     gamma : float, optional
 
         The discount factor for discounting future rewards.
@@ -720,6 +670,12 @@ class GenericQTypeII(BaseGenericQ):
         steps over which we're willing to delay bootstrapping. Large :math:`n`
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
+
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
 
     update_strategy : str, optional
 
@@ -762,12 +718,9 @@ class GenericQTypeII(BaseGenericQ):
                     G^{(n)}_t\\ =\\ R^{(n)}_t
                         + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
 
-    """  # noqa: E501
+    """
     def batch_eval(self, S, A=None, use_target_model=False):
-        if use_target_model and self.target_model is not None:
-            model = self.target_model
-        else:
-            model = self.predict_model
+        model = self.target_model if use_target_model else self.predict_model
 
         if A is not None:
             Q = model.predict_on_batch(S)  # shape: [batch_size, num_actions]
@@ -780,28 +733,6 @@ class GenericQTypeII(BaseGenericQ):
             Q = model.predict_on_batch(S)
             check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
-
-    def bootstrap_target_tf(self, Rn, I_next, S_next, A_next=None):
-        if self.target_model is None:
-            raise MissingModelError('target_model')
-
-        if self.update_strategy == 'sarsa':
-            assert A_next is not None
-            Q_next = self.target_model(S_next)
-            Q_next = project_onto_actions_tf(Q_next, A_next)
-        elif self.update_strategy == 'q_learning':
-            Q_next = self.target_model(S_next)
-            Q_next = K.max(Q_next, axis=1)
-        elif self.update_strategy == 'double_q_learning':
-            A_next = K.argmax(self.predict_model(S_next), axis=1)
-            Q_next = self.target_model(S_next)
-            Q_next = project_onto_actions_np(Q_next, A_next)
-        else:
-            raise ValueError(
-                "unknown update_strategy: {}".format(self.update_strategy))
-
-        Gn = Rn + I_next * Q_next
-        return Gn
 
 
 class GenericSoftmaxPolicy(
@@ -831,13 +762,6 @@ class GenericSoftmaxPolicy(
         A :term:`target_model` is used to make predictions on a bootstrapping
         scenario. It can be advantageous to use a point-in-time copy of the
         :term:`predict_model` to construct a bootstrapped target.
-
-    bootstrap_model : keras.Model([:term:`S`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`], :term:`Logits`), optional
-
-        A :term:`bootstrap_model` can be used for training. It differs from the
-        :term:`train_model` in that it computes the bootstrapped target
-        internally (instead of receiving it as input). The use of a
-        :term:`bootstrap_model` can speed up the training process.
 
     gamma : float, optional
 
@@ -888,9 +812,7 @@ class GenericSoftmaxPolicy(
 
                 #TODO: to be implemented -Kris
 
-
-    """  # noqa: E501
-
+    """
     UPDATE_STRATEGIES = ('vanilla', 'trpo', 'ppo')
 
     def __init__(
@@ -909,20 +831,87 @@ class GenericSoftmaxPolicy(
         # TODO: allow for non-discrete action spaces
         self._actions = np.arange(self.num_actions)
 
-    def __call__(self, s):
-        a = self.random.choice(self._actions, p=self.proba(s))
+    def __call__(self, s, use_target_model=False):
+        """
+        Draw an action from the current policy :math:`\\pi(a|s)`.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        a : action
+
+            A single action proposed under the current policy.
+
+        """
+        proba = self.proba(s, use_target_model=use_target_model)
+        a = self.random.choice(self._actions, p=proba)
         return a
 
-    def proba(self, s):
+    def proba(self, s, use_target_model=False):
+        """
+        Get the probabilities over all actions :math:`\\pi(a|s)`.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        pi : 1d array, shape: [num_actions]
+
+            Probabilities over all actions.
+
+            **Note.** This hasn't yet been implemented for non-discrete action
+            spaces.
+
+        """
         assert self.env.observation_space.contains(s)
         S = np.expand_dims(s, axis=0)
-        Pi = self.batch_eval(S)
+        Pi = self.batch_eval(S, use_target_model=use_target_model)
         check_numpy_array(Pi, shape=(1, self.num_actions))
         pi = np.squeeze(Pi, axis=0)
         return pi
 
-    def greedy(self, s):
-        a = argmax(self.proba(s))
+    def greedy(self, s, use_target_model=False):
+        """
+        Draw the greedy action, i.e. :math:`\\arg\\max_a\\pi(a|s)`.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        a : action
+
+            A single action proposed under the current policy.
+
+        """
+        a = argmax(self.proba(s, use_target_model=use_target_model))
         return a
 
     def update(self, s, a, advantage):
@@ -965,14 +954,17 @@ class GenericSoftmaxPolicy(
 
         use_target_model : bool, optional
 
-            Whether to use the ``target_model``. If ``False`` (default), the
-            primary ``predict_model`` is used.
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        Pi : 2d array, shape: [batch_size, num_actions]
+
+            A batch of action probabilities :math:`\\pi(a|s)`.
 
         """
-        if use_target_model and self.target_model is not None:
-            model = self.target_model
-        else:
-            model = self.predict_model
+        model = self.target_model if use_target_model else self.predict_model
 
         Logits = model.predict_on_batch(S)
         check_numpy_array(Logits, ndim=2, axis_size=self.num_actions, axis=1)
@@ -1001,3 +993,22 @@ class GenericSoftmaxPolicy(
 
         """
         self.train_model.train_on_batch([S, Adv], A)
+
+    def _policy_loss_and_target(self, Adv, Logits, Logits_target):
+        if self.update_strategy == 'vanilla':
+            return SoftmaxPolicyLossWithLogits(Adv), Logits
+
+        if self.update_strategy == 'trpo':
+            raise NotImplementedError("update_strategy == 'trpo'")  # TODO
+
+        if self.update_strategy == 'ppo':
+            def proba_ratio(args):
+                Z, Z_old = args
+                Pi = K.softmax(Z, axis=1)
+                Pi_old = K.stop_gradient(K.softmax(Z_old, axis=1))
+                return Pi / Pi_old
+            r = keras.layers.Lambda(proba_ratio)([Logits, Logits_target])
+            return ClippedSurrogateLoss(Adv), r
+
+        raise ValueError(
+            "unknown update_strategy '{}'".format(self.update_strategy))

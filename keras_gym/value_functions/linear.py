@@ -36,6 +36,12 @@ class LinearV(GenericV, LinearFunctionMixin):
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
 
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
+
     interaction : str or keras.layers.Layer, optional
 
         The desired feature interactions that are fed to the linear regression
@@ -66,20 +72,21 @@ class LinearV(GenericV, LinearFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD
-        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
-        documentation <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla `SGD
+        <https://keras.io/optimizers/#sgd>`_ optimizer is used. See `keras
+        documentation <https://keras.io/optimizers/>`_ for other options.
 
     **sgd_kwargs : keyword arguments
 
-        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
-        <https://keras.io/optimizers/#sgd>`_ for more details.
+        Keyword arguments for `keras.optimizers.SGD
+        <https://keras.io/optimizers/#sgd>`_.
 
     """
     def __init__(
             self, env,
             gamma=0.9,
             bootstrap_n=0.9,
+            bootstrap_with_target_model=False,
             interaction=None,
             optimizer=None,
             **sgd_kwargs):
@@ -88,10 +95,10 @@ class LinearV(GenericV, LinearFunctionMixin):
             env=env,
             gamma=gamma,
             bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self.interaction = interaction
         self._init_interaction_layer(interaction)
@@ -128,11 +135,9 @@ class LinearV(GenericV, LinearFunctionMixin):
             loss=tf.losses.huber_loss, optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for V(s)
 
-        # optional models
-        # V_target = forward_pass(S, variable_scope='target')
-        # self.target_model = keras.Model(S, V_target)
-        self.target_model = None
-        self.bootstrap_model = None
+        # target model
+        V_target = forward_pass(S, variable_scope='target')
+        self.target_model = keras.Model(S, V_target)
 
 
 class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
@@ -159,6 +164,12 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
         steps over which we're willing to delay bootstrapping. Large :math:`n`
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
+
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
 
     update_strategy : str, optional
 
@@ -231,20 +242,21 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD
-        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
-        documentation <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla `SGD
+        <https://keras.io/optimizers/#sgd>`_ optimizer is used. See `keras
+        documentation <https://keras.io/optimizers/>`_ for other options.
 
     **sgd_kwargs : keyword arguments
 
-        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
-        <https://keras.io/optimizers/#sgd>`_ for more details.
+        Keyword arguments for `keras.optimizers.SGD
+        <https://keras.io/optimizers/#sgd>`_.
 
     """
     def __init__(
             self, env,
             gamma=0.9,
             bootstrap_n=1,
+            bootstrap_with_target_model=False,
             update_strategy='sarsa',
             interaction=None,
             optimizer=None,
@@ -254,11 +266,11 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
             env=env,
             gamma=gamma,
             bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self.interaction = interaction
         self._init_interaction_layer(interaction)
@@ -302,11 +314,9 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
             loss=tf.losses.huber_loss, optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for type-I
 
-        # optional models
-        # Q_target = forward_pass(S, A, variable_scope='target')
-        # self.target_model = keras.Model([S, A], Q_target)
-        self.target_model = None
-        self.bootstrap_model = None
+        # target model
+        Q_target = forward_pass(S, A, variable_scope='target')
+        self.target_model = keras.Model([S, A], Q_target)
 
 
 class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
@@ -333,6 +343,12 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         steps over which we're willing to delay bootstrapping. Large :math:`n`
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
+
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
 
     update_strategy : str, optional
 
@@ -405,20 +421,21 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD
-        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
-        documentation <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla `SGD
+        <https://keras.io/optimizers/#sgd>`_ optimizer is used. See `keras
+        documentation <https://keras.io/optimizers/>`_ for other options.
 
     **sgd_kwargs : keyword arguments
 
-        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
-        <https://keras.io/optimizers/#sgd>`_ for more details.
+        Keyword arguments for `keras.optimizers.SGD
+        <https://keras.io/optimizers/#sgd>`_.
 
     """
     def __init__(
             self, env,
             gamma=0.9,
             bootstrap_n=1,
+            bootstrap_with_target_model=False,
             update_strategy='q_learning',
             interaction=None,
             optimizer=None,
@@ -428,11 +445,11 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
             env=env,
             gamma=gamma,
             bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self.interaction = interaction
         self._init_interaction_layer(interaction)
@@ -473,6 +490,6 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         self.train_model.compile(loss=loss, optimizer=self.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=Q)
 
-        # optional models
-        self.target_model = None
-        self.bootstrap_model = None
+        # target model
+        Q_target = forward_pass(S, variable_scope='target')
+        self.target_model = keras.Model(inputs=S, outputs=Q_target)

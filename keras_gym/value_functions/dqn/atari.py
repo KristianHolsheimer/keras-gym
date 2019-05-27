@@ -34,6 +34,12 @@ class AtariQ(GenericQTypeII):
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
 
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
+
     update_strategy : str, optional
 
         The update strategy that we use to select the (would-be) next-action
@@ -83,14 +89,15 @@ class AtariQ(GenericQTypeII):
 
     **adam_kwargs : keyword arguments
 
-        Keyword arguments for :class:`keras.optimizers.Adam`. See `keras docs
-        <https://keras.io/optimizers/#adam>`_ for more details.
+        Keyword arguments for `keras.optimizers.Adam
+        <https://keras.io/optimizers/#adam>`_.
 
     """  # noqa: E501
     def __init__(
             self, env,
             gamma=0.99,
             bootstrap_n=1,
+            bootstrap_with_target_model=False,
             update_strategy='q_learning',
             optimizer=None,
             **adam_kwargs):
@@ -99,11 +106,11 @@ class AtariQ(GenericQTypeII):
             env=env,
             gamma=gamma,
             bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self._init_optimizer(optimizer, adam_kwargs)
         self._init_models()
@@ -161,8 +168,6 @@ class AtariQ(GenericQTypeII):
         # target model
         Q_target = forward_pass(S, variable_scope='target')
         self.target_model = keras.Model(inputs=S, outputs=Q_target)
-
-        self.bootstrap_model = None
 
     def _init_optimizer(self, optimizer, adam_kwargs):
         if optimizer is None:

@@ -1,11 +1,40 @@
+from tensorflow import keras
 
-from ..utils import is_vfunction, is_qfunction, is_policy
+from ..utils import (
+    is_vfunction, is_qfunction, is_policy, check_tensor, check_numpy_array)
 from ..base.policy import BasePolicy
 from ..base.mixins import NumActionsMixin
 from ..base.function_approximators.generic import BaseFunctionApproximator
 
 
 class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
+    """
+    A generic actor-critic, adorning an :term:`updateable policy` with a
+    :term:`value function <state value function>`.
+
+    The added value of using :class:`ActorCritic` to combine a policy with a
+    value function is that it avoids having to feed in :term:`S` (potentially
+    very large) three times at training time. Instead, it only feeds it in
+    once.
+
+    Moreover, the way :class:`ActorCritic` is implemented allows for the policy
+    and value function to share parts of the computation graph, e.g. with a
+    multi-head architecture.
+
+    Parameters
+    ----------
+    policy : Policy object
+
+        An :term:`updateable policy`.
+
+    value_function : value-function object
+
+        A :term:`state value function` :math:`V(s)`. Support for state-action
+        value functions (Q-functions) is coming.
+
+        #TODO: implement for Q-functions  -Kris
+
+    """
     def __init__(self, policy, value_function):
         self.policy = policy
         self.value_function = value_function
@@ -15,6 +44,7 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         self._cache = self.value_function._cache
 
         self._check_function_types()
+        self._init_models()
 
     def update(self, s, a, r, done):
         """
@@ -92,14 +122,13 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
             SARSA (on-policy) updates.
 
         """
-        # TODO: This will be optimized such that S is only fed into the graph
-        # once instead of three times.
-        V = self.value_function.batch_eval(S, use_target_model=False)
-        V_next = self.value_function.batch_eval(S_next, use_target_model=True)
+        V_next = self.value_function.batch_eval(
+            S_next,
+            use_target_model=self.value_function.bootstrap_with_target_model)
         G = Rn + I_next * V_next
-
-        self.policy.batch_update(S, A, G - V)
-        self.value_function.batch_update(S, Rn, I_next, S_next)
+        check_numpy_array(G, ndim=1, dtype='float')
+        check_numpy_array(A, ndim=1, dtype='int')
+        self.train_model.train_on_batch([S, G], [A, G])
 
     def __call__(self, s):
         return self.policy(s)
@@ -125,3 +154,29 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         if self.policy.env != self.value_function.env:
             raise ValueError(
                 "the envs of policy and value_function do not match")
+
+    def _init_models(self):
+        shape = self.env.observation_space.shape
+        dtype = self.env.observation_space.dtype
+
+        # inputs
+        S = keras.Input(name='S', shape=shape, dtype=dtype)
+        G = keras.Input(name='G', shape=(1,), dtype='float')
+
+        # predictions
+        Z = self.policy.predict_model(S)
+        V = self.value_function.predict_model(S)
+
+        # check if shapes are what we expect
+        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        check_tensor(V, ndim=2, axis_size=1, axis=1)
+
+        # update loss with advantage coming directly from graph
+        policy_loss = self.policy.train_model.loss.set_advantage(G - V)
+        value_loss = self.value_function.train_model.loss
+
+        # joint model
+        self.train_model = keras.Model(inputs=[S, G], outputs=[Z, V])
+        self.train_model.compile(
+            loss=[policy_loss, value_loss],
+            optimizer=self.policy.train_model.optimizer)

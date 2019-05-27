@@ -1,7 +1,7 @@
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..losses import SoftmaxPolicyLossWithLogits
+from ..utils import check_tensor
 from ..base.function_approximators.linear import LinearFunctionMixin
 from ..base.function_approximators.generic import GenericSoftmaxPolicy
 
@@ -42,7 +42,7 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
 
             'vanilla'
                 Plain vanilla policy gradient. The corresponding (surrogate)
-                loss function that we use is:
+                objective that we use is:
 
                 .. math::
 
@@ -50,8 +50,8 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
 
             'ppo'
                 `Proximal policy optimization
-                <https://arxiv.org/abs/1707.06347>`_ uses a clipped proximal
-                loss:
+                <https://arxiv.org/abs/1707.06347>`_ uses a clipped surrogate
+                objective:
 
                 .. math::
 
@@ -68,8 +68,6 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
                     r(\\theta)\\ =\\ \\frac
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
-
-                #TODO: to be implemented -Kris
 
     interaction : str or keras.layers.Layer, optional
 
@@ -101,14 +99,14 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD
-        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
-        documentation <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla `SGD
+        <https://keras.io/optimizers/#sgd>`_ optimizer is used. See `keras
+        documentation <https://keras.io/optimizers/>`_ for other options.
 
     **sgd_kwargs : keyword arguments
 
-        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
-        <https://keras.io/optimizers/#sgd>`_ for more details.
+        Keyword arguments for `keras.optimizers.SGD
+        <https://keras.io/optimizers/#sgd>`_.
 
     """
     def __init__(
@@ -155,22 +153,15 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
 
         # computation graph
         Logits = forward_pass(S, variable_scope='primary')
+        Logits_target = forward_pass(S, variable_scope='target')
+        check_tensor(Logits, ndim=2, axis_size=self.num_actions, axis=1)
+        check_tensor(Logits_target, ndim=2, axis_size=self.num_actions, axis=1)
 
-        # loss
-        if self.update_strategy == 'vanilla':
-            loss = SoftmaxPolicyLossWithLogits(Adv)
-        elif self.update_strategy == 'trpo':
-            raise NotImplementedError("update_strategy == 'trpo'")  # TODO
-        elif self.update_strategy == 'ppo':
-            raise NotImplementedError("update_strategy == 'ppo'")  # TODO
-        else:
-            raise ValueError(
-                "unknown update_strategy '{}'".format(self.update_strategy))
+        # loss and target tensor (depends on self.update_strategy)
+        loss, Y = self._policy_loss_and_target(Adv, Logits, Logits_target)
 
-        # regular models
-        self.train_model = keras.Model(inputs=[S, Adv], outputs=Logits)
+        # models
+        self.train_model = keras.Model(inputs=[S, Adv], outputs=Y)
         self.train_model.compile(loss=loss, optimizer=self.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=Logits)
-
-        # optional models
-        self.target_model = None
+        self.target_model = keras.Model(inputs=S, outputs=Logits_target)

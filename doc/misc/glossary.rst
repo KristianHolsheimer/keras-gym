@@ -97,15 +97,6 @@ approximator object:
         in DQN we use it for reducing the variance of the bootstrapped target
         by synchronizing with :term:`predict_model` only periodically.
 
-    bootstrap_model
-
-        This :class:`keras.Model` is used for bootstrapping. This is only used
-        in value-based control. It computes the bootstrapped target internally,
-        as part of the computation graph of the keras model. The use of this
-        kind of keras model is only there for optimizing computation
-        performance.
-
-
 .. note::
 
     The specific input depends on the type of function approximator you're

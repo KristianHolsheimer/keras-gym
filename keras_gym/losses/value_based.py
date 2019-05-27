@@ -2,14 +2,14 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from ..utils import project_onto_actions_tf, check_tensor
-
+from ..base.losses import BaseLoss
 
 __all__ = (
     'ProjectedSemiGradientLoss',
 )
 
 
-class ProjectedSemiGradientLoss:
+class ProjectedSemiGradientLoss(BaseLoss):
     """
     Loss function for type-II Q-function.
 
@@ -39,7 +39,7 @@ class ProjectedSemiGradientLoss:
         self.G = K.stop_gradient(G)
         self.base_loss = base_loss
 
-    def __call__(self, A, Q_pred):
+    def __call__(self, A, Q_pred, sample_weight=None):
         """
         Compute the projected MSE.
 
@@ -58,13 +58,19 @@ class ProjectedSemiGradientLoss:
 
             The predicted values :math:`Q(s,.)`, a.k.a. ``y_pred``.
 
+        sample_weight : 1d Tensor, dtype = float, shape = [batch_size], optional
+
+            Not yet implemented; will be ignored.
+
+            #TODO: implement this -Kris
+
         Returns
         -------
         loss : 0d Tensor (scalar)
 
             The batch loss.
 
-        """
+        """  # noqa: E501
         # input shape of A is generally [None, None]
         check_tensor(A, ndim=2)
         A.set_shape([None, 1])     # we know that axis=1 must have size 1

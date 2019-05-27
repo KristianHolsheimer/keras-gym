@@ -27,6 +27,7 @@ Documentation
     policies/index
     caching/index
     environments/index
+    misc/losses
     misc/utils
     misc/glossary
     misc/release_notes

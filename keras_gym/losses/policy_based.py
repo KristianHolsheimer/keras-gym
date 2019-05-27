@@ -1,16 +1,17 @@
 import tensorflow as tf
-from tensorflow.python.keras.losses import Loss
 from tensorflow.keras import backend as K
 
+from ..base.losses import BasePolicyLoss
 from ..utils import project_onto_actions_tf, check_tensor
 
 
 __all__ = (
     'SoftmaxPolicyLossWithLogits',
+    'ClippedSurrogateLoss',
 )
 
 
-class SoftmaxPolicyLossWithLogits(Loss):
+class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
     """
     Softmax-policy loss (with logits).
 
@@ -38,22 +39,6 @@ class SoftmaxPolicyLossWithLogits(Loss):
         The advantages, one for each time step.
 
     """
-    name = 'SoftmaxPolicyLossWithLogits'
-
-    def __init__(self, Adv):
-        self.set_advantage(Adv)
-
-    def set_advantage(self, Adv):
-        check_tensor(Adv, dtype='float')
-
-        if K.ndim(Adv) == 2:
-            check_tensor(Adv, axis_size=0, axis=1)
-            Adv = K.squeeze(Adv, axis=1)
-
-        check_tensor(Adv, ndim=1)
-        self.Adv = K.stop_gradient(Adv)
-        return self
-
     @staticmethod
     def logpi_surrogate(logits):
         """
@@ -158,5 +143,105 @@ class SoftmaxPolicyLossWithLogits(Loss):
 
         # construct the final surrogate loss
         surrogate_loss = -K.mean(self.Adv * logpi)
+
+        return surrogate_loss
+
+
+class ClippedSurrogateLoss(BasePolicyLoss):
+    """
+
+    The clipped surrogate loss used in `PPO
+    <https://arxiv.org/abs/1707.06347>`_.
+
+    .. math::
+
+        L_t(\\theta)\\ =\\ -\\min\\Big(
+            r_t(\\theta)\\,\\mathcal{A}(S_t,A_t)\\,,\\
+            \\text{clip}\\big(
+                r_t(\\theta), 1-\\epsilon, 1+\\epsilon\\big)
+                    \\,\\mathcal{A}(S_t,A_t)\\Big)
+
+    where :math:`r(\\theta)` is the probability ratio:
+
+    .. math::
+
+        r_t(\\theta)\\ =\\ \\frac
+            {\\pi(A_t|S_t,\\theta)}
+            {\\pi(A_t|S_t,\\theta_\\text{old})}
+
+    Parameters
+    ----------
+
+    Adv : 1d Tensor, dtype: float, shape: [batch_size]
+
+        The advantages, one for each time step.
+
+    epsilon : float between 0 and 1, optional
+
+        Hyperparameter that determines how we clip the surrogate loss.
+
+    """
+    def __init__(self, Adv, epsilon=0.2):
+        super().__init__(Adv)
+        self.epsilon = float(epsilon)
+
+    def __call__(self, A, proba_ratios, sample_weight=None):
+        """
+        Compute the policy-gradient surrogate loss.
+
+        Parameters
+        ----------
+        A : 2d Tensor, dtype = int, shape = [batch_size, 1]
+
+            This is a batch of actions that were actually taken. This argument
+            of the loss function is usually reserved for ``y_true``, i.e. a
+            prediction target. In this case, ``A`` doesn't act as a prediction
+            target but rather as a mask. We use this mask to project our
+            predicted values down to those for which we actually received a
+            feedback signal.
+
+        proba_ratios : 2d Tensor, shape = [batch_size, num_actions]
+
+            The predicted probability ratios
+
+            .. math::
+
+                r_t(\\theta)\\ =\\
+                \\frac{\\pi(.|S_t,\\theta)}{\\pi(.|S_t,\\theta_\\text{old})}
+
+            These play the role of  ``y_pred``.
+
+        sample_weight : 1d Tensor, dtype = float, shape = [batch_size], optional
+
+            Not yet implemented; will be ignored.
+
+            #TODO: implement this -Kris
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar)
+
+            The batch loss.
+
+        """  # noqa: E501
+        batch_size = K.int_shape(self.Adv)[0]
+
+        # input shape of A is generally [None, None]
+        A.set_shape([None, 1])     # we know that axis=1 must have size 1
+        A = tf.squeeze(A, axis=1)  # A.shape = [batch_size]
+        A = tf.cast(A, tf.int64)   # must be int (we'll use `A` for slicing)
+
+        # check shapes
+        check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
+        check_tensor(proba_ratios, ndim=2, axis_size=batch_size, axis=0)
+
+        # project onto actions taken
+        # shape: [batch_size, num_actions] --> [batch_size]
+        r = project_onto_actions_tf(proba_ratios, A)
+
+        # construct the final surrogate loss
+        surrogate_loss = -K.mean(K.minimum(
+            r * self.Adv,
+            K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
 
         return surrogate_loss
