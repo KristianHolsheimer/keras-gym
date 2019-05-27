@@ -2,12 +2,13 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ...utils import (
-    project_onto_actions_np, project_onto_actions_tf, check_numpy_array,
-    softmax, argmax)
+    project_onto_actions_np, check_numpy_array, softmax, argmax)
 from ...caching import NStepCache
+from ...losses import SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss
 from ..errors import MissingModelError
 from ..mixins import RandomStateMixin, NumActionsMixin, LoggerMixin
 from ..policy import BasePolicy
@@ -992,3 +993,22 @@ class GenericSoftmaxPolicy(
 
         """
         self.train_model.train_on_batch([S, Adv], A)
+
+    def _policy_loss_and_target(self, Adv, Logits, Logits_target):
+        if self.update_strategy == 'vanilla':
+            return SoftmaxPolicyLossWithLogits(Adv), Logits
+
+        if self.update_strategy == 'trpo':
+            raise NotImplementedError("update_strategy == 'trpo'")  # TODO
+
+        if self.update_strategy == 'ppo':
+            def proba_ratio(args):
+                Z, Z_old = args
+                Pi = K.softmax(Z, axis=1)
+                Pi_old = K.stop_gradient(K.softmax(Z_old, axis=1))
+                return Pi / Pi_old
+            r = keras.layers.Lambda(proba_ratio)([Logits, Logits_target])
+            return ClippedSurrogateLoss(Adv), r
+
+        raise ValueError(
+            "unknown update_strategy '{}'".format(self.update_strategy))
