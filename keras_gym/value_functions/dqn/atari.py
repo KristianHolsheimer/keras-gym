@@ -83,8 +83,8 @@ class AtariQ(GenericQTypeII):
 
     **adam_kwargs : keyword arguments
 
-        Keyword arguments for :class:`keras.optimizers.Adam`. See `keras docs
-        <https://keras.io/optimizers/#adam>`_ for more details.
+        Keyword arguments for `keras.optimizers.Adam
+        <https://keras.io/optimizers/#adam>`_.
 
     """  # noqa: E501
     def __init__(

@@ -101,14 +101,14 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the plain vanilla SGD
-        optimizer is used, :class:`keras.optimizers.SGD`. See `keras
-        documentation <https://keras.io/optimizers/>`_ for more details.
+        If left unspecified (``optimizer=None``), the plain vanilla `SGD
+        <https://keras.io/optimizers/#sgd>`_ optimizer is used. See `keras
+        documentation <https://keras.io/optimizers/>`_ for other options.
 
     **sgd_kwargs : keyword arguments
 
-        Keyword arguments for :class:`keras.optimizers.SGD`. See `keras docs
-        <https://keras.io/optimizers/#sgd>`_ for more details.
+        Keyword arguments for `keras.optimizers.SGD
+        <https://keras.io/optimizers/#sgd>`_.
 
     """
     def __init__(
