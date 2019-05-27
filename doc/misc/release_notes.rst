@@ -7,6 +7,8 @@ v0.2.11
 
 - optimized ActorCritic to avoid feeding in :term:`S` three times instead of once
 - removed all mention of ``bootstrap_model``
+- implemented PPO with :class:`ClippedSurrogateLoss <keras_gym.losses.ClippedSurrogateLoss>`
+
 
 v0.2.10
 -------
