@@ -25,7 +25,7 @@ class ProjectedSemiGradientLoss(Loss):
 
     base_loss : keras loss function, optional
 
-        Keras loss function. Default: :class:`huber_loss
+        Keras loss function. Default: :func:`huber_loss
         <tensorflow.losses.huber_loss>`.
 
     """

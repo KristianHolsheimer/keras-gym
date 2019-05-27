@@ -47,7 +47,7 @@ class SoftmaxPolicyLossWithLogits(Loss):
         check_tensor(Adv, dtype='float')
 
         if K.ndim(Adv) == 2:
-            check_tensor(Adv, axis_size=0, axis=1)
+            check_tensor(Adv, axis_size=1, axis=1)
             Adv = K.squeeze(Adv, axis=1)
 
         check_tensor(Adv, ndim=1)
