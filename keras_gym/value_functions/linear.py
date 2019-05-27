@@ -36,6 +36,12 @@ class LinearV(GenericV, LinearFunctionMixin):
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
 
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
+
     interaction : str or keras.layers.Layer, optional
 
         The desired feature interactions that are fed to the linear regression
@@ -80,6 +86,7 @@ class LinearV(GenericV, LinearFunctionMixin):
             self, env,
             gamma=0.9,
             bootstrap_n=0.9,
+            bootstrap_with_target_model=False,
             interaction=None,
             optimizer=None,
             **sgd_kwargs):
@@ -88,6 +95,7 @@ class LinearV(GenericV, LinearFunctionMixin):
             env=env,
             gamma=gamma,
             bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
             train_model=None,  # set models later
             predict_model=None,
             target_model=None)
@@ -127,10 +135,9 @@ class LinearV(GenericV, LinearFunctionMixin):
             loss=tf.losses.huber_loss, optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for V(s)
 
-        # optional models
-        # V_target = forward_pass(S, variable_scope='target')
-        # self.target_model = keras.Model(S, V_target)
-        self.target_model = None
+        # target model
+        V_target = forward_pass(S, variable_scope='target')
+        self.target_model = keras.Model(S, V_target)
 
 
 class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
@@ -157,6 +164,12 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
         steps over which we're willing to delay bootstrapping. Large :math:`n`
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
+
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
 
     update_strategy : str, optional
 
@@ -243,6 +256,7 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
             self, env,
             gamma=0.9,
             bootstrap_n=1,
+            bootstrap_with_target_model=False,
             update_strategy='sarsa',
             interaction=None,
             optimizer=None,
@@ -252,6 +266,7 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
             env=env,
             gamma=gamma,
             bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
@@ -299,10 +314,9 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
             loss=tf.losses.huber_loss, optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for type-I
 
-        # optional models
-        # Q_target = forward_pass(S, A, variable_scope='target')
-        # self.target_model = keras.Model([S, A], Q_target)
-        self.target_model = None
+        # target model
+        Q_target = forward_pass(S, A, variable_scope='target')
+        self.target_model = keras.Model([S, A], Q_target)
 
 
 class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
@@ -329,6 +343,12 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         steps over which we're willing to delay bootstrapping. Large :math:`n`
         corresponds to Monte Carlo updates and :math:`n=1` corresponds to
         TD(0).
+
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
 
     update_strategy : str, optional
 
@@ -415,6 +435,7 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
             self, env,
             gamma=0.9,
             bootstrap_n=1,
+            bootstrap_with_target_model=False,
             update_strategy='q_learning',
             interaction=None,
             optimizer=None,
@@ -424,6 +445,7 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
             env=env,
             gamma=gamma,
             bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
@@ -468,5 +490,6 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         self.train_model.compile(loss=loss, optimizer=self.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=Q)
 
-        # optional models
-        self.target_model = None
+        # target model
+        Q_target = forward_pass(S, variable_scope='target')
+        self.target_model = keras.Model(inputs=S, outputs=Q_target)

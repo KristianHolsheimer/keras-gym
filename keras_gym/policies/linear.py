@@ -172,5 +172,6 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         self.train_model.compile(loss=loss, optimizer=self.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=Logits)
 
-        # optional models
-        self.target_model = None
+        # target model
+        Logits_target = forward_pass(S, variable_scope='target')
+        self.target_model = keras.Model(inputs=S, outputs=Logits_target)

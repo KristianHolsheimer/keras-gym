@@ -122,7 +122,9 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
             SARSA (on-policy) updates.
 
         """
-        V_next = self.value_function.batch_eval(S_next, use_target_model=True)
+        V_next = self.value_function.batch_eval(
+            S_next,
+            use_target_model=self.value_function.bootstrap_with_target_model)
         G = Rn + I_next * V_next
         check_numpy_array(G, ndim=1, dtype='float')
         check_numpy_array(A, ndim=1, dtype='int')
