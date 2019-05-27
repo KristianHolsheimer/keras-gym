@@ -5,7 +5,7 @@ Release Notes
 v0.2.11
 -------
 
-- optimized ActorCritic to avoid feeding in :ters:`S` three times instead of once
+- optimized ActorCritic to avoid feeding in :term:`S` three times instead of once
 - removed all mention of ``bootstrap_model``
 
 v0.2.10
