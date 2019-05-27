@@ -51,7 +51,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
     """
     def __init__(
             self,
-            capacity=1000000,
+            capacity,
             batch_size=32,
             num_frames=None,
             bootstrap_n=1,
@@ -71,13 +71,42 @@ class ExperienceReplayBuffer(RandomStateMixin):
         self._initialized = False
 
     @classmethod
-    def from_q_function(cls, q_function, capacity=1000000, batch_size=32):
+    def from_qfunction(cls, qfunction, capacity, batch_size=32):
+        """
+        Create a new instance by extracting some settings from a Q-function.
+
+        The settings that are extracted from the Q-function are: ``gamma``,
+        ``bootstrap_n`` and ``num_frames``. The latter is taken from the
+        Q-function's ``env`` attribute.
+
+        Parameters
+        ----------
+        qfunction : Q-function object
+
+            A state-action value function.
+
+        capacity : positive int
+
+            The capacity of the experience replay buffer. DQN typically uses
+            ``capacity=1000000``.
+
+        batch_size : positive int, optional
+
+            The desired batch size of the sample.
+
+        Returns
+        -------
+        experience_replay_buffer
+
+            A new instance.
+
+        """
         self = cls(
             capacity=capacity,
             batch_size=batch_size,
-            gamma=q_function.gamma,
-            bootstrap_n=q_function.bootstrap_n,
-            num_frames=get_env_attr(q_function.env, 'num_frames'))
+            gamma=qfunction.gamma,
+            bootstrap_n=qfunction.bootstrap_n,
+            num_frames=get_env_attr(qfunction.env, 'num_frames'))
         return self
 
     def add(self, s, a, r, done, episode_id):
