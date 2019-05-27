@@ -102,8 +102,7 @@ class AtariQ(GenericQTypeII):
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self._init_optimizer(optimizer, adam_kwargs)
         self._init_models()
@@ -161,8 +160,6 @@ class AtariQ(GenericQTypeII):
         # target model
         Q_target = forward_pass(S, variable_scope='target')
         self.target_model = keras.Model(inputs=S, outputs=Q_target)
-
-        self.bootstrap_model = None
 
     def _init_optimizer(self, optimizer, adam_kwargs):
         if optimizer is None:

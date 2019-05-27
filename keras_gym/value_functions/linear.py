@@ -90,8 +90,7 @@ class LinearV(GenericV, LinearFunctionMixin):
             bootstrap_n=bootstrap_n,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self.interaction = interaction
         self._init_interaction_layer(interaction)
@@ -132,7 +131,6 @@ class LinearV(GenericV, LinearFunctionMixin):
         # V_target = forward_pass(S, variable_scope='target')
         # self.target_model = keras.Model(S, V_target)
         self.target_model = None
-        self.bootstrap_model = None
 
 
 class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
@@ -257,8 +255,7 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self.interaction = interaction
         self._init_interaction_layer(interaction)
@@ -306,7 +303,6 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
         # Q_target = forward_pass(S, A, variable_scope='target')
         # self.target_model = keras.Model([S, A], Q_target)
         self.target_model = None
-        self.bootstrap_model = None
 
 
 class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
@@ -431,8 +427,7 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
             update_strategy=update_strategy,
             train_model=None,  # set models later
             predict_model=None,
-            target_model=None,
-            bootstrap_model=None)
+            target_model=None)
 
         self.interaction = interaction
         self._init_interaction_layer(interaction)
@@ -475,4 +470,3 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
 
         # optional models
         self.target_model = None
-        self.bootstrap_model = None
