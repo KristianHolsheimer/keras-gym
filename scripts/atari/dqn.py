@@ -20,8 +20,9 @@ env = TrainMonitor(env)
 
 
 # value function
-Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1)
-buffer = ExperienceReplayBuffer.from_q_function(Q, capacity=1e6, batch_size=32)
+Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1,
+           bootstrap_with_target_model=True)
+buffer = ExperienceReplayBuffer.from_qfunction(Q, capacity=1e6, batch_size=32)
 policy = EpsilonGreedy(Q)
 
 
