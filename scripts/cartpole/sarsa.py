@@ -10,8 +10,8 @@ env = gym.make('CartPole-v0')
 env = DefaultPreprocessor(env)
 
 # value function and its derived policy
-Q = LinearQTypeI(env, lr=0.02, momentum=0.9, gamma=0.8,
-                 update_strategy='sarsa', bootstrap_n=1)
+Q = LinearQTypeI(env, update_strategy='sarsa', bootstrap_n=1, gamma=0.8,
+                 interaction='elementwise_quadratic', lr=0.02, momentum=0.9)
 policy = EpsilonGreedy(Q)
 
 # static parameters
