@@ -27,7 +27,7 @@ flake8:
 upload: all
 	$(PYTHON_EXEC) -m twine upload -u krispisvis dist/*
 
-test:
+test: flake8
 	$(PYTHON_EXEC) -m pytest
 
 nbconvert:
