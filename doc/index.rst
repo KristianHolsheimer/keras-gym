@@ -13,7 +13,7 @@ keras-gym
 
 
 Create simple, reproducible RL solutions with OpenAI gym environments and Keras
-function approximators. Also, compatibility wrappers for scikit-learn are included.
+function approximators.
 
 
 Documentation

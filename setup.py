@@ -31,7 +31,7 @@ dev_status = {
 
 long_description = """
 keras-gym: Plug-n-play reinforcement learning in python with OpenAI Gym and
-Keras. Other packages such as scikit-learn are supported too.
+Keras.
 
 For full documentation, go to:
 
