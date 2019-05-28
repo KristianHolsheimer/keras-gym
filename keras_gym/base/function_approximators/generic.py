@@ -120,7 +120,7 @@ class GenericV(BaseFunctionApproximator):
         Used for predicting. For a :term:`state value function` the
         :term:`target_model` and :term:`predict_model` are the same.
 
-    target_model : keras.Model(:term:`S`, :term:`V`), optional
+    target_model : keras.Model(:term:`S`, :term:`V`)
 
         A :term:`target_model` is used to make predictions on a bootstrapping
         scenario. It can be advantageous to use a point-in-time copy of the
@@ -145,8 +145,7 @@ class GenericV(BaseFunctionApproximator):
 
     """
     def __init__(
-            self, env, train_model, predict_model,
-            target_model=None,
+            self, env, train_model, predict_model, target_model,
             gamma=0.9,
             bootstrap_n=1,
             bootstrap_with_target_model=False):
@@ -275,8 +274,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
     UPDATE_STRATEGIES = ('sarsa', 'q_learning', 'double_q_learning')
 
     def __init__(
-            self, env, train_model, predict_model,
-            target_model=None,
+            self, env, train_model, predict_model, target_model,
             gamma=0.9,
             bootstrap_n=1,
             bootstrap_with_target_model=False,
@@ -549,7 +547,7 @@ class GenericQTypeI(BaseGenericQ):
         function>` Q-functions, the :term:`target_model` and
         :term:`predict_model` are the same.
 
-    target_model : keras.Model(:term:`S`, :term:`Q_sa`), optional
+    target_model : keras.Model(:term:`S`, :term:`Q_sa`)
 
         A :term:`target_model` is used to make predictions on a bootstrapping
         scenario. It can be advantageous to use a point-in-time copy of the
@@ -654,7 +652,7 @@ class GenericQTypeII(BaseGenericQ):
 
         Used for predicting.
 
-    target_model : keras.Model(:term:`S`, :term:`Q_s`), optional
+    target_model : keras.Model(:term:`S`, :term:`Q_s`)
 
         A :term:`target_model` is used to make predictions on a bootstrapping
         scenario. It can be advantageous to use a point-in-time copy of the
@@ -757,7 +755,7 @@ class GenericSoftmaxPolicy(
 
         Used for predicting.
 
-    target_model : keras.Model(:term:`S`, :term:`Logits`), optional
+    target_model : keras.Model(:term:`S`, :term:`Logits`)
 
         A :term:`target_model` is used to make predictions on a bootstrapping
         scenario. It can be advantageous to use a point-in-time copy of the
@@ -807,8 +805,7 @@ class GenericSoftmaxPolicy(
     UPDATE_STRATEGIES = ('vanilla', 'trpo', 'ppo')
 
     def __init__(
-            self, env, train_model, predict_model,
-            target_model=None,
+            self, env, train_model, predict_model, target_model,
             update_strategy='vanilla',
             random_seed=None):
 
