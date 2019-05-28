@@ -1,7 +1,5 @@
-import pytest
 import numpy as np
 from .experience_replay import ExperienceReplayBuffer
-from ..base.errors import InsufficientCacheError
 
 
 class TestExperienceReplayBuffer:
