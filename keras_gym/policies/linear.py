@@ -22,17 +22,6 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
 
         A gym environment.
 
-    gamma : float, optional
-
-        The discount factor for discounting future rewards.
-
-    bootstrap_n : positive int, optional
-
-        The number of steps in n-step bootstrapping. It specifies the number of
-        steps over which we're willing to delay bootstrapping. Large :math:`n`
-        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
-        TD(0).
-
     update_strategy : str, optional
 
         The strategy for updating our policy. This typically determines the
@@ -97,6 +86,10 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         unspecified (`interaction=None`), the interaction layer is omitted
         altogether.
 
+    random_seed : int, optional
+
+        Sets the random state to get reproducible results.
+
     optimizer : keras.optimizers.Optimizer, optional
 
         If left unspecified (``optimizer=None``), the plain vanilla `SGD
@@ -113,12 +106,14 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
             self, env,
             update_strategy='vanilla',
             interaction=None,
+            random_seed=None,
             optimizer=None,
             **sgd_kwargs):
 
         super().__init__(
             env=env,
             update_strategy=update_strategy,
+            random_seed=random_seed,
             train_model=None,  # set models later
             predict_model=None,
             target_model=None)
