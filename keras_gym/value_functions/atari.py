@@ -1,18 +1,106 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import backend as K
 
-from ...utils import diff_transform_matrix
-from ...losses import ProjectedSemiGradientLoss
-from ...base.function_approximators.generic import GenericQTypeII
-
+from ..losses import ProjectedSemiGradientLoss
+from ..base.function_approximators.generic import GenericV, GenericQTypeII
+from ..base.function_approximators.atari import AtariFunctionMixin
 
 __all__ = (
+    'AtariV',
     'AtariQ',
 )
 
 
-class AtariQ(GenericQTypeII):
+class AtariV(GenericV, AtariFunctionMixin):
+    """
+    A specific :term:`state value function>` for Atari environments.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    gamma : float, optional
+
+        The discount factor for discounting future rewards.
+
+    bootstrap_n : positive int, optional
+
+        The number of steps in n-step bootstrapping. It specifies the number of
+        steps over which we're willing to delay bootstrapping. Large :math:`n`
+        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
+        TD(0).
+
+    bootstrap_with_target_model : bool, optional
+
+        Whether to use the :term:`target_model` when constructing a
+        bootstrapped target. If False (default), the primary
+        :term:`predict_model` is used.
+
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the Adam optimizer is used,
+        :class:`keras.optimizers.Adam`. See `keras documentation
+        <https://keras.io/optimizers/>`_ for more details.
+
+    **adam_kwargs : keyword arguments
+
+        Keyword arguments for `keras.optimizers.Adam
+        <https://keras.io/optimizers/#adam>`_.
+
+    """
+    def __init__(
+            self, env,
+            gamma=0.99,
+            bootstrap_n=1,
+            bootstrap_with_target_model=False,
+            optimizer=None,
+            **adam_kwargs):
+
+        super().__init__(
+            env=env,
+            gamma=gamma,
+            bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model,
+            train_model=None,  # set models later
+            predict_model=None,
+            target_model=None)
+
+        self._init_optimizer(optimizer, adam_kwargs)
+        self._init_models()
+        self._check_attrs()
+
+    def _init_models(self):
+        shape = self.env.observation_space.shape
+        dtype = self.env.observation_space.dtype
+
+        S = keras.Input(name='S', shape=shape, dtype=dtype)
+
+        # forward pass
+        def forward_pass(S, variable_scope):
+            X = self._shared_forward_pass(S, variable_scope)  # from mixin
+            head = keras.layers.Dense(
+                units=1,
+                kernel_initializer='zeros',
+                name=(variable_scope + '/V'))
+            return head(X)
+
+        # regular computation graph
+        V = forward_pass(S, variable_scope='primary')
+
+        # regular models
+        self.train_model = keras.Model(inputs=S, outputs=V)
+        self.train_model.compile(
+            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+        self.predict_model = keras.Model(inputs=S, outputs=V)
+
+        # target model
+        V_target = forward_pass(S, variable_scope='target')
+        self.target_model = keras.Model(inputs=S, outputs=V_target)
+
+
+class AtariQ(GenericQTypeII, AtariFunctionMixin):
     """
     A specific :term:`type-II <type-II state-action value
     function>` Q-function for Atari environments.
@@ -92,7 +180,7 @@ class AtariQ(GenericQTypeII):
         Keyword arguments for `keras.optimizers.Adam
         <https://keras.io/optimizers/#adam>`_.
 
-    """  # noqa: E501
+    """
     def __init__(
             self, env,
             gamma=0.99,
@@ -123,36 +211,14 @@ class AtariQ(GenericQTypeII):
         S = keras.Input(name='S', shape=shape, dtype=dtype)
         G = keras.Input(name='G', shape=(), dtype='float')
 
-        def diff_transform(S):
-            S = K.cast(S, 'float32') / 255
-            M = diff_transform_matrix(num_frames=shape[-1])
-            return K.dot(S, M)
-
-        def layers(variable_scope):
-            def v(name):
-                return '{}/{}'.format(variable_scope, name)
-
-            return [
-                keras.layers.Lambda(diff_transform),
-                keras.layers.Conv2D(
-                    name=v('conv1'), filters=16, kernel_size=8, strides=4,
-                    activation='relu'),
-                keras.layers.Conv2D(
-                    name=v('conv2'), filters=32, kernel_size=4, strides=2,
-                    activation='relu'),
-                keras.layers.Flatten(name=v('flatten')),
-                keras.layers.Dense(
-                    name=v('dense1'), units=256, activation='relu'),
-                keras.layers.Dense(
-                    name=v('outputs'), units=self.num_actions,
-                    kernel_initializer='zeros')]
-
         # forward pass
-        def forward_pass(X, variable_scope):
-            Y = X
-            for layer in layers(variable_scope):
-                Y = layer(Y)
-            return Y
+        def forward_pass(S, variable_scope):
+            X = self._shared_forward_pass(S, variable_scope)  # from mixin
+            head = keras.layers.Dense(
+                units=self.num_actions,
+                kernel_initializer='zeros',
+                name=(variable_scope + '/Q'))
+            return head(X)
 
         # regular computation graph
         Q = forward_pass(S, variable_scope='primary')
@@ -168,14 +234,3 @@ class AtariQ(GenericQTypeII):
         # target model
         Q_target = forward_pass(S, variable_scope='target')
         self.target_model = keras.Model(inputs=S, outputs=Q_target)
-
-    def _init_optimizer(self, optimizer, adam_kwargs):
-        if optimizer is None:
-            self.optimizer = keras.optimizers.Adam(**adam_kwargs)
-        elif isinstance(optimizer, keras.optimizers.Optimizer):
-            self.optimizer = optimizer
-        else:
-            raise ValueError(
-                "unknown optimizer, expected a keras.optimizers.Optimizer or "
-                "None (which sets the default keras.optimizers.Adam "
-                "optimizer)")
