@@ -95,7 +95,7 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
         K.get_session().run(
             self._target_model_sync_op,
             feed_dict={self._target_model_sync_tau: tau})
-        self.logger.info("updated target_model")
+        self.logger.info("updated target_mode with tau = {:.3g}".format(tau))
 
 
 class GenericV(BaseFunctionApproximator):
