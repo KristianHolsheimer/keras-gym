@@ -763,17 +763,6 @@ class GenericSoftmaxPolicy(
         scenario. It can be advantageous to use a point-in-time copy of the
         :term:`predict_model` to construct a bootstrapped target.
 
-    gamma : float, optional
-
-        The discount factor for discounting future rewards.
-
-    bootstrap_n : positive int, optional
-
-        The number of steps in n-step bootstrapping. It specifies the number of
-        steps over which we're willing to delay bootstrapping. Large :math:`n`
-        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
-        TD(0).
-
     update_strategy : str, optional
 
         The strategy for updating our policy. This typically determines the
@@ -810,7 +799,9 @@ class GenericSoftmaxPolicy(
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
 
-                #TODO: to be implemented -Kris
+    random_seed : int, optional
+
+        Sets the random state to get reproducible results.
 
     """
     UPDATE_STRATEGIES = ('vanilla', 'trpo', 'ppo')
