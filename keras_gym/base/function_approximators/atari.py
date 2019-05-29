@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
@@ -11,6 +13,15 @@ __all__ = (
 
 
 class AtariFunctionMixin(BaseFunctionApproximator):
+    @abstractmethod
+    def _head(self, X, variable_scope):
+        pass
+
+    def _forward_pass(self, S, variable_scope):
+        X = self._shared_forward_pass(S, variable_scope)
+        Y = self._head(X, variable_scope)
+        return Y
+
     def _shared_forward_pass(self, S, variable_scope):
         assert variable_scope in ('primary', 'target')
 
@@ -24,7 +35,7 @@ class AtariFunctionMixin(BaseFunctionApproximator):
             return K.dot(S, M)
 
         layers = [
-            keras.layers.Lambda(diff_transform),
+            keras.layers.Lambda(diff_transform, name=v('diff_transform')),
             keras.layers.Conv2D(
                 name=v('conv1'), filters=16, kernel_size=8, strides=4,
                 activation='relu'),

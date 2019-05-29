@@ -71,23 +71,21 @@ class AtariV(GenericV, AtariFunctionMixin):
         self._init_models()
         self._check_attrs()
 
+    def _head(self, X, variable_scope):
+        layer = keras.layers.Dense(
+            units=1,
+            kernel_initializer='zeros',
+            name=(variable_scope + '/V'))
+        return layer(X)
+
     def _init_models(self):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
         S = keras.Input(name='S', shape=shape, dtype=dtype)
 
-        # forward pass
-        def forward_pass(S, variable_scope):
-            X = self._shared_forward_pass(S, variable_scope)  # from mixin
-            head = keras.layers.Dense(
-                units=1,
-                kernel_initializer='zeros',
-                name=(variable_scope + '/V'))
-            return head(X)
-
         # regular computation graph
-        V = forward_pass(S, variable_scope='primary')
+        V = self._forward_pass(S, variable_scope='primary')
 
         # regular models
         self.train_model = keras.Model(inputs=S, outputs=V)
@@ -96,7 +94,7 @@ class AtariV(GenericV, AtariFunctionMixin):
         self.predict_model = keras.Model(inputs=S, outputs=V)
 
         # target model
-        V_target = forward_pass(S, variable_scope='target')
+        V_target = self._forward_pass(S, variable_scope='target')
         self.target_model = keras.Model(inputs=S, outputs=V_target)
 
 
@@ -204,6 +202,13 @@ class AtariQ(GenericQTypeII, AtariFunctionMixin):
         self._init_models()
         self._check_attrs()
 
+    def _head(self, X, variable_scope):
+        layer = keras.layers.Dense(
+            units=self.num_actions,
+            kernel_initializer='zeros',
+            name=(variable_scope + '/Q'))
+        return layer(X)
+
     def _init_models(self):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
@@ -211,17 +216,8 @@ class AtariQ(GenericQTypeII, AtariFunctionMixin):
         S = keras.Input(name='S', shape=shape, dtype=dtype)
         G = keras.Input(name='G', shape=(), dtype='float')
 
-        # forward pass
-        def forward_pass(S, variable_scope):
-            X = self._shared_forward_pass(S, variable_scope)  # from mixin
-            head = keras.layers.Dense(
-                units=self.num_actions,
-                kernel_initializer='zeros',
-                name=(variable_scope + '/Q'))
-            return head(X)
-
         # regular computation graph
-        Q = forward_pass(S, variable_scope='primary')
+        Q = self._forward_pass(S, variable_scope='primary')
 
         # loss
         loss = ProjectedSemiGradientLoss(G, base_loss=tf.losses.huber_loss)
@@ -232,5 +228,5 @@ class AtariQ(GenericQTypeII, AtariFunctionMixin):
         self.predict_model = keras.Model(inputs=S, outputs=Q)
 
         # target model
-        Q_target = forward_pass(S, variable_scope='target')
+        Q_target = self._forward_pass(S, variable_scope='target')
         self.target_model = keras.Model(inputs=S, outputs=Q_target)

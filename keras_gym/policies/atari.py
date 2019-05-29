@@ -100,6 +100,13 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
         self._init_models()
         self._check_attrs()
 
+    def _head(self, X, variable_scope):
+        layer = keras.layers.Dense(
+            units=self.num_actions,
+            kernel_initializer='zeros',
+            name=(variable_scope + '/policy'))
+        return layer(X)
+
     def _init_models(self):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
@@ -107,18 +114,9 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
         S = keras.Input(name='S', shape=shape, dtype=dtype)
         Adv = keras.Input(name='Adv', shape=(), dtype='float')
 
-        # forward pass
-        def forward_pass(S, variable_scope):
-            X = self._shared_forward_pass(S, variable_scope)
-            head = keras.layers.Dense(
-                units=self.num_actions,
-                kernel_initializer='zeros',
-                name=(variable_scope + '/policy'))
-            return head(X)
-
         # computation graph
-        Logits = forward_pass(S, variable_scope='primary')
-        Logits_target = forward_pass(S, variable_scope='target')
+        Logits = self._forward_pass(S, variable_scope='primary')
+        Logits_target = self._forward_pass(S, variable_scope='target')
         check_tensor(Logits, ndim=2, axis_size=self.num_actions, axis=1)
         check_tensor(Logits_target, ndim=2, axis_size=self.num_actions, axis=1)
 
