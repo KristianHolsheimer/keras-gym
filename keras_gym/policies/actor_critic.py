@@ -147,6 +147,10 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
     def proba(self, s):
         return self.policy.proba(s)
 
+    def sync_target_model(self, tau=1.0):
+        self.policy.sync_target_model(tau=tau)
+        self.value_function.sync_target_model(tau=tau)
+
     def _check_function_types(self):
         if not is_vfunction(self.value_function):
             if is_qfunction(self.value_function):
