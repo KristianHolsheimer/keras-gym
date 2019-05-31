@@ -39,12 +39,17 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         self.policy = policy
         self.value_function = value_function
 
-        # inherit some attrs
-        self.env = self.value_function.env
-        self._cache = self.value_function._cache
-
         self._check_function_types()
         self._init_models()
+
+    @property
+    def env(self):
+        assert self.value_function.env == self.policy.env
+        return self.value_function.env
+
+    @property
+    def _cache(self):
+        return self.value_function._cache
 
     def update(self, s, a, r, done):
         """
