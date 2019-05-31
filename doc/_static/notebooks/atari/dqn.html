@@ -13089,7 +13089,7 @@ div#notebook {
 
 <!-- Loading mathjax macro -->
 <!-- Load mathjax -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS_HTML"></script>
     <!-- MathJax configuration -->
     <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
@@ -13143,7 +13143,8 @@ div#notebook {
 <span class="c1"># value function</span>
 <span class="n">Q</span> <span class="o">=</span> <span class="n">AtariQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.00025</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">bootstrap_n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
            <span class="n">bootstrap_with_target_model</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">buffer</span> <span class="o">=</span> <span class="n">ExperienceReplayBuffer</span><span class="o">.</span><span class="n">from_qfunction</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mf">1e6</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
+<span class="n">buffer</span> <span class="o">=</span> <span class="n">ExperienceReplayBuffer</span><span class="o">.</span><span class="n">from_value_function</span><span class="p">(</span>
+    <span class="n">Q</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mi">1000000</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
 <span class="n">policy</span> <span class="o">=</span> <span class="n">EpsilonGreedy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
 
 

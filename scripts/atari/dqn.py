@@ -22,7 +22,8 @@ env = TrainMonitor(env)
 # value function
 Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1,
            bootstrap_with_target_model=True)
-buffer = ExperienceReplayBuffer.from_qfunction(Q, capacity=1e6, batch_size=32)
+buffer = ExperienceReplayBuffer.from_value_function(
+    Q, capacity=1000000, batch_size=32)
 policy = EpsilonGreedy(Q)
 
 
@@ -46,11 +47,11 @@ target_model_sync_period = 10000
 
 for _ in range(num_episodes):
     if env.ep % 10 == 0 and env.T > buffer_warmup_period:
-        os.makedirs('./data/gifs/', exist_ok=True)
+        os.makedirs('./data/dqn/gifs/', exist_ok=True)
         generate_gif(
             env=env,
             policy=policy.set_epsilon(0.01),
-            filepath='./data/gifs/ep{:06d}.gif'.format(env.ep),
+            filepath='./data/dqn/gifs/ep{:06d}.gif'.format(env.ep),
             resize_to=(320, 420))
 
     s = env.reset()
