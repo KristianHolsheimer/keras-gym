@@ -21,20 +21,6 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
 
         A gym environment.
 
-    train_model : keras.Model([:term:`S`, :term:`Adv`], :term:`Logits`)
-
-        Used for training.
-
-    predict_model : keras.Model(:term:`S`, :term:`Logits`)
-
-        Used for predicting.
-
-    target_model : keras.Model(:term:`S`, :term:`Logits`), optional
-
-        A :term:`target_model` is used to make predictions on a bootstrapping
-        scenario. It can be advantageous to use a point-in-time copy of the
-        :term:`predict_model` to construct a bootstrapped target.
-
     update_strategy : str, optional
 
         The strategy for updating our policy. This typically determines the
