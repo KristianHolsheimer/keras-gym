@@ -988,10 +988,21 @@ class GenericSoftmaxPolicy(
 
         if self.update_strategy == 'ppo':
             def proba_ratio(args):
-                Z, Z_old = args
-                Pi = K.softmax(Z, axis=1)
-                Pi_old = K.stop_gradient(K.softmax(Z_old, axis=1))
-                return Pi / Pi_old
+                Z, Z_old = args  # these are the logits
+
+                # shift for stability (softmax is invariant under shifts)
+                Z = Z - K.max(Z, axis=1, keepdims=True)
+                Z_old = Z_old - K.max(Z_old, axis=1, keepdims=True)
+
+                # log-policy
+                logPi = Z - K.log(K.sum(K.exp(Z), axis=1, keepdims=True))
+                logPi_old = \
+                    Z_old - K.log(K.sum(K.exp(Z_old), axis=1, keepdims=True))
+
+                # policy ratios: r = pi / pi_old
+                r = K.exp(logPi - K.stop_gradient(logPi_old))
+                return r
+
             r = keras.layers.Lambda(proba_ratio)([Logits, Logits_target])
             return ClippedSurrogateLoss(Adv), r
 
