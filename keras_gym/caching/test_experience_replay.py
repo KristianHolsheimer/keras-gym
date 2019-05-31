@@ -15,7 +15,7 @@ class TestExperienceReplayBuffer:
         buffer = ExperienceReplayBuffer(capacity=17)
         for i, (s, a, r, done) in enumerate(self.EPISODE, 1):
             buffer.add(s + 100, a + 100, r + 100, done, episode_id=1)
-            assert len(buffer) == i
+            assert len(buffer) == max(0, i - buffer.bootstrap_n)
 
         np.testing.assert_array_equal(
             buffer._e[:7],
@@ -26,7 +26,7 @@ class TestExperienceReplayBuffer:
 
         for i, (s, a, r, done) in enumerate(self.EPISODE, i + 1):
             buffer.add(s + 200, a + 200, r + 200, done, episode_id=2)
-            assert len(buffer) == i
+            assert len(buffer) == max(0, i - buffer.bootstrap_n)
 
         np.testing.assert_array_equal(
             buffer._e[:14],
@@ -37,7 +37,7 @@ class TestExperienceReplayBuffer:
 
         for i, (s, a, r, done) in enumerate(self.EPISODE, i + 1):
             buffer.add(s + 300, a + 300, r + 300, done, episode_id=3)
-            assert len(buffer) == min(i, 17)
+            assert len(buffer) == np.clip(i - buffer.bootstrap_n, 0, 17)
 
         # buffer wraps around and overwrites oldest transitions
         np.testing.assert_array_equal(
@@ -65,25 +65,25 @@ class TestExperienceReplayBuffer:
         # quickly check content, just to be safe
         np.testing.assert_array_equal(
             buffer._a,
-            [304, 305, 306, 103, 104, 105, 106, 200, 201, 202, 203, 204, 205,
-             206, 300, 301, 302, 303])
+            [305, 306, 102, 103, 104, 105, 106, 200, 201, 202, 203, 204, 205,
+             206, 300, 301, 302, 303, 304])
 
-        transitions = [[[304, 305, 306], 0.0000, [306, 103, 104]],
+        transitions = [[[102, 103, 104], 0.9801, [104, 105, 106]],  # bootstrap
                        [[203, 204, 205], 0.0000, [205, 206, 300]],
-                       [[304, 305, 306], 0.0000, [306, 103, 104]],
-                       [[200, 200, 201], 0.9801, [201, 202, 203]],
+                       [[200, 200, 201], 0.9801, [201, 202, 203]],  # bootstrap
+                       [[102, 103, 104], 0.9801, [104, 105, 106]],  # bootstrap
                        [[104, 105, 106], 0.0000, [106, 200, 201]],
-                       [[202, 203, 204], 0.9801, [204, 205, 206]],
+                       [[202, 203, 204], 0.9801, [204, 205, 206]],  # bootstrap
+                       [[300, 300, 300], 0.9801, [300, 301, 302]],  # bootstrap
                        [[203, 204, 205], 0.0000, [205, 206, 300]],
                        [[103, 104, 105], 0.0000, [105, 106, 200]],
                        [[203, 204, 205], 0.0000, [205, 206, 300]],
                        [[104, 105, 106], 0.0000, [106, 200, 201]],
-                       [[200, 200, 201], 0.9801, [201, 202, 203]],
-                       [[200, 200, 200], 0.9801, [200, 201, 202]],
-                       [[203, 204, 205], 0.0000, [205, 206, 300]],
-                       [[202, 203, 204], 0.9801, [204, 205, 206]],
-                       [[204, 205, 206], 0.0000, [206, 300, 301]],
-                       [[104, 105, 106], 0.0000, [106, 200, 201]]]
+                       [[102, 103, 104], 0.9801, [104, 105, 106]],  # bootstrap
+                       [[200, 200, 201], 0.9801, [201, 202, 203]],  # bootstrap
+                       [[200, 200, 200], 0.9801, [200, 201, 202]],  # bootstrap
+                       [[300, 300, 301], 0.9801, [301, 302, 303]],  # bootstrap
+                       [[203, 204, 205], 0.0000, [205, 206, 300]]]
 
         S, A, Rn, I_next, S_next, A_next = buffer.sample()
         np.testing.assert_array_equal(I_next, [tr[1] for tr in transitions])

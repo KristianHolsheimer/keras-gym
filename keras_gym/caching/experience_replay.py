@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin
-from ..base.errors import NumpyArrayCheckError
+from ..base.errors import NumpyArrayCheckError, InsufficientCacheError
 from ..utils import check_numpy_array, get_env_attr
 
 
@@ -66,12 +66,10 @@ class ExperienceReplayBuffer(RandomStateMixin):
         self.random_seed = random_seed
 
         # internal
-        self._i = 0
-        self._len = 0
         self._initialized = False
 
     @classmethod
-    def from_qfunction(cls, qfunction, capacity, batch_size=32):
+    def from_value_function(cls, qfunction, capacity, batch_size=32):
         """
         Create a new instance by extracting some settings from a Q-function.
 
@@ -140,16 +138,18 @@ class ExperienceReplayBuffer(RandomStateMixin):
         s = self._extract_last_frame(s)
 
         if not self._initialized:
-            self._init_cache(s)
+            self._s_shape = s.shape
+            self._s_dtype = s.dtype
+            self._init_cache()
 
         self._s[self._i] = s
         self._a[self._i] = a
         self._r[self._i] = r
         self._d[self._i] = done
         self._e[self._i] = episode_id
-        self._i = (self._i + 1) % (self.capacity + 1)
-        if self._len < self.capacity:
-            self._len += 1
+        self._i = (self._i + 1) % (self.capacity + self.bootstrap_n)
+        if self._num_transitions < self.capacity + self.bootstrap_n:
+            self._num_transitions += 1
 
     def sample(self):
         """
@@ -172,6 +172,10 @@ class ExperienceReplayBuffer(RandomStateMixin):
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
+        if not self._initialized or len(self) < self.batch_size:
+            raise InsufficientCacheError(
+                "insufficient cached data to sample from")
+
         S = []
         A = []
         Rn = []
@@ -181,16 +185,16 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
         for attempt in range(10 * self.batch_size):
             # js are the S indices and ks are the S_next indices
-            J = len(self) - self.bootstrap_n - self.num_frames
+            J = len(self) - self.num_frames
             assert J > 0, "please insert more transitions before sampling"
             js = self.random.randint(J) + np.arange(self.num_frames)
             ks = js + self.bootstrap_n
             ls = np.arange(js[-1], ks[-1])
 
             # wrap around
-            js %= self.capacity + 1
-            ks %= self.capacity + 1
-            ls %= self.capacity + 1
+            js %= self.capacity + self.bootstrap_n
+            ks %= self.capacity + self.bootstrap_n
+            ls %= self.capacity + self.bootstrap_n
 
             # check if S indices are all from the same episode
             ep = self._e[js[-1]]
@@ -249,9 +253,20 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
         return S, A, Rn, I_next, S_next, A_next
 
-    def _init_cache(self, x):
-        n = (self.capacity + 1,)
-        self._s = np.empty(n + x.shape, x.dtype)  # frame
+    def clear(self):
+        """
+        Clear the experience replay buffer.
+
+        """
+        self._i = 0
+        self._num_transitions = 0
+
+    def _init_cache(self):
+        self._i = 0
+        self._num_transitions = 0
+
+        n = (self.capacity + self.bootstrap_n,)
+        self._s = np.empty(n + self._s_shape, self._s_dtype)  # frame
         self._a = np.zeros(n, 'int32')      # actions taken (assume Discrete)
         self._r = np.zeros(n, 'float')      # rewards
         self._d = np.zeros(n, 'bool')       # done?
@@ -273,7 +288,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
         return s
 
     def __len__(self):
-        return self._len
+        return max(0, self._num_transitions - self.bootstrap_n)
 
     def __bool__(self):
         return bool(len(self))
