@@ -132,7 +132,7 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
             use_target_model=self.value_function.bootstrap_with_target_model)
         G = Rn + I_next * V_next
         check_numpy_array(G, ndim=1, dtype='float')
-        check_numpy_array(A, ndim=1, dtype='int')
+        check_numpy_array(A, ndim=1, dtype='int32')
         self.train_model.train_on_batch([S, G], [A, G])
 
     def __call__(self, s):
