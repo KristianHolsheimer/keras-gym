@@ -986,9 +986,6 @@ class GenericSoftmaxPolicy(
         if self.update_strategy == 'vanilla':
             return SoftmaxPolicyLossWithLogits(Adv), Logits
 
-        if self.update_strategy == 'trpo':
-            raise NotImplementedError("update_strategy == 'trpo'")  # TODO
-
         if self.update_strategy == 'ppo':
             def proba_ratio(args):
                 Z, Z_old = args
