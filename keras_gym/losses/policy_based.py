@@ -1,13 +1,14 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from ..base.losses import BasePolicyLoss
-from ..utils import project_onto_actions_tf, check_tensor
+from ..base.losses import BaseLoss, BasePolicyLoss
+from ..utils import project_onto_actions_tf, check_tensor, log_softmax_tf
 
 
 __all__ = (
     'SoftmaxPolicyLossWithLogits',
     'ClippedSurrogateLoss',
+    'PolicyKLDivergence',
 )
 
 
@@ -249,3 +250,69 @@ class ClippedSurrogateLoss(BasePolicyLoss):
             K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
 
         return L_clip
+
+
+class PolicyKLDivergence(BaseLoss):
+    """
+
+    Computes the KL divergence between the current policy and the old
+    (behavior) policy:
+
+    .. math::
+
+        \\hat{\\mathbb{E}}_t\\left\\{\\,
+            KL[\\pi_{\\theta_\\text{old}}(.|s_t), \\pi_\\theta(.|s_t)]
+        \\right\\}
+        \\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
+            \\sum_a \\pi_{\\theta_\\text{old}}(a|s_t)\\,
+                \\log\\frac{\\pi_{\\theta_\\text{old}}(a|s_t)}
+                           {\\pi_\\theta(a|s_t)}\\right\\}
+
+
+    Parameters
+    ----------
+
+    Z_target : 2d Tensor, shape: [batch_size, num_actions]
+
+        The predicted logits of the :term:`target_model` of the policy object.
+        In policy-gradient methods, the :term:`target_model` is effectively the
+        *behavior* policy, i.e. the one that actually generates the
+        observations.
+
+    """
+    def __init__(self, Z_target, epsilon=0.2):
+        check_tensor(Z_target, ndim=2)
+        self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
+        self.pi_old = K.stop_gradient(K.softmax(Z_target, axis=1))
+
+    def __call__(self, A, Z, sample_weight=None):
+        """
+        Compute the policy-gradient surrogate loss.
+
+        Parameters
+        ----------
+        A : Tensor
+
+            This input is ignored.
+
+        Z : 2d Tensor, shape: [batch_size, num_actions]
+
+            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
+
+        sample_weight : 1d Tensor, dtype: float, shape: [batch_size], optional
+
+            Not yet implemented; will be ignored.
+
+            #TODO: implement this -Kris
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar)
+
+            The batch loss.
+
+        """
+        check_tensor(Z, ndim=2)
+        logpi = log_softmax_tf(Z)
+        kl_div = tf.einsum('ij,ij->i', self.pi_old, self.logpi_old - logpi)
+        return K.mean(kl_div)
