@@ -126,6 +126,12 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
             A batch of next-actions that were taken. This is only required for
             SARSA (on-policy) updates.
 
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
         """
         V_next = self.value_function.batch_eval(
             S_next,
@@ -133,7 +139,8 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         G = Rn + I_next * V_next
         check_numpy_array(G, ndim=1, dtype='float')
         check_numpy_array(A, ndim=1, dtype='int32')
-        self.train_model.train_on_batch([S, G], [A, G])
+        losses = self._train_on_batch([S, G], [A, G])
+        return losses
 
     def __call__(self, s):
         return self.policy(s)
@@ -173,8 +180,8 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         G = keras.Input(name='G', shape=(1,), dtype='float')
 
         # predictions
-        Z = self.policy.predict_model(S)
-        V = self.value_function.predict_model(S)
+        Z = keras.layers.Lambda(self.policy.predict_model, name='Z')(S)
+        V = keras.layers.Lambda(self.value_function.predict_model, name='V')(S)
 
         # check if shapes are what we expect
         check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)

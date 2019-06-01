@@ -56,6 +56,16 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
             raise AttributeError(
                 "missing attributes: {}".format(missing_attrs))
 
+    def _train_on_batch(self, inputs, outputs):
+        """
+        Run run self.train_model.train_on_batch(inputs, outputs) and return the
+        losses as a dict of type: {loss_name <str>: loss_value <float>}.
+
+        """
+        losses = self.train_model.train_on_batch(inputs, outputs)
+        losses = dict(zip(self.train_model.metrics_names, losses))  # add names
+        return losses
+
     def sync_target_model(self, tau=1.0):
         """
         Synchronize the target model with the primary model.
@@ -262,15 +272,39 @@ class GenericV(BaseFunctionApproximator):
 
             A batch of next-state observations.
 
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
         """
         V_next = self.batch_eval(
             S_next, use_target_model=self.bootstrap_with_target_model)
         Gn = Rn + I_next * V_next
-        self.train_model.train_on_batch(S, Gn)
+        losses = self._train_on_batch(S, Gn)
+        return losses
 
     def batch_eval(self, S, use_target_model=False):
         """
-        #TODO: docstring
+        Evaluate the state value function on a batch of state observations.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        V : 1d array, dtype: float, shape: [batch_size]
+
+            The predicted state values.
 
         """
         model = self.target_model if use_target_model else self.predict_model
@@ -421,9 +455,16 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             A batch of next-actions that were taken. This is only required for
             SARSA (on-policy) updates.
 
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
         """
         G = self.bootstrap_target_np(Rn, I_next, S_next, A_next)
-        self.train_model.train_on_batch([S, G], A)
+        losses = self._train_on_batch([S, G], A)
+        return losses
 
     def bootstrap_target_np(self, Rn, I_next, S_next, A_next=None):
         """
@@ -990,8 +1031,15 @@ class GenericSoftmaxPolicy(
             This might be sampled and/or estimated version of the true
             advantage.
 
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
         """
-        self.train_model.train_on_batch([S, Adv], A)
+        losses = self._train_on_batch([S, Adv], A)
+        return losses
 
     def _policy_loss_and_target(self, Adv, Logits, Logits_target):
         if self.update_strategy == 'vanilla':
