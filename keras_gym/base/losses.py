@@ -18,6 +18,10 @@ class BaseLoss(ABC, Loss):
     def __call__(self, y_true, y_pred, sample_weight=None):
         pass
 
+    def from_config(self, *args, **kwargs):
+        raise NotImplementedError
+    from_config.__doc__ = ""
+
 
 class BasePolicyLoss(BaseLoss):
     """
