@@ -40,7 +40,7 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
 
     """
     @staticmethod
-    def logpi_surrogate(logits):
+    def logpi_surrogate(Z):
         """
         Construct a surrogate for :math:`\\log\\pi(a|s)` that has the property
         that when we take its gradient it returns the true gradients
@@ -76,7 +76,7 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
 
         Parameters
         ----------
-        logits : 2d Tensor, shape: [batch_size, num_actions]
+        Z : 2d Tensor, shape: [batch_size, num_actions]
 
             The predicted logits of the softmax policy, a.k.a. ``y_pred``.
 
@@ -87,12 +87,12 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
             The surrogate for :math:`\\log\\pi_\\theta(a|s)`.
 
         """
-        check_tensor(logits, ndim=2)
-        pi = K.stop_gradient(K.softmax(logits, axis=1))
-        mean_logits = tf.expand_dims(tf.einsum('ij,ij->i', pi, logits), axis=1)
-        return logits - mean_logits
+        check_tensor(Z, ndim=2)
+        pi = K.stop_gradient(K.softmax(Z, axis=1))
+        Z_mean = K.expand_dims(tf.einsum('ij,ij->i', pi, Z), axis=1)
+        return Z - Z_mean
 
-    def __call__(self, A, logits, sample_weight=None):
+    def __call__(self, A, Z, sample_weight=None):
         """
         Compute the policy-gradient surrogate loss.
 
@@ -107,7 +107,7 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
             predicted logits down to those for which we actually received a
             feedback signal.
 
-        logits : 2d Tensor, shape: [batch_size, num_actions]
+        Z : 2d Tensor, shape: [batch_size, num_actions]
 
             The predicted logits of the softmax policy, a.k.a. ``y_pred``.
 
@@ -133,10 +133,10 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
 
         # check shapes
         check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
-        check_tensor(logits, ndim=2, axis_size=batch_size, axis=0)
+        check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
 
         # construct the surrogate for logpi(.|s)
-        logpi_all = self.logpi_surrogate(logits)  # [batch_size, num_actions]
+        logpi_all = self.logpi_surrogate(Z)  # [batch_size, num_actions]
 
         # project onto actions taken: logpi(.|s) --> logpi(a|s)
         logpi = project_onto_actions_tf(logpi_all, A)  # shape: [batch_size]
