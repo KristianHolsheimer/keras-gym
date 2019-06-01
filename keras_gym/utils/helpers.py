@@ -424,32 +424,98 @@ def argmax(arr, axis=None, random_state=None):
     return argmin(-arr, axis=axis, random_state=random_state)
 
 
-def softmax(arr, axis=0):
+def softmax(arr, axis=-1):
     """
     Compute the softmax (normalized point-wise exponential).
+
+    **Note:** This is the *numpy* implementation.
 
     Parameters
     ----------
     arr : numpy array
+
         The input array.
 
     axis : int, optional
+
         The axis along which to normalize, default is 0.
 
     Returns
     -------
     out : array of same shape
+
         The entries of the output array are non-negative and normalized, which
         make them good candidates for modeling probabilities.
 
     """
     if not isinstance(arr, np.ndarray):
         arr = np.array(arr)
-    arr -= arr.mean(axis=axis, keepdims=True)  # center before clipping
-    arr = np.clip(arr, -30, 30)                # avoid overflow before exp
-    arr = np.exp(arr)
-    arr /= arr.sum(axis=axis, keepdims=True)
-    return arr
+    Z = arr - np.mean(arr, axis=axis, keepdims=True)  # center before clipping
+    Z = np.clip(Z, -30, 30)                           # avoid over/underflow
+    exp_Z = np.exp(Z)
+    p = exp_Z / np.sum(exp_Z, axis=axis, keepdims=True)
+    return p
+
+
+def log_softmax(arr, axis=-1):
+    """
+    Compute the log-softmax.
+
+    **Note:** This is the *numpy* implementation.
+
+    Parameters
+    ----------
+    arr : numpy array
+
+        The input array.
+
+    axis : int, optional
+
+        The axis along which to normalize, default is 0.
+
+    Returns
+    -------
+    out : array of same shape
+
+        The entries may be interpreted as log-probabilities.
+
+    """
+    if not isinstance(arr, np.ndarray):
+        arr = np.array(arr)
+    Z = arr - arr.mean(axis=axis, keepdims=True)  # center before clipping
+    Z = np.clip(Z, -30, 30)                       # avoid over/underflow
+    log_P = Z - np.log(np.sum(np.exp(Z), axis=axis, keepdims=True))
+    return log_P
+
+
+def log_softmax_tf(Z, axis=-1):
+    """
+    Compute the log-softmax.
+
+    **Note:** This is the *tensorflow* implementation.
+
+    Parameters
+    ----------
+    Z : Tensor
+
+        The input logits.
+
+    axis : int, optional
+
+        The axis along which to normalize, default is 0.
+
+    Returns
+    -------
+    out : Tensor of same shape as input
+
+        The entries may be interpreted as log-probabilities.
+
+    """
+    check_tensor(Z)
+    Z = Z - K.mean(Z, axis=axis, keepdims=True)  # center before clipping
+    Z = K.clip(Z, -30, 30)                       # avoid overflow before exp
+    log_P = Z - K.log(K.sum(K.exp(Z), axis=axis, keepdims=True))
+    return log_P
 
 
 def diff_transform_matrix(num_frames, dtype='float32'):
