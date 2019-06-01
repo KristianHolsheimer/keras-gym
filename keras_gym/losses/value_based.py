@@ -7,6 +7,7 @@ from ..base.losses import BaseLoss
 __all__ = (
     'Huber',
     'ProjectedSemiGradientLoss',
+    'RootMeanSquaredError',
 )
 
 

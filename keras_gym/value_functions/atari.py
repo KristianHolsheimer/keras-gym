@@ -12,7 +12,7 @@ __all__ = (
 
 class AtariV(GenericV, AtariFunctionMixin):
     """
-    A specific :term:`state value function>` for Atari environments.
+    A specific :term:`state value function` for Atari environments.
 
     Parameters
     ----------
