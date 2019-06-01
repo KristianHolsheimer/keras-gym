@@ -128,8 +128,8 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        Adv = keras.Input(name='Adv', shape=(), dtype='float')
+        S = keras.Input(name='policy/S', shape=shape, dtype=dtype)
+        Adv = keras.Input(name='policy/Adv', shape=(), dtype='float')
 
         def forward_pass(S, variable_scope):
             def v(name):

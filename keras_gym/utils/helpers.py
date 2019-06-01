@@ -208,9 +208,10 @@ def check_numpy_array(
             .format(type(arr)))
 
     check = ndim is not None
-    if check and arr.ndim != ndim:
+    ndims = [ndim] if not isinstance(ndim, (list, tuple, set)) else ndim
+    if check and arr.ndim not in ndims:
         raise NumpyArrayCheckError(
-            "expected input with ndim equal to {}, got ndim: {}"
+            "expected input with ndim(s) {}, got ndim: {}"
             .format(ndim, arr.ndim))
 
     check = ndim_min is not None
@@ -220,21 +221,24 @@ def check_numpy_array(
             .format(ndim_min, arr.ndim))
 
     check = dtype is not None
-    if check and arr.dtype != dtype:
+    dtypes = [dtype] if not isinstance(dtype, (list, tuple, set)) else dtype
+    if check and arr.dtype not in dtypes:
         raise NumpyArrayCheckError(
-            "expected input with dtype {}, got dtype: {}"
+            "expected input with dtype(s) {}, got dtype: {}"
             .format(dtype, arr.dtype))
 
     check = shape is not None
-    if check and arr.shape != shape:
+    shapes = [shape] if not isinstance(shape, (list, tuple, set)) else shape
+    if check and arr.shape not in shapes:
         raise NumpyArrayCheckError(
-            "expected input with shape {}, got shape: {}"
+            "expected input with shape(s) {}, got shape: {}"
             .format(shape, arr.shape))
 
     check = axis_size is not None and axis is not None
-    if check and arr.shape[axis] != axis_size:
+    sizes = [axis_size] if not isinstance(axis_size, (list, tuple, set)) else axis_size  # noqa: E501
+    if check and arr.shape[axis] not in sizes:
         raise NumpyArrayCheckError(
-            "expected input with size {} along axis {}, got shape: {}"
+            "expected input with size(s) {} along axis {}, got shape: {}"
             .format(axis_size, axis, arr.shape))
 
 

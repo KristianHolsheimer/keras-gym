@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ...utils import (
@@ -1046,7 +1045,7 @@ class GenericSoftmaxPolicy(
             return SoftmaxPolicyLossWithLogits(Adv)
 
         if self.update_strategy == 'ppo':
-            assert Z_target is None
+            assert Z_target is not None
             return ClippedSurrogateLoss(Adv, Z_target)
 
         raise ValueError(

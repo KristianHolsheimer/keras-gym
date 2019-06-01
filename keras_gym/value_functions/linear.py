@@ -109,7 +109,7 @@ class LinearV(GenericV, LinearFunctionMixin):
     def _init_models(self, output_dim):
         s = self.env.observation_space.sample()
 
-        S = keras.Input(name='S', shape=s.shape, dtype=s.dtype)
+        S = keras.Input(name='value/S', shape=s.shape, dtype=s.dtype)
 
         def forward_pass(S, variable_scope):
             def v(name):
@@ -281,8 +281,8 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
     def _init_models(self, output_dim):
         s = self.env.observation_space.sample()
 
-        S = keras.Input(name='S', shape=s.shape, dtype=s.dtype)
-        A = keras.Input(name='A', shape=(), dtype='int32')
+        S = keras.Input(name='value/S', shape=s.shape, dtype=s.dtype)
+        A = keras.Input(name='value/A', shape=(), dtype='int32')
 
         def forward_pass(S, A, variable_scope):
             def v(name):
@@ -461,8 +461,8 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        G = keras.Input(name='G', shape=(), dtype='float')
+        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
+        G = keras.Input(name='value/G', shape=(), dtype='float')
 
         def forward_pass(S, variable_scope):
             def v(name):

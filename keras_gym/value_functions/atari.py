@@ -81,7 +81,7 @@ class AtariV(GenericV, AtariFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
+        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
 
         # regular computation graph
         V = self._forward_pass(S, variable_scope='primary')
@@ -212,8 +212,8 @@ class AtariQ(GenericQTypeII, AtariFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        G = keras.Input(name='G', shape=(), dtype='float')
+        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
+        G = keras.Input(name='value/G', shape=(), dtype='float')
 
         # regular computation graph
         Q = self._forward_pass(S, variable_scope='primary')

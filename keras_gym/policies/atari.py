@@ -101,8 +101,8 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        Adv = keras.Input(name='Adv', shape=(), dtype='float')
+        S = keras.Input(name='policy/S', shape=shape, dtype=dtype)
+        Adv = keras.Input(name='policy/Adv', shape=(), dtype='float')
 
         # computation graph
         Z = self._forward_pass(S, variable_scope='primary')
@@ -232,8 +232,8 @@ class AtariActorCritic(ActorCritic, AtariFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        G = keras.Input(name='G', shape=[1], dtype='float')
+        S = keras.Input(name='actor_critic/S', shape=shape, dtype=dtype)
+        G = keras.Input(name='actor_critic/G', shape=[1], dtype='float')
 
         # shared part of the computation graph
         X = self._shared_forward_pass(S, variable_scope='primary')
