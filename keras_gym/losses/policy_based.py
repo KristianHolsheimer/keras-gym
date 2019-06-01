@@ -76,7 +76,7 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
 
         Parameters
         ----------
-        logits : 2d Tensor, shape = [batch_size, num_actions]
+        logits : 2d Tensor, shape: [batch_size, num_actions]
 
             The predicted logits of the softmax policy, a.k.a. ``y_pred``.
 
@@ -98,7 +98,7 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
 
         Parameters
         ----------
-        A : 2d Tensor, dtype = int, shape = [batch_size, 1]
+        A : 2d Tensor, dtype: int, shape: [batch_size, 1]
 
             This is a batch of actions that were actually taken. This argument
             of the loss function is usually reserved for ``y_true``, i.e. a
@@ -107,11 +107,11 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
             predicted logits down to those for which we actually received a
             feedback signal.
 
-        logits : 2d Tensor, shape = [batch_size, num_actions]
+        logits : 2d Tensor, shape: [batch_size, num_actions]
 
             The predicted logits of the softmax policy, a.k.a. ``y_pred``.
 
-        sample_weight : 1d Tensor, dtype = float, shape = [batch_size], optional
+        sample_weight : 1d Tensor, dtype: float, shape: [batch_size], optional
 
             Not yet implemented; will be ignored.
 
@@ -123,7 +123,7 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
 
             The batch loss.
 
-        """  # noqa: E501
+        """
         batch_size = K.int_shape(self.Adv)[0]
 
         # input shape of A is generally [None, None]
@@ -200,7 +200,7 @@ class ClippedSurrogateLoss(BasePolicyLoss):
             predicted values down to those for which we actually received a
             feedback signal.
 
-        proba_ratios : 2d Tensor, shape = [batch_size, num_actions]
+        proba_ratios : 2d Tensor, shape: [batch_size, num_actions]
 
             The predicted probability ratios
 
