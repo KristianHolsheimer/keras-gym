@@ -75,6 +75,57 @@ class Huber(BaseLoss):
                 y_true, y_pred, delta=self.delta, scope=self._name)
 
 
+class RootMeanSquaredError(BaseLoss):
+    """
+    Root-mean-squared error (RMSE) loss.
+
+    Parameters
+    ----------
+    name : str, optional
+
+        Optional name for the op.
+
+    """
+    def __init__(self, delta=1.0, name='root_mean_squared_error'):
+        self._func = tf.keras.losses.MeanSquaredError(name=name)
+
+    def __call__(self, y_true, y_pred, sample_weight=None):
+        """
+        Compute the RMSE loss.
+
+        Parameters
+        ----------
+        y_true : Tensor, shape: [batch_size, ...]
+
+            Ground truth values.
+
+        y_pred : Tensor, shape: [batch_size, ...]
+
+            The predicted values.
+
+        sample_weight : Tensor, dtype: float, optional
+
+            Tensor whose rank is either 0, or the same rank as ``y_true``, or
+            is broadcastable to ``y_true``. ``sample_weight`` acts as a
+            coefficient for the loss. If a scalar is provided, then the loss is
+            simply scaled by the given value. If ``sample_weight`` is a tensor
+            of size ``[batch_size]``, then the total loss for each sample of
+            the batch is rescaled by the corresponding element in the
+            ``sample_weight`` vector. If the shape of sample_weight matches the
+            shape of ``y_pred``, then the loss of each measurable element of
+            ``y_pred`` is scaled by the corresponding value of
+            ``sample_weight``.
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar)
+
+            The batch loss.
+
+        """
+        return K.sqrt(self._func(y_true, y_pred, sample_weight=sample_weight))
+
+
 class ProjectedSemiGradientLoss(BaseLoss):
     """
     Loss function for type-II Q-function.
