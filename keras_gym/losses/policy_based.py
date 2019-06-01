@@ -8,6 +8,7 @@ from ..utils import project_onto_actions_tf, check_tensor, log_softmax_tf
 __all__ = (
     'SoftmaxPolicyLossWithLogits',
     'ClippedSurrogateLoss',
+    'PolicyEntropy',
     'PolicyKLDivergence',
 )
 
@@ -280,7 +281,7 @@ class PolicyKLDivergence(BaseLoss):
         observations.
 
     """
-    def __init__(self, Z_target, epsilon=0.2):
+    def __init__(self, Z_target):
         check_tensor(Z_target, ndim=2)
         self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
         self.pi_old = K.stop_gradient(K.softmax(Z_target, axis=1))
@@ -316,3 +317,52 @@ class PolicyKLDivergence(BaseLoss):
         logpi = log_softmax_tf(Z)
         kl_div = tf.einsum('ij,ij->i', self.pi_old, self.logpi_old - logpi)
         return K.mean(kl_div)
+
+
+class PolicyEntropy(BaseLoss):
+    """
+
+    Computes the entropy of a policy:
+
+    .. math::
+
+        \\hat{\\mathbb{E}}_t\\left\\{S[\\pi(.|s_t)]\\right\\}
+        \\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
+            -\\sum_a \\pi(a|s_t)\\,\\log\\pi(a|s_t)\\right\\}
+
+    """
+    def __init__(self):
+        pass
+
+    def __call__(self, A, Z, sample_weight=None):
+        """
+        Compute the policy-gradient surrogate loss.
+
+        Parameters
+        ----------
+        A : Tensor
+
+            This input is ignored.
+
+        Z : 2d Tensor, shape: [batch_size, num_actions]
+
+            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
+
+        sample_weight : 1d Tensor, dtype: float, shape: [batch_size], optional
+
+            Not yet implemented; will be ignored.
+
+            #TODO: implement this -Kris
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar)
+
+            The batch loss.
+
+        """
+        check_tensor(Z, ndim=2)
+        logpi = log_softmax_tf(Z)
+        pi = K.exp(logpi)
+        entropy = -tf.einsum('ij,ij->i', pi, logpi)
+        return K.mean(entropy)
