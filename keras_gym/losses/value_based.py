@@ -5,8 +5,74 @@ from ..utils import project_onto_actions_tf, check_tensor
 from ..base.losses import BaseLoss
 
 __all__ = (
+    'Huber',
     'ProjectedSemiGradientLoss',
 )
+
+
+class Huber(BaseLoss):
+    """
+    Huber loss that is compatible with both tensorflow 1.x and 2.x.
+
+    Parameters
+    ----------
+    delta : float
+
+        The point where the Huber loss function changes from a quadratic to
+        linear.
+
+    name : str, optional
+
+        Optional name for the op.
+
+    """
+    def __init__(self, delta=1.0, name='huber_loss'):
+        self.delta = delta
+        self._name = name
+        if tf.__version__ >= '2.0':
+            self._func = tf.keras.losses.Huber(delta=delta, name=name)
+        else:
+            self._func = None
+
+    def __call__(self, y_true, y_pred, sample_weight=None):
+        """
+        Compute the Huber loss.
+
+        Parameters
+        ----------
+        y_true : Tensor, shape: [batch_size, ...]
+
+            Ground truth values.
+
+        y_pred : Tensor, shape: [batch_size, ...]
+
+            The predicted values.
+
+        sample_weight : Tensor, dtype: float, optional
+
+            Tensor whose rank is either 0, or the same rank as ``y_true``, or
+            is broadcastable to ``y_true``. ``sample_weight`` acts as a
+            coefficient for the loss. If a scalar is provided, then the loss is
+            simply scaled by the given value. If ``sample_weight`` is a tensor
+            of size ``[batch_size]``, then the total loss for each sample of
+            the batch is rescaled by the corresponding element in the
+            ``sample_weight`` vector. If the shape of sample_weight matches the
+            shape of ``y_pred``, then the loss of each measurable element of
+            ``y_pred`` is scaled by the corresponding value of
+            ``sample_weight``.
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar)
+
+            The batch loss.
+
+        """
+        if self._func is not None:
+            return self._func(y_true, y_pred, sample_weight=sample_weight)
+        else:
+            return tf.losses.huber_loss(
+                y_true, y_pred, delta=self.delta, scope=self._name)
 
 
 class ProjectedSemiGradientLoss(BaseLoss):
@@ -28,7 +94,7 @@ class ProjectedSemiGradientLoss(BaseLoss):
         <tensorflow.losses.huber_loss>`.
 
     """
-    def __init__(self, G, base_loss=tf.losses.huber_loss):
+    def __init__(self, G, base_loss=Huber()):
         check_tensor(G)
 
         if K.ndim(G) == 2:
@@ -54,15 +120,18 @@ class ProjectedSemiGradientLoss(BaseLoss):
             predicted logits down to those for which we actually received a
             feedback signal.
 
-        Q_pred : 2d Tensor, shape = [batch_size, num_actions]
+        Q_pred : 2d Tensor, shape: [batch_size, num_actions]
 
             The predicted values :math:`Q(s,.)`, a.k.a. ``y_pred``.
 
-        sample_weight : 1d Tensor, dtype = float, shape = [batch_size], optional
+        sample_weight : Tensor, dtype: float, optional
 
-            Not yet implemented; will be ignored.
-
-            #TODO: implement this -Kris
+            Tensor whose rank is either 0 or is broadcastable to ``y_true``.
+            ``sample_weight`` acts as a coefficient for the loss. If a scalar
+            is provided, then the loss is simply scaled by the given value. If
+            ``sample_weight`` is a tensor of size ``[batch_size]``, then the
+            total loss for each sample of the batch is rescaled by the
+            corresponding element in the ``sample_weight`` vector.
 
         Returns
         -------
@@ -70,7 +139,7 @@ class ProjectedSemiGradientLoss(BaseLoss):
 
             The batch loss.
 
-        """  # noqa: E501
+        """
         # input shape of A is generally [None, None]
         check_tensor(A, ndim=2)
         A.set_shape([None, 1])     # we know that axis=1 must have size 1
@@ -86,4 +155,5 @@ class ProjectedSemiGradientLoss(BaseLoss):
         Q_pred_projected = project_onto_actions_tf(Q_pred, A)
 
         # the actual loss
-        return self.base_loss(self.G, Q_pred_projected)
+        return self.base_loss(
+            self.G, Q_pred_projected, sample_weight=sample_weight)

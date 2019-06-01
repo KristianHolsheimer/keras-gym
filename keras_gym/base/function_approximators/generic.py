@@ -72,30 +72,41 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
                 + \\tau\\,w_\\text{primary}
 
         """
-        if not hasattr(self, '_target_model_sync_op'):
-            target_weights = tf.get_collection(
-                tf.GraphKeys.GLOBAL_VARIABLES, scope='target')  # list
-            primary_weights = tf.get_collection(
-                tf.GraphKeys.GLOBAL_VARIABLES, scope='primary')  # list
-
-            if not target_weights:
-                raise MissingModelError(
-                    "no model weights found in variable scope: 'target'")
-            if not primary_weights:
-                raise MissingModelError(
-                    "no model weights found in variable scope: 'primary'")
-
-            assert len(primary_weights) == len(target_weights), "incompatible"
-
-            self._target_model_sync_tau = tf.placeholder(tf.float32, shape=())
-            self._target_model_sync_op = tf.group(*(
-                K.update(wt, wt + self._target_model_sync_tau * (wp - wt))
+        if tf.__version__ >= '2.0':
+            target_weights = self.target_model.trainable_variables
+            primary_weights = self.predict_model.trainable_variables
+            tf.group(*(
+                K.update(wt, wt + tau * (wp - wt))
                 for wt, wp in zip(target_weights, primary_weights)))
+            self.logger.debug(
+                "updated target_mode with tau = {:.3g}".format(tau))
 
-        K.get_session().run(
-            self._target_model_sync_op,
-            feed_dict={self._target_model_sync_tau: tau})
-        self.logger.debug("updated target_mode with tau = {:.3g}".format(tau))
+        else:
+            if not hasattr(self, '_target_model_sync_op'):
+                target_weights = tf.get_collection(
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope='target')  # list
+                primary_weights = tf.get_collection(
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope='primary')  # list
+
+                if not target_weights:
+                    raise MissingModelError(
+                        "no model weights found in variable scope: 'target'")
+                if not primary_weights:
+                    raise MissingModelError(
+                        "no model weights found in variable scope: 'primary'")
+                assert len(primary_weights) == len(target_weights)
+
+                self._target_model_sync_tau = tf.placeholder(
+                    tf.float32, shape=())
+                self._target_model_sync_op = tf.group(*(
+                    K.update(wt, wt + self._target_model_sync_tau * (wp - wt))
+                    for wt, wp in zip(target_weights, primary_weights)))
+
+            K.get_session().run(
+                self._target_model_sync_op,
+                feed_dict={self._target_model_sync_tau: tau})
+            self.logger.debug(
+                "updated target_mode with tau = {:.3g}".format(tau))
 
 
 class GenericV(BaseFunctionApproximator):

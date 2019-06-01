@@ -1,10 +1,10 @@
-import tensorflow as tf
 from tensorflow import keras
 
 from ..base.function_approximators.generic import GenericSoftmaxPolicy
 from ..base.function_approximators.atari import AtariFunctionMixin
 from ..value_functions import GenericV, AtariV
 from ..utils import check_tensor
+from ..losses import Huber
 from .actor_critic import ActorCritic
 
 
@@ -265,7 +265,7 @@ class AtariActorCritic(ActorCritic, AtariFunctionMixin):
         # loss and target tensor (depends on self.update_strategy)
         Adv = G - V_target
         policy_loss, Y = self.policy._policy_loss_and_target(Adv, Z, Z_target)
-        value_loss = tf.losses.huber_loss
+        value_loss = Huber()
 
         # joint train model
         self.train_model = keras.Model(inputs=[S, G], outputs=[Y, V])

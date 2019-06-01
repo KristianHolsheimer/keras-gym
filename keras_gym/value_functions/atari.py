@@ -1,7 +1,6 @@
-import tensorflow as tf
 from tensorflow import keras
 
-from ..losses import ProjectedSemiGradientLoss
+from ..losses import ProjectedSemiGradientLoss, Huber
 from ..base.function_approximators.generic import GenericV, GenericQTypeII
 from ..base.function_approximators.atari import AtariFunctionMixin
 
@@ -90,7 +89,7 @@ class AtariV(GenericV, AtariFunctionMixin):
         # regular models
         self.train_model = keras.Model(inputs=S, outputs=V)
         self.train_model.compile(
-            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+            loss=Huber(), optimizer=self.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=V)
 
         # target model
@@ -220,7 +219,7 @@ class AtariQ(GenericQTypeII, AtariFunctionMixin):
         Q = self._forward_pass(S, variable_scope='primary')
 
         # loss
-        loss = ProjectedSemiGradientLoss(G, base_loss=tf.losses.huber_loss)
+        loss = ProjectedSemiGradientLoss(G, base_loss=Huber())
 
         # regular models
         self.train_model = keras.Model(inputs=[S, G], outputs=Q)

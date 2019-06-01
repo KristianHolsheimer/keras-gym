@@ -5,7 +5,7 @@ from tensorflow.keras import backend as K
 from ..base.function_approximators.linear import LinearFunctionMixin
 from ..base.function_approximators.generic import (
     GenericV, GenericQTypeI, GenericQTypeII)
-from ..losses import ProjectedSemiGradientLoss
+from ..losses import ProjectedSemiGradientLoss, Huber
 
 
 __all__ = (
@@ -132,7 +132,7 @@ class LinearV(GenericV, LinearFunctionMixin):
         Q = forward_pass(S, variable_scope='primary')
         self.train_model = keras.Model(S, Q)
         self.train_model.compile(
-            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+            loss=Huber(), optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for V(s)
 
         # target model
@@ -311,7 +311,7 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
         Q = forward_pass(S, A, variable_scope='primary')
         self.train_model = keras.Model(inputs=[S, A], outputs=Q)
         self.train_model.compile(
-            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+            loss=Huber(), optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for type-I
 
         # target model
@@ -483,7 +483,7 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         Q = forward_pass(S, variable_scope='primary')
 
         # loss
-        loss = ProjectedSemiGradientLoss(G, base_loss=tf.losses.huber_loss)
+        loss = ProjectedSemiGradientLoss(G, base_loss=Huber())
 
         # regular models
         self.train_model = keras.Model(inputs=[S, G], outputs=Q)
