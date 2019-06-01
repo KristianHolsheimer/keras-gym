@@ -147,16 +147,16 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
             return dense_layer(S)
 
         # computation graph
-        Logits = forward_pass(S, variable_scope='primary')
-        Logits_target = forward_pass(S, variable_scope='target')
-        check_tensor(Logits, ndim=2, axis_size=self.num_actions, axis=1)
-        check_tensor(Logits_target, ndim=2, axis_size=self.num_actions, axis=1)
+        Z = forward_pass(S, variable_scope='primary')
+        Z_target = forward_pass(S, variable_scope='target')
+        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        check_tensor(Z_target, ndim=2, axis_size=self.num_actions, axis=1)
 
         # loss and target tensor (depends on self.update_strategy)
-        loss, Y = self._policy_loss_and_target(Adv, Logits, Logits_target)
+        loss = self._policy_loss(Adv, Z_target)
 
         # models
-        self.train_model = keras.Model(inputs=[S, Adv], outputs=Y)
+        self.train_model = keras.Model(inputs=[S, Adv], outputs=Z)
         self.train_model.compile(loss=loss, optimizer=self.optimizer)
-        self.predict_model = keras.Model(inputs=S, outputs=Logits)
-        self.target_model = keras.Model(inputs=S, outputs=Logits_target)
+        self.predict_model = keras.Model(inputs=S, outputs=Z)
+        self.target_model = keras.Model(inputs=S, outputs=Z_target)

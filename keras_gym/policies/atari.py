@@ -105,19 +105,19 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
         Adv = keras.Input(name='Adv', shape=(), dtype='float')
 
         # computation graph
-        Logits = self._forward_pass(S, variable_scope='primary')
-        Logits_target = self._forward_pass(S, variable_scope='target')
-        check_tensor(Logits, ndim=2, axis_size=self.num_actions, axis=1)
-        check_tensor(Logits_target, ndim=2, axis_size=self.num_actions, axis=1)
+        Z = self._forward_pass(S, variable_scope='primary')
+        Z_target = self._forward_pass(S, variable_scope='target')
+        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        check_tensor(Z_target, ndim=2, axis_size=self.num_actions, axis=1)
 
         # loss and target tensor (depends on self.update_strategy)
-        loss, Y = self._policy_loss_and_target(Adv, Logits, Logits_target)
+        loss = self._policy_loss(Adv, Z_target)
 
         # models
-        self.train_model = keras.Model(inputs=[S, Adv], outputs=Y)
+        self.train_model = keras.Model(inputs=[S, Adv], outputs=Z)
         self.train_model.compile(loss=loss, optimizer=self.optimizer)
-        self.predict_model = keras.Model(inputs=S, outputs=Logits)
-        self.target_model = keras.Model(inputs=S, outputs=Logits_target)
+        self.predict_model = keras.Model(inputs=S, outputs=Z)
+        self.target_model = keras.Model(inputs=S, outputs=Z_target)
 
 
 class AtariActorCritic(ActorCritic, AtariFunctionMixin):
@@ -264,11 +264,11 @@ class AtariActorCritic(ActorCritic, AtariFunctionMixin):
 
         # loss and target tensor (depends on self.update_strategy)
         Adv = G - V_target
-        policy_loss, Y = self.policy._policy_loss_and_target(Adv, Z, Z_target)
+        policy_loss = self.policy._policy_loss(Adv, Z_target)
         value_loss = Huber()
 
         # joint train model
-        self.train_model = keras.Model(inputs=[S, G], outputs=[Y, V])
+        self.train_model = keras.Model(inputs=[S, G], outputs=[Z, V])
         self.train_model.compile(
             loss=[policy_loss, value_loss], optimizer=self.optimizer)
         self.train_model.summary()

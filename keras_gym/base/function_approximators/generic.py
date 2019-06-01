@@ -1041,29 +1041,13 @@ class GenericSoftmaxPolicy(
         losses = self._train_on_batch([S, Adv], A)
         return losses
 
-    def _policy_loss_and_target(self, Adv, Logits, Logits_target):
+    def _policy_loss(self, Adv, Z_target=None):
         if self.update_strategy == 'vanilla':
-            return SoftmaxPolicyLossWithLogits(Adv), Logits
+            return SoftmaxPolicyLossWithLogits(Adv)
 
         if self.update_strategy == 'ppo':
-            def proba_ratio(args):
-                Z, Z_old = args  # these are the logits
-
-                # shift for stability (softmax is invariant under shifts)
-                Z = Z - K.max(Z, axis=1, keepdims=True)
-                Z_old = Z_old - K.max(Z_old, axis=1, keepdims=True)
-
-                # log-policy
-                logPi = Z - K.log(K.sum(K.exp(Z), axis=1, keepdims=True))
-                logPi_old = \
-                    Z_old - K.log(K.sum(K.exp(Z_old), axis=1, keepdims=True))
-
-                # policy ratios: r = pi / pi_old
-                r = K.exp(logPi - K.stop_gradient(logPi_old))
-                return r
-
-            r = keras.layers.Lambda(proba_ratio)([Logits, Logits_target])
-            return ClippedSurrogateLoss(Adv), r
+            assert Z_target is None
+            return ClippedSurrogateLoss(Adv, Z_target)
 
         raise ValueError(
             "unknown update_strategy '{}'".format(self.update_strategy))

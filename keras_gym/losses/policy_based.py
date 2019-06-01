@@ -176,16 +176,26 @@ class ClippedSurrogateLoss(BasePolicyLoss):
 
         The advantages, one for each time step.
 
+    Z_target : 2d Tensor, shape: [batch_size, num_actions]
+
+        The predicted logits of the :term:`target_model` of the policy object.
+        In policy-gradient methods, the :term:`target_model` is effectively the
+        *behavior* policy, i.e. the one that actually generates the
+        observations.
+
     epsilon : float between 0 and 1, optional
 
         Hyperparameter that determines how we clip the surrogate loss.
 
     """
-    def __init__(self, Adv, epsilon=0.2):
+    def __init__(self, Adv, Z_target, epsilon=0.2):
         super().__init__(Adv)
         self.epsilon = float(epsilon)
 
-    def __call__(self, A, proba_ratios, sample_weight=None):
+        check_tensor(Z_target, ndim=2)
+        self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
+
+    def __call__(self, A, Z, sample_weight=None):
         """
         Compute the policy-gradient surrogate loss.
 
@@ -200,16 +210,9 @@ class ClippedSurrogateLoss(BasePolicyLoss):
             predicted values down to those for which we actually received a
             feedback signal.
 
-        proba_ratios : 2d Tensor, shape: [batch_size, num_actions]
+        Z : 2d Tensor, shape: [batch_size, num_actions]
 
-            The predicted probability ratios
-
-            .. math::
-
-                r_t(\\theta)\\ =\\
-                \\frac{\\pi(.|S_t,\\theta)}{\\pi(.|S_t,\\theta_\\text{old})}
-
-            These play the role of  ``y_pred``.
+            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
 
         sample_weight : 1d Tensor, dtype = float, shape = [batch_size], optional
 
@@ -233,15 +236,16 @@ class ClippedSurrogateLoss(BasePolicyLoss):
 
         # check shapes
         check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
-        check_tensor(proba_ratios, ndim=2, axis_size=batch_size, axis=0)
+        check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
 
-        # project onto actions taken
-        # shape: [batch_size, num_actions] --> [batch_size]
-        r = project_onto_actions_tf(proba_ratios, A)
+        # construct probability ratio, r = pi / pi_old
+        logpi = log_softmax_tf(Z)
+        r = K.exp(logpi - self.logpi_old)  # shape: [batch_size, num_actions]
+        r = project_onto_actions_tf(r, A)  # shape: [batch_size]
 
-        # construct the final surrogate loss
-        surrogate_loss = -K.mean(K.minimum(
+        # construct the final clipped surrogate loss (notice minus sign)
+        L_clip = -K.mean(K.minimum(
             r * self.Adv,
             K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
 
-        return surrogate_loss
+        return L_clip
