@@ -27,6 +27,8 @@ __all__ = (
     'is_policy',
     'is_qfunction',
     'is_vfunction',
+    'log_softmax',
+    'log_softmax_tf',
     'project_onto_actions_np',
     'project_onto_actions_tf',
     'softmax',
