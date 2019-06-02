@@ -25,19 +25,8 @@ V = AtariV(
     bootstrap_with_target_model=True)
 buffer = ExperienceReplayBuffer.from_value_function(
     V, capacity=256, batch_size=64)  # capacity is 'T' from Algo 1 [PPO paper]
-policy = AtariPolicy(env, update_strategy='ppo', lr=0.001)
+policy = AtariPolicy(env, update_strategy='ppo', lr=0.00025)
 actor_critic = ActorCritic(policy, V)
-
-
-# exploration schedule
-def epsilon(T):
-    """ stepwise linear annealing """
-    M = 1000000
-    if T < M:
-        return 1 - 0.9 * T / M
-    if T < 2 * M:
-        return 0.1 - 0.09 * (T - M) / M
-    return 0.01
 
 
 # static parameters
@@ -49,7 +38,7 @@ num_batches_per_agent_round = int(
 
 
 for _ in range(num_episodes):
-    if env.ep % 10 == 0:
+    if env.ep % 50 == 0:
         os.makedirs('./data/ppo/gifs/', exist_ok=True)
         generate_gif(
             env=env,

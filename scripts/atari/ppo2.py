@@ -24,7 +24,7 @@ actor_critic = AtariActorCritic(
 V = actor_critic.value_function
 policy = actor_critic.policy
 buffer = ExperienceReplayBuffer.from_value_function(
-    V, capacity=256, batch_size=32)  # capacity is 'T' from Algo 1 [PPO paper]
+    V, capacity=256, batch_size=64)  # capacity is 'T' from Algo 1 [PPO paper]
 
 
 # exploration schedule
@@ -47,12 +47,12 @@ num_batches_per_agent_round = int(
 
 
 for _ in range(num_episodes):
-    if env.ep % 10 == 0:
-        os.makedirs('./data/ppo/gifs/', exist_ok=True)
+    if env.ep % 50 == 0:
+        os.makedirs('./data/ppo2/gifs/', exist_ok=True)
         generate_gif(
             env=env,
             policy=policy,
-            filepath='./data/ppo/gifs/ep{:06d}.gif'.format(env.ep),
+            filepath='./data/ppo2/gifs/ep{:06d}.gif'.format(env.ep),
             resize_to=(320, 420))
 
     s = env.reset()
