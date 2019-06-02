@@ -36,8 +36,13 @@ class BasePolicyLoss(BaseLoss):
 
         The advantages, one for each time step.
 
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     """
-    def __init__(self, Adv):
+    def __init__(self, Adv, entropy_bonus=0.01):
+        self.entropy_bonus = float(entropy_bonus)
         self.set_advantage(Adv)
 
     def set_advantage(self, Adv):
@@ -68,3 +73,38 @@ class BasePolicyLoss(BaseLoss):
         check_tensor(Adv, ndim=1)
         self.Adv = K.stop_gradient(Adv)
         return self
+
+    @abstractmethod
+    def __call__(self, A, Z, sample_weight):
+        """
+        Compute the policy-gradient surrogate loss.
+
+        Parameters
+        ----------
+        A : 2d Tensor, dtype: int, shape: [batch_size, 1]
+
+            This is a batch of actions that were actually taken. This argument
+            of the loss function is usually reserved for ``y_true``, i.e. a
+            prediction target. In this case, ``A`` doesn't act as a prediction
+            target but rather as a mask. We use this mask to project our
+            predicted values down to those for which we actually received a
+            feedback signal.
+
+        Z : 2d Tensor, shape: [batch_size, num_actions]
+
+            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
+
+        sample_weight : 1d Tensor, dtype: float, shape: [batch_size], optional
+
+            Not yet implemented; will be ignored.
+
+            #TODO: implement this -Kris
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar)
+
+            The batch loss.
+
+        """
+        pass

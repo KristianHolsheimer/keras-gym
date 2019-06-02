@@ -40,6 +40,10 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
 
         The advantages, one for each time step.
 
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     """
     @staticmethod
     def logpi_surrogate(Z):
@@ -95,37 +99,6 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
         return Z - Z_mean
 
     def __call__(self, A, Z, sample_weight=None):
-        """
-        Compute the policy-gradient surrogate loss.
-
-        Parameters
-        ----------
-        A : 2d Tensor, dtype: int, shape: [batch_size, 1]
-
-            This is a batch of actions that were actually taken. This argument
-            of the loss function is usually reserved for ``y_true``, i.e. a
-            prediction target. In this case, ``A`` doesn't act as a prediction
-            target but rather as a mask. We use this mask to project our
-            predicted logits down to those for which we actually received a
-            feedback signal.
-
-        Z : 2d Tensor, shape: [batch_size, num_actions]
-
-            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
-
-        sample_weight : 1d Tensor, dtype: float, shape: [batch_size], optional
-
-            Not yet implemented; will be ignored.
-
-            #TODO: implement this -Kris
-
-        Returns
-        -------
-        loss : 0d Tensor (scalar)
-
-            The batch loss.
-
-        """
         batch_size = K.int_shape(self.Adv)[0]
 
         # input shape of A is generally [None, None]
@@ -146,7 +119,10 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
         # construct the final surrogate loss
         surrogate_loss = -K.mean(self.Adv * logpi)
 
-        return surrogate_loss
+        # entropy bonus term (notice minus sign)
+        L_entropy = -self.entropy_bonus * PolicyEntropy()(A, Z)
+
+        return surrogate_loss + L_entropy
 
 
 class ClippedSurrogateLoss(BasePolicyLoss):
@@ -185,50 +161,23 @@ class ClippedSurrogateLoss(BasePolicyLoss):
         *behavior* policy, i.e. the one that actually generates the
         observations.
 
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     epsilon : float between 0 and 1, optional
 
         Hyperparameter that determines how we clip the surrogate loss.
 
     """
-    def __init__(self, Adv, Z_target, epsilon=0.2):
-        super().__init__(Adv)
+    def __init__(self, Adv, Z_target, entropy_bonus=0.01, epsilon=0.2):
+        super().__init__(Adv, entropy_bonus=entropy_bonus)
         self.epsilon = float(epsilon)
 
         check_tensor(Z_target, ndim=2)
         self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
 
     def __call__(self, A, Z, sample_weight=None):
-        """
-        Compute the policy-gradient surrogate loss.
-
-        Parameters
-        ----------
-        A : 2d Tensor, dtype = int, shape = [batch_size, 1]
-
-            This is a batch of actions that were actually taken. This argument
-            of the loss function is usually reserved for ``y_true``, i.e. a
-            prediction target. In this case, ``A`` doesn't act as a prediction
-            target but rather as a mask. We use this mask to project our
-            predicted values down to those for which we actually received a
-            feedback signal.
-
-        Z : 2d Tensor, shape: [batch_size, num_actions]
-
-            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
-
-        sample_weight : 1d Tensor, dtype = float, shape = [batch_size], optional
-
-            Not yet implemented; will be ignored.
-
-            #TODO: implement this -Kris
-
-        Returns
-        -------
-        loss : 0d Tensor (scalar)
-
-            The batch loss.
-
-        """  # noqa: E501
         batch_size = K.int_shape(self.Adv)[0]
 
         # input shape of A is generally [None, None]
@@ -249,7 +198,9 @@ class ClippedSurrogateLoss(BasePolicyLoss):
         L_clip = -K.mean(K.minimum(
             r * self.Adv,
             K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
-        L_entropy = -0.01 * PolicyEntropy()(A, Z)
+
+        # entropy bonus term (notice minus sign)
+        L_entropy = -self.entropy_bonus * PolicyEntropy()(A, Z)
 
         return L_clip + L_entropy
 
@@ -289,7 +240,8 @@ class PolicyKLDivergence(BaseLoss):
 
     def __call__(self, A, Z, sample_weight=None):
         """
-        Compute the policy-gradient surrogate loss.
+
+        Compute the the old-vs-new policy KL divergence.
 
         Parameters
         ----------
@@ -337,7 +289,7 @@ class PolicyEntropy(BaseLoss):
 
     def __call__(self, A, Z, sample_weight=None):
         """
-        Compute the policy-gradient surrogate loss.
+        Compute the action-space entropy of a policy.
 
         Parameters
         ----------

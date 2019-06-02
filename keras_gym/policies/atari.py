@@ -61,6 +61,15 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
 
+    ppo_clipping : float, optional
+
+        The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
+        loss. This option is only applicable if ``update_strategy='ppo'``.
+
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     optimizer : keras.optimizers.Optimizer, optional
 
         If left unspecified (``optimizer=None``), the Adam optimizer is used,
@@ -76,12 +85,16 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
     def __init__(
             self, env,
             update_strategy='ppo',
+            ppo_clipping=0.2,
+            entropy_bonus=0.01,
             optimizer=None,
             **adam_kwargs):
 
         super().__init__(
             env=env,
             update_strategy=update_strategy,
+            ppo_clipping=ppo_clipping,
+            entropy_bonus=entropy_bonus,
             train_model=None,  # set models later
             predict_model=None,
             target_model=None)
@@ -195,12 +208,16 @@ class AtariActorCritic(ActorCritic, AtariFunctionMixin):
             gamma=0.99,
             bootstrap_n=1,
             update_strategy='ppo',
+            ppo_clipping=0.2,
+            entropy_bonus=0.01,
             optimizer=None,
             **adam_kwargs):
 
         self.policy = GenericSoftmaxPolicy(
             env=env,
             update_strategy=update_strategy,
+            ppo_clipping=ppo_clipping,
+            entropy_bonus=entropy_bonus,
             random_seed=None,
             train_model=None,  # set models later
             predict_model=None,

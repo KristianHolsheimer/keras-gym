@@ -86,6 +86,15 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         unspecified (`interaction=None`), the interaction layer is omitted
         altogether.
 
+    ppo_clipping : float, optional
+
+        The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
+        loss. This option is only applicable if ``update_strategy='ppo'``.
+
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     random_seed : int, optional
 
         Sets the random state to get reproducible results.
@@ -106,6 +115,8 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
             self, env,
             update_strategy='vanilla',
             interaction=None,
+            ppo_clipping=0.2,
+            entropy_bonus=0.01,
             random_seed=None,
             optimizer=None,
             **sgd_kwargs):
@@ -113,6 +124,8 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         super().__init__(
             env=env,
             update_strategy=update_strategy,
+            ppo_clipping=ppo_clipping,
+            entropy_bonus=entropy_bonus,
             random_seed=random_seed,
             train_model=None,  # set models later
             predict_model=None,

@@ -848,6 +848,15 @@ class GenericSoftmaxPolicy(
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
 
+    ppo_clipping : float, optional
+
+        The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
+        loss. This option is only applicable if ``update_strategy='ppo'``.
+
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     random_seed : int, optional
 
         Sets the random state to get reproducible results.
@@ -858,6 +867,8 @@ class GenericSoftmaxPolicy(
     def __init__(
             self, env, train_model, predict_model, target_model,
             update_strategy='vanilla',
+            ppo_clipping=0.2,
+            entropy_bonus=0.01,
             random_seed=None):
 
         self.env = env
@@ -865,6 +876,8 @@ class GenericSoftmaxPolicy(
         self.predict_model = predict_model
         self.target_model = target_model
         self.update_strategy = update_strategy
+        self.ppo_clipping = float(ppo_clipping)
+        self.entropy_bonus = float(entropy_bonus)
         self.random_seed = random_seed  # sets self.random in RandomStateMixin
 
         # TODO: allow for non-discrete action spaces
@@ -1042,11 +1055,14 @@ class GenericSoftmaxPolicy(
 
     def _policy_loss(self, Adv, Z_target=None):
         if self.update_strategy == 'vanilla':
-            return SoftmaxPolicyLossWithLogits(Adv)
+            return SoftmaxPolicyLossWithLogits(
+                Adv, entropy_bonus=self.entropy_bonus)
 
         if self.update_strategy == 'ppo':
             assert Z_target is not None
-            return ClippedSurrogateLoss(Adv, Z_target)
+            return ClippedSurrogateLoss(
+                Adv, Z_target, entropy_bonus=self.entropy_bonus,
+                epsilon=self.ppo_clipping)
 
         raise ValueError(
             "unknown update_strategy '{}'".format(self.update_strategy))
