@@ -183,7 +183,7 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         V = keras.layers.Lambda(self.value_function.predict_model, name='V')(S)
         Z = keras.layers.Lambda(self.policy.predict_model, name='Z')(S)
         Z_target = keras.layers.Lambda(
-            self.policy.predict_model, name='Z_target')(S)
+            self.policy.target_model, name='Z_target')(S)
 
         # check if shapes are what we expect
         check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
