@@ -249,8 +249,9 @@ class ClippedSurrogateLoss(BasePolicyLoss):
         L_clip = -K.mean(K.minimum(
             r * self.Adv,
             K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
+        L_entropy = -0.01 * PolicyEntropy()(A, Z)
 
-        return L_clip
+        return L_clip + L_entropy
 
 
 class PolicyKLDivergence(BaseLoss):
