@@ -228,10 +228,9 @@ def check_numpy_array(
             .format(dtype, arr.dtype))
 
     check = shape is not None
-    shapes = [shape] if not isinstance(shape, (list, tuple, set)) else shape
-    if check and arr.shape not in shapes:
+    if check and arr.shape != shape:
         raise NumpyArrayCheckError(
-            "expected input with shape(s) {}, got shape: {}"
+            "expected input with shape {}, got shape: {}"
             .format(shape, arr.shape))
 
     check = axis_size is not None and axis is not None
