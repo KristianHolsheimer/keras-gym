@@ -57,12 +57,21 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
 
     def _train_on_batch(self, inputs, outputs):
         """
-        Run run self.train_model.train_on_batch(inputs, outputs) and return the
+        Run self.train_model.train_on_batch(inputs, outputs) and return the
         losses as a dict of type: {loss_name <str>: loss_value <float>}.
 
         """
         losses = self.train_model.train_on_batch(inputs, outputs)
-        losses = dict(zip(self.train_model.metrics_names, losses))  # add names
+
+        # add metric names
+        if len(self.train_model.metrics_names) > 1:
+            assert len(self.train_model.metrics_names) == len(losses)
+            losses = dict(zip(self.train_model.metrics_names, losses))
+        else:
+            assert isinstance(losses, (float, np.float32, np.float64))
+            assert len(self.train_model.metrics_names) == 1
+            losses = {self.train_model.metrics_names[0]: losses}
+
         return losses
 
     def sync_target_model(self, tau=1.0):
