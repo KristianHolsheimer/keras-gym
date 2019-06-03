@@ -2,6 +2,14 @@ Release Notes
 =============
 
 
+v0.2.12
+-------
+
+- MILESTONE: got PPO working on Atari Pong
+- added :class:`PolicyKLDivergence <keras_gym.losses.PolicyKLDivergence>` and :class:`PolicyEntropy <keras_gym.losses.PolicyEntropy>`
+- added ``entropy_bonus`` and ``ppo_clipping`` kwargs to updateable policies
+
+
 v0.2.11
 -------
 
