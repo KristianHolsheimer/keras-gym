@@ -1,7 +1,8 @@
 from gym.spaces import Discrete, MultiDiscrete
 import numpy as np
 
-from ..base.errors import MissingAdversaryError, UnavailableActionError
+from ..base.errors import (
+    MissingAdversaryError, UnavailableActionError, EpisodeDoneError)
 
 
 __all__ = (
@@ -81,6 +82,7 @@ class ConnectFourEnv:
         self.state = np.zeros(self.shape, dtype='int')
         self.last_adversary_action = None
         self._levels = np.full(self.num_cols, self.num_rows - 1, dtype='int')
+        self._done = False
 
     def reset(self):
         """
@@ -135,6 +137,8 @@ class ConnectFourEnv:
             A dict with some extra information (or None).
 
         """
+        if self._done:
+            raise EpisodeDoneError("please reset env to start new episode")
         if self.adversary_policy is None:
             raise MissingAdversaryError(
                 "must specify adversary in order to run the environment")
@@ -146,17 +150,17 @@ class ConnectFourEnv:
         # player's turn
         player = 1
         self.state[self._levels[a], a] = player
-        done, reward = self._done_reward(a, player)
-        if done:
-            return self.state, reward, done, None
+        self._done, reward = self._done_reward(a, player)
+        if self._done:
+            return self.state, reward, self._done, {}
 
         # adversary's turn
         player = 2
         a = self._adversary_action()
         self.state[self._levels[a], a] = player
-        done, reward = self._done_reward(a, player)
+        self._done, reward = self._done_reward(a, player)
 
-        return self.state, reward, done, None
+        return self.state, reward, self._done, {}
 
     def render(self):
         """ Render the current state of the environment. """
