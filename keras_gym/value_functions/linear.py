@@ -5,7 +5,7 @@ from tensorflow.keras import backend as K
 from ..base.function_approximators.linear import LinearFunctionMixin
 from ..base.function_approximators.generic import (
     GenericV, GenericQTypeI, GenericQTypeII)
-from ..losses import ProjectedSemiGradientLoss
+from ..losses import ProjectedSemiGradientLoss, Huber
 
 
 __all__ = (
@@ -109,7 +109,7 @@ class LinearV(GenericV, LinearFunctionMixin):
     def _init_models(self, output_dim):
         s = self.env.observation_space.sample()
 
-        S = keras.Input(name='S', shape=s.shape, dtype=s.dtype)
+        S = keras.Input(name='value/S', shape=s.shape, dtype=s.dtype)
 
         def forward_pass(S, variable_scope):
             def v(name):
@@ -132,7 +132,7 @@ class LinearV(GenericV, LinearFunctionMixin):
         Q = forward_pass(S, variable_scope='primary')
         self.train_model = keras.Model(S, Q)
         self.train_model.compile(
-            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+            loss=Huber(), optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for V(s)
 
         # target model
@@ -281,8 +281,8 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
     def _init_models(self, output_dim):
         s = self.env.observation_space.sample()
 
-        S = keras.Input(name='S', shape=s.shape, dtype=s.dtype)
-        A = keras.Input(name='A', shape=(), dtype='int32')
+        S = keras.Input(name='value/S', shape=s.shape, dtype=s.dtype)
+        A = keras.Input(name='value/A', shape=(), dtype='int32')
 
         def forward_pass(S, A, variable_scope):
             def v(name):
@@ -311,7 +311,7 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
         Q = forward_pass(S, A, variable_scope='primary')
         self.train_model = keras.Model(inputs=[S, A], outputs=Q)
         self.train_model.compile(
-            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+            loss=Huber(), optimizer=self.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for type-I
 
         # target model
@@ -461,8 +461,8 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        G = keras.Input(name='G', shape=(), dtype='float')
+        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
+        G = keras.Input(name='value/G', shape=(), dtype='float')
 
         def forward_pass(S, variable_scope):
             def v(name):
@@ -483,7 +483,7 @@ class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
         Q = forward_pass(S, variable_scope='primary')
 
         # loss
-        loss = ProjectedSemiGradientLoss(G, base_loss=tf.losses.huber_loss)
+        loss = ProjectedSemiGradientLoss(G, base_loss=Huber())
 
         # regular models
         self.train_model = keras.Model(inputs=[S, G], outputs=Q)

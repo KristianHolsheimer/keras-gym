@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ...utils import (
@@ -56,6 +55,25 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
             raise AttributeError(
                 "missing attributes: {}".format(missing_attrs))
 
+    def _train_on_batch(self, inputs, outputs):
+        """
+        Run self.train_model.train_on_batch(inputs, outputs) and return the
+        losses as a dict of type: {loss_name <str>: loss_value <float>}.
+
+        """
+        losses = self.train_model.train_on_batch(inputs, outputs)
+
+        # add metric names
+        if len(self.train_model.metrics_names) > 1:
+            assert len(self.train_model.metrics_names) == len(losses)
+            losses = dict(zip(self.train_model.metrics_names, losses))
+        else:
+            assert isinstance(losses, (float, np.float32, np.float64))
+            assert len(self.train_model.metrics_names) == 1
+            losses = {self.train_model.metrics_names[0]: losses}
+
+        return losses
+
     def sync_target_model(self, tau=1.0):
         """
         Synchronize the target model with the primary model.
@@ -72,30 +90,41 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
                 + \\tau\\,w_\\text{primary}
 
         """
-        if not hasattr(self, '_target_model_sync_op'):
-            target_weights = tf.get_collection(
-                tf.GraphKeys.GLOBAL_VARIABLES, scope='target')  # list
-            primary_weights = tf.get_collection(
-                tf.GraphKeys.GLOBAL_VARIABLES, scope='primary')  # list
-
-            if not target_weights:
-                raise MissingModelError(
-                    "no model weights found in variable scope: 'target'")
-            if not primary_weights:
-                raise MissingModelError(
-                    "no model weights found in variable scope: 'primary'")
-
-            assert len(primary_weights) == len(target_weights), "incompatible"
-
-            self._target_model_sync_tau = tf.placeholder(tf.float32, shape=())
-            self._target_model_sync_op = tf.group(*(
-                K.update(wt, wt + self._target_model_sync_tau * (wp - wt))
+        if tf.__version__ >= '2.0':
+            target_weights = self.target_model.trainable_variables
+            primary_weights = self.predict_model.trainable_variables
+            tf.group(*(
+                K.update(wt, wt + tau * (wp - wt))
                 for wt, wp in zip(target_weights, primary_weights)))
+            self.logger.debug(
+                "updated target_mode with tau = {:.3g}".format(tau))
 
-        K.get_session().run(
-            self._target_model_sync_op,
-            feed_dict={self._target_model_sync_tau: tau})
-        self.logger.debug("updated target_mode with tau = {:.3g}".format(tau))
+        else:
+            if not hasattr(self, '_target_model_sync_op'):
+                target_weights = tf.get_collection(
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope='target')  # list
+                primary_weights = tf.get_collection(
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope='primary')  # list
+
+                if not target_weights:
+                    raise MissingModelError(
+                        "no model weights found in variable scope: 'target'")
+                if not primary_weights:
+                    raise MissingModelError(
+                        "no model weights found in variable scope: 'primary'")
+                assert len(primary_weights) == len(target_weights)
+
+                self._target_model_sync_tau = tf.placeholder(
+                    tf.float32, shape=())
+                self._target_model_sync_op = tf.group(*(
+                    K.update(wt, wt + self._target_model_sync_tau * (wp - wt))
+                    for wt, wp in zip(target_weights, primary_weights)))
+
+            K.get_session().run(
+                self._target_model_sync_op,
+                feed_dict={self._target_model_sync_tau: tau})
+            self.logger.debug(
+                "updated target_mode with tau = {:.3g}".format(tau))
 
 
 class GenericV(BaseFunctionApproximator):
@@ -251,15 +280,39 @@ class GenericV(BaseFunctionApproximator):
 
             A batch of next-state observations.
 
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
         """
         V_next = self.batch_eval(
             S_next, use_target_model=self.bootstrap_with_target_model)
         Gn = Rn + I_next * V_next
-        self.train_model.train_on_batch(S, Gn)
+        losses = self._train_on_batch(S, Gn)
+        return losses
 
     def batch_eval(self, S, use_target_model=False):
         """
-        #TODO: docstring
+        Evaluate the state value function on a batch of state observations.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        V : 1d array, dtype: float, shape: [batch_size]
+
+            The predicted state values.
 
         """
         model = self.target_model if use_target_model else self.predict_model
@@ -410,9 +463,16 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             A batch of next-actions that were taken. This is only required for
             SARSA (on-policy) updates.
 
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
         """
         G = self.bootstrap_target_np(Rn, I_next, S_next, A_next)
-        self.train_model.train_on_batch([S, G], A)
+        losses = self._train_on_batch([S, G], A)
+        return losses
 
     def bootstrap_target_np(self, Rn, I_next, S_next, A_next=None):
         """
@@ -797,6 +857,15 @@ class GenericSoftmaxPolicy(
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
 
+    ppo_clipping : float, optional
+
+        The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
+        loss. This option is only applicable if ``update_strategy='ppo'``.
+
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     random_seed : int, optional
 
         Sets the random state to get reproducible results.
@@ -807,6 +876,8 @@ class GenericSoftmaxPolicy(
     def __init__(
             self, env, train_model, predict_model, target_model,
             update_strategy='vanilla',
+            ppo_clipping=0.2,
+            entropy_bonus=0.01,
             random_seed=None):
 
         self.env = env
@@ -814,6 +885,8 @@ class GenericSoftmaxPolicy(
         self.predict_model = predict_model
         self.target_model = target_model
         self.update_strategy = update_strategy
+        self.ppo_clipping = float(ppo_clipping)
+        self.entropy_bonus = float(entropy_bonus)
         self.random_seed = random_seed  # sets self.random in RandomStateMixin
 
         # TODO: allow for non-discrete action spaces
@@ -979,32 +1052,26 @@ class GenericSoftmaxPolicy(
             This might be sampled and/or estimated version of the true
             advantage.
 
-        """
-        self.train_model.train_on_batch([S, Adv], A)
+        Returns
+        -------
+        losses : dict
 
-    def _policy_loss_and_target(self, Adv, Logits, Logits_target):
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
+        """
+        losses = self._train_on_batch([S, Adv], A)
+        return losses
+
+    def _policy_loss(self, Adv, Z_target=None):
         if self.update_strategy == 'vanilla':
-            return SoftmaxPolicyLossWithLogits(Adv), Logits
+            return SoftmaxPolicyLossWithLogits(
+                Adv, entropy_bonus=self.entropy_bonus)
 
         if self.update_strategy == 'ppo':
-            def proba_ratio(args):
-                Z, Z_old = args  # these are the logits
-
-                # shift for stability (softmax is invariant under shifts)
-                Z = Z - K.max(Z, axis=1, keepdims=True)
-                Z_old = Z_old - K.max(Z_old, axis=1, keepdims=True)
-
-                # log-policy
-                logPi = Z - K.log(K.sum(K.exp(Z), axis=1, keepdims=True))
-                logPi_old = \
-                    Z_old - K.log(K.sum(K.exp(Z_old), axis=1, keepdims=True))
-
-                # policy ratios: r = pi / pi_old
-                r = K.exp(logPi - K.stop_gradient(logPi_old))
-                return r
-
-            r = keras.layers.Lambda(proba_ratio)([Logits, Logits_target])
-            return ClippedSurrogateLoss(Adv), r
+            assert Z_target is not None
+            return ClippedSurrogateLoss(
+                Adv, Z_target, entropy_bonus=self.entropy_bonus,
+                epsilon=self.ppo_clipping)
 
         raise ValueError(
             "unknown update_strategy '{}'".format(self.update_strategy))

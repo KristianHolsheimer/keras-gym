@@ -27,6 +27,8 @@ __all__ = (
     'is_policy',
     'is_qfunction',
     'is_vfunction',
+    'log_softmax',
+    'log_softmax_tf',
     'project_onto_actions_np',
     'project_onto_actions_tf',
     'softmax',
@@ -206,9 +208,10 @@ def check_numpy_array(
             .format(type(arr)))
 
     check = ndim is not None
-    if check and arr.ndim != ndim:
+    ndims = [ndim] if not isinstance(ndim, (list, tuple, set)) else ndim
+    if check and arr.ndim not in ndims:
         raise NumpyArrayCheckError(
-            "expected input with ndim equal to {}, got ndim: {}"
+            "expected input with ndim(s) {}, got ndim: {}"
             .format(ndim, arr.ndim))
 
     check = ndim_min is not None
@@ -218,9 +221,10 @@ def check_numpy_array(
             .format(ndim_min, arr.ndim))
 
     check = dtype is not None
-    if check and arr.dtype != dtype:
+    dtypes = [dtype] if not isinstance(dtype, (list, tuple, set)) else dtype
+    if check and arr.dtype not in dtypes:
         raise NumpyArrayCheckError(
-            "expected input with dtype {}, got dtype: {}"
+            "expected input with dtype(s) {}, got dtype: {}"
             .format(dtype, arr.dtype))
 
     check = shape is not None
@@ -230,9 +234,10 @@ def check_numpy_array(
             .format(shape, arr.shape))
 
     check = axis_size is not None and axis is not None
-    if check and arr.shape[axis] != axis_size:
+    sizes = [axis_size] if not isinstance(axis_size, (list, tuple, set)) else axis_size  # noqa: E501
+    if check and arr.shape[axis] not in sizes:
         raise NumpyArrayCheckError(
-            "expected input with size {} along axis {}, got shape: {}"
+            "expected input with size(s) {} along axis {}, got shape: {}"
             .format(axis_size, axis, arr.shape))
 
 
@@ -424,32 +429,98 @@ def argmax(arr, axis=None, random_state=None):
     return argmin(-arr, axis=axis, random_state=random_state)
 
 
-def softmax(arr, axis=0):
+def softmax(arr, axis=-1):
     """
     Compute the softmax (normalized point-wise exponential).
+
+    **Note:** This is the *numpy* implementation.
 
     Parameters
     ----------
     arr : numpy array
+
         The input array.
 
     axis : int, optional
+
         The axis along which to normalize, default is 0.
 
     Returns
     -------
     out : array of same shape
+
         The entries of the output array are non-negative and normalized, which
         make them good candidates for modeling probabilities.
 
     """
     if not isinstance(arr, np.ndarray):
         arr = np.array(arr)
-    arr -= arr.mean(axis=axis, keepdims=True)  # center before clipping
-    arr = np.clip(arr, -30, 30)                # avoid overflow before exp
-    arr = np.exp(arr)
-    arr /= arr.sum(axis=axis, keepdims=True)
-    return arr
+    Z = arr - np.mean(arr, axis=axis, keepdims=True)  # center before clipping
+    Z = np.clip(Z, -30, 30)                           # avoid over/underflow
+    exp_Z = np.exp(Z)
+    p = exp_Z / np.sum(exp_Z, axis=axis, keepdims=True)
+    return p
+
+
+def log_softmax(arr, axis=-1):
+    """
+    Compute the log-softmax.
+
+    **Note:** This is the *numpy* implementation.
+
+    Parameters
+    ----------
+    arr : numpy array
+
+        The input array.
+
+    axis : int, optional
+
+        The axis along which to normalize, default is 0.
+
+    Returns
+    -------
+    out : array of same shape
+
+        The entries may be interpreted as log-probabilities.
+
+    """
+    if not isinstance(arr, np.ndarray):
+        arr = np.array(arr)
+    Z = arr - arr.mean(axis=axis, keepdims=True)  # center before clipping
+    Z = np.clip(Z, -30, 30)                       # avoid over/underflow
+    log_P = Z - np.log(np.sum(np.exp(Z), axis=axis, keepdims=True))
+    return log_P
+
+
+def log_softmax_tf(Z, axis=-1):
+    """
+    Compute the log-softmax.
+
+    **Note:** This is the *tensorflow* implementation.
+
+    Parameters
+    ----------
+    Z : Tensor
+
+        The input logits.
+
+    axis : int, optional
+
+        The axis along which to normalize, default is 0.
+
+    Returns
+    -------
+    out : Tensor of same shape as input
+
+        The entries may be interpreted as log-probabilities.
+
+    """
+    check_tensor(Z)
+    Z = Z - K.mean(Z, axis=axis, keepdims=True)  # center before clipping
+    Z = K.clip(Z, -30, 30)                       # avoid overflow before exp
+    log_P = Z - K.log(K.sum(K.exp(Z), axis=axis, keepdims=True))
+    return log_P
 
 
 def diff_transform_matrix(num_frames, dtype='float32'):

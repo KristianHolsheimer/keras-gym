@@ -126,14 +126,21 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
             A batch of next-actions that were taken. This is only required for
             SARSA (on-policy) updates.
 
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
         """
         V_next = self.value_function.batch_eval(
             S_next,
             use_target_model=self.value_function.bootstrap_with_target_model)
         G = Rn + I_next * V_next
         check_numpy_array(G, ndim=1, dtype='float')
-        check_numpy_array(A, ndim=1, dtype='int32')
-        self.train_model.train_on_batch([S, G], [A, G])
+        check_numpy_array(A, ndim=1, dtype=('int', 'int32', 'int64'))
+        losses = self._train_on_batch([S, G], [A, G])
+        return losses
 
     def __call__(self, s):
         return self.policy(s)
@@ -169,19 +176,21 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         dtype = self.env.observation_space.dtype
 
         # inputs
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        G = keras.Input(name='G', shape=(1,), dtype='float')
+        S = keras.Input(name='actor_critic/S', shape=shape, dtype=dtype)
+        G = keras.Input(name='actor_critic/G', shape=(1,), dtype='float')
 
         # predictions
-        Z = self.policy.predict_model(S)
-        V = self.value_function.predict_model(S)
+        V = keras.layers.Lambda(self.value_function.predict_model, name='V')(S)
+        Z = keras.layers.Lambda(self.policy.predict_model, name='Z')(S)
+        Z_target = keras.layers.Lambda(
+            self.policy.target_model, name='Z_target')(S)
 
         # check if shapes are what we expect
         check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
         check_tensor(V, ndim=2, axis_size=1, axis=1)
 
         # update loss with advantage coming directly from graph
-        policy_loss = self.policy.train_model.loss.set_advantage(G - V)
+        policy_loss = self.policy._policy_loss(G - V, Z_target)
         value_loss = self.value_function.train_model.loss
 
         # joint model

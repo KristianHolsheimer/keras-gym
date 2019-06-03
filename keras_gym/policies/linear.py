@@ -86,6 +86,15 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         unspecified (`interaction=None`), the interaction layer is omitted
         altogether.
 
+    ppo_clipping : float, optional
+
+        The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
+        loss. This option is only applicable if ``update_strategy='ppo'``.
+
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
     random_seed : int, optional
 
         Sets the random state to get reproducible results.
@@ -106,6 +115,8 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
             self, env,
             update_strategy='vanilla',
             interaction=None,
+            ppo_clipping=0.2,
+            entropy_bonus=0.01,
             random_seed=None,
             optimizer=None,
             **sgd_kwargs):
@@ -113,6 +124,8 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         super().__init__(
             env=env,
             update_strategy=update_strategy,
+            ppo_clipping=ppo_clipping,
+            entropy_bonus=entropy_bonus,
             random_seed=random_seed,
             train_model=None,  # set models later
             predict_model=None,
@@ -128,8 +141,8 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        Adv = keras.Input(name='Adv', shape=(), dtype='float')
+        S = keras.Input(name='policy/S', shape=shape, dtype=dtype)
+        Adv = keras.Input(name='policy/Adv', shape=(), dtype='float')
 
         def forward_pass(S, variable_scope):
             def v(name):
@@ -147,16 +160,16 @@ class LinearSoftmaxPolicy(GenericSoftmaxPolicy, LinearFunctionMixin):
             return dense_layer(S)
 
         # computation graph
-        Logits = forward_pass(S, variable_scope='primary')
-        Logits_target = forward_pass(S, variable_scope='target')
-        check_tensor(Logits, ndim=2, axis_size=self.num_actions, axis=1)
-        check_tensor(Logits_target, ndim=2, axis_size=self.num_actions, axis=1)
+        Z = forward_pass(S, variable_scope='primary')
+        Z_target = forward_pass(S, variable_scope='target')
+        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        check_tensor(Z_target, ndim=2, axis_size=self.num_actions, axis=1)
 
         # loss and target tensor (depends on self.update_strategy)
-        loss, Y = self._policy_loss_and_target(Adv, Logits, Logits_target)
+        loss = self._policy_loss(Adv, Z_target)
 
         # models
-        self.train_model = keras.Model(inputs=[S, Adv], outputs=Y)
+        self.train_model = keras.Model(inputs=[S, Adv], outputs=Z)
         self.train_model.compile(loss=loss, optimizer=self.optimizer)
-        self.predict_model = keras.Model(inputs=S, outputs=Logits)
-        self.target_model = keras.Model(inputs=S, outputs=Logits_target)
+        self.predict_model = keras.Model(inputs=S, outputs=Z)
+        self.target_model = keras.Model(inputs=S, outputs=Z_target)

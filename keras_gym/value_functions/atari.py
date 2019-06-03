@@ -1,7 +1,6 @@
-import tensorflow as tf
 from tensorflow import keras
 
-from ..losses import ProjectedSemiGradientLoss
+from ..losses import ProjectedSemiGradientLoss, Huber
 from ..base.function_approximators.generic import GenericV, GenericQTypeII
 from ..base.function_approximators.atari import AtariFunctionMixin
 
@@ -13,7 +12,7 @@ __all__ = (
 
 class AtariV(GenericV, AtariFunctionMixin):
     """
-    A specific :term:`state value function>` for Atari environments.
+    A specific :term:`state value function` for Atari environments.
 
     Parameters
     ----------
@@ -82,7 +81,7 @@ class AtariV(GenericV, AtariFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
+        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
 
         # regular computation graph
         V = self._forward_pass(S, variable_scope='primary')
@@ -90,7 +89,7 @@ class AtariV(GenericV, AtariFunctionMixin):
         # regular models
         self.train_model = keras.Model(inputs=S, outputs=V)
         self.train_model.compile(
-            loss=tf.losses.huber_loss, optimizer=self.optimizer)
+            loss=Huber(), optimizer=self.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=V)
 
         # target model
@@ -213,14 +212,14 @@ class AtariQ(GenericQTypeII, AtariFunctionMixin):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='S', shape=shape, dtype=dtype)
-        G = keras.Input(name='G', shape=(), dtype='float')
+        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
+        G = keras.Input(name='value/G', shape=(), dtype='float')
 
         # regular computation graph
         Q = self._forward_pass(S, variable_scope='primary')
 
         # loss
-        loss = ProjectedSemiGradientLoss(G, base_loss=tf.losses.huber_loss)
+        loss = ProjectedSemiGradientLoss(G, base_loss=Huber())
 
         # regular models
         self.train_model = keras.Model(inputs=[S, G], outputs=Q)

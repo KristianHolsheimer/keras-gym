@@ -6,7 +6,7 @@ from tensorflow.keras import backend as K
 from ..base.errors import NumpyArrayCheckError
 from .helpers import (
     idx, check_numpy_array, project_onto_actions_np, project_onto_actions_tf,
-    softmax)
+    softmax, log_softmax, log_softmax_tf)
 
 
 def test_check_numpy_array_ndim_min():
@@ -57,10 +57,9 @@ def test_project_onto_actions_tf_expected():
     Y_tf = K.constant(Y_np, dtype='int64')
     A_tf = K.constant(A_np, dtype='int64')
     Y_proj_tf = project_onto_actions_tf(Y_tf, A_tf)
-    with K.get_session() as s:
-        Y_proj_tf = s.run(Y_proj_tf)
 
     # compare
+    Y_proj_tf = K.get_session().run(Y_proj_tf)
     np.testing.assert_array_equal(Y_proj_tf, Y_proj_np)
 
 
@@ -84,3 +83,48 @@ def test_softmax_expected():
     # check robustness by clipping
     assert not np.any(np.isnan(z))
     np.testing.assert_almost_equal(z.sum(axis=1), np.ones(3))
+
+
+def test_log_softmax_expected():
+    rnd = np.random.RandomState(7)
+    w = rnd.randn(3, 5)
+    x = softmax(w, axis=1)
+    logx = log_softmax(w, axis=1)
+    logy = log_softmax(w + 100., axis=1)
+    logz = log_softmax(w * 100., axis=1)
+
+    # check shape
+    assert x.shape == w.shape
+
+    # check against regular implementation
+    np.testing.assert_almost_equal(np.log(x), logx)
+
+    # check translation invariance
+    np.testing.assert_almost_equal(logy, logx)
+
+    # check robustness by clipping
+    assert not np.any(np.isnan(logz))
+
+    # check normalization for large values
+    np.testing.assert_array_almost_equal(np.exp(logz).sum(axis=1), np.ones(3))
+
+
+def test_log_softmax_tf_expected():
+    rnd = np.random.RandomState(7)
+    w_np = rnd.randn(3, 5).astype('float32')
+    logx_np = log_softmax(w_np, axis=1)
+    logy_np = log_softmax(w_np + 100., axis=1)
+    logz_np = log_softmax(w_np * 100., axis=1)
+
+    w_tf = K.constant(w_np)
+    logx_tf = log_softmax_tf(w_tf, axis=1)
+    logy_tf = log_softmax_tf(w_tf + 100., axis=1)
+    logz_tf = log_softmax_tf(w_tf * 100., axis=1)
+
+    logx_tf = K.get_session().run(logx_tf)
+    logy_tf = K.get_session().run(logy_tf)
+    logz_tf = K.get_session().run(logz_tf)
+
+    np.testing.assert_array_almost_equal(logx_tf, logx_np)
+    np.testing.assert_array_almost_equal(logy_tf, logy_np)
+    np.testing.assert_array_almost_equal(logz_tf, logz_np)
