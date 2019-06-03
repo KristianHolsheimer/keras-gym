@@ -187,6 +187,7 @@ class ConnectFourEnv:
                 for j in range(self.num_cols))
             board += " |\n"
             board += hrule
+        board += "  0   1   2   3   4   5   6  \n"  # actions
 
         print(board)
 
