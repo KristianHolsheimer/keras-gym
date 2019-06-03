@@ -4,8 +4,7 @@ import gym
 
 from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
 from keras_gym.utils import TrainMonitor, generate_gif
-from keras_gym.value_functions import AtariV
-from keras_gym.policies import AtariPolicy, ActorCritic
+from keras_gym.policies import AtariActorCritic
 from keras_gym.caching import ExperienceReplayBuffer
 
 
@@ -19,22 +18,18 @@ env = FrameStacker(env, num_frames=3)
 env = TrainMonitor(env)
 
 
-# function approximators
-pi = AtariPolicy(
+# actor-critic with shared weights between pi(a|s) and V(s)
+actor_critic = AtariActorCritic(
     env,
+    gamma=0.99,
+    bootstrap_n=10,
     update_strategy='ppo',
     ppo_clipping=0.2,
     entropy_bonus=0.01,
     lr=0.00025)
 
-V = AtariV(
-    env,
-    lr=0.00025,
-    gamma=0.99,
-    bootstrap_n=10,
-    bootstrap_with_target_model=True)
-
-actor_critic = ActorCritic(pi, V)
+V = actor_critic.value_function
+pi = actor_critic.policy
 
 
 # we'll use this to temporarily store our experience

@@ -6,10 +6,8 @@ learning by example.
 
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    cartpole/sarsa
-    atari/dqn
-    frozen_lake/reinforce
-    frozen_lake/actor_critic
-    frozen_lake/ppo
+    cartpole/index
+    atari/index
+    frozen_lake/index
