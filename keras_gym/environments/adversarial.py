@@ -41,8 +41,11 @@ class ConnectFourEnv:
     action_space : gym.spaces.Discrete(7)
         The action space.
 
-    observation_space : gym.spaces.MultiDiscrete([[3, 3, 3, 3, 3, 3, 3], ...])
-        The state observation space.
+    observation_space : Tuple((MultiDiscrete([[2, 2, 2, 2, 2, 2, 2], ...]), MultiBinary(7)))
+        The state observation space, representing the position of player 1
+        tokens (``s[0][:,:,0]``) and player 2 tokens (``s[0][:,:,1]``) as well
+        as a mask over the space of actions, indicating which actions are
+        available (``s[1]``).
 
     max_time_steps : int
         Maximum number of timesteps within each episode.
@@ -50,7 +53,7 @@ class ConnectFourEnv:
     available_actions : array of int
         Array of available actions. This list shrinks when columns saturate.
 
-    """
+    """  # noqa: E501
     # class attributes
     num_rows = 6
     num_cols = 7
