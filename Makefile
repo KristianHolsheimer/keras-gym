@@ -48,3 +48,6 @@ tf_gpu:
 
 tf_cpu:
 	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow-gpu && $(PYTHON_EXEC) -m pip install tensorflow
+
+rm_pycache:
+	find -regex '.*__pycache__[^/]*' -type d -exec rm -rf '{}' \;
