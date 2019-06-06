@@ -1,4 +1,4 @@
-from gym.spaces import Discrete, MultiDiscrete
+from gym.spaces import Discrete, MultiDiscrete, Tuple, MultiBinary
 import numpy as np
 
 from ..base.errors import (
@@ -54,9 +54,14 @@ class ConnectFourEnv:
     # class attributes
     num_rows = 6
     num_cols = 7
-    shape = (num_rows, num_cols)
+    num_layers = 2
+    shape = (num_rows, num_cols, num_layers)
     action_space = Discrete(num_cols)
-    observation_space = MultiDiscrete(np.full(shape, 3, dtype='int'))
+    observation_space = Tuple((
+        MultiDiscrete(np.full(shape, 2, dtype='int')),  # board configurations
+        MultiBinary(num_cols),                          # available actions
+    ))
+
     max_time_steps = int(np.ceil(num_rows * num_cols / 2))
 
     def __init__(self, adversary_policy=None, greedy_adversary=True,
@@ -78,8 +83,18 @@ class ConnectFourEnv:
         assert actions.size <= self.num_cols
         return actions
 
+    @property
+    def state(self):
+        stacked_layers = np.stack((
+            (self._state == 1).astype('uint8'),  # player 1 layer
+            (self._state == 2).astype('uint8'),  # player 2 layer
+        ), axis=-1)
+        available_actions_mask = np.zeros(self.num_cols, dtype='uint8')
+        available_actions_mask[self.available_actions] = 1
+        return stacked_layers, available_actions_mask
+
     def _init_state(self):
-        self.state = np.zeros(self.shape, dtype='int')
+        self._state = np.zeros((self.num_rows, self.num_cols), dtype='int')
         self.last_adversary_action = None
         self._levels = np.full(self.num_cols, self.num_rows - 1, dtype='int')
         self._done = False
@@ -102,7 +117,7 @@ class ConnectFourEnv:
         # flip a coin to decide whether adversary starts
         if self.adversary_policy is not None and self.rnd.randint(2):
             a = self._adversary_action()
-            self.state[-1, a] = 2
+            self._state[-1, a] = 2
             self._levels[a] -= 1
 
         return self.state
@@ -149,7 +164,7 @@ class ConnectFourEnv:
 
         # player's turn
         player = 1
-        self.state[self._levels[a], a] = player
+        self._state[self._levels[a], a] = player
         self._done, reward = self._done_reward(a, player)
         if self._done:
             return self.state, reward, self._done, {}
@@ -157,7 +172,7 @@ class ConnectFourEnv:
         # adversary's turn
         player = 2
         a = self._adversary_action()
-        self.state[self._levels[a], a] = player
+        self._state[self._levels[a], a] = player
         self._done, reward = self._done_reward(a, player)
 
         return self.state, reward, self._done, {}
@@ -183,7 +198,7 @@ class ConnectFourEnv:
         for i in range(self.num_rows):
             board += "| "
             board += " | ".join(
-                symbol.get(self.state[i, j], " ")
+                symbol.get(self._state[i, j], " ")
                 for j in range(self.num_cols))
             board += " |\n"
             board += hrule
@@ -192,10 +207,14 @@ class ConnectFourEnv:
         print(board)
 
     def _adversary_action(self, last_attempt=None):
+        # create the state as seen from the adversary (swap player layers)
+        stacked_layers, available_actions_mask = self.state
+        s_adversary = stacked_layers[:, :, ::-1], available_actions_mask
+
         if self.greedy_adversary:
-            a = self.adversary_policy.greedy(self.state)
+            a = self.adversary_policy.greedy(s_adversary)
         else:
-            a = self.adversary_policy(self.state)
+            a = self.adversary_policy(s_adversary)
 
         if a not in self.available_actions:
             a = self.rnd.choice(self.available_actions)
@@ -230,7 +249,7 @@ class ConnectFourEnv:
         i, j = i_init, j_init
         for _ in range(3):
             i += 1
-            if i > i_max or self.state[i, j] != player:
+            if i > i_max or self._state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -241,7 +260,7 @@ class ConnectFourEnv:
         i, j = i_init, j_init
         for _ in range(3):
             j -= 1
-            if j < 0 or self.state[i, j] != player:
+            if j < 0 or self._state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -251,7 +270,7 @@ class ConnectFourEnv:
         i, j = i_init, j_init
         for _ in range(3):
             j += 1
-            if j > j_max or self.state[i, j] != player:
+            if j > j_max or self._state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -263,7 +282,7 @@ class ConnectFourEnv:
         for _ in range(3):
             i -= 1
             j -= 1
-            if i < 0 or j < 0 or self.state[i, j] != player:
+            if i < 0 or j < 0 or self._state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -274,7 +293,7 @@ class ConnectFourEnv:
         for _ in range(3):
             i += 1
             j += 1
-            if i > i_max or j > j_max or self.state[i, j] != player:
+            if i > i_max or j > j_max or self._state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -286,7 +305,7 @@ class ConnectFourEnv:
         for _ in range(3):
             i += 1
             j -= 1
-            if i > i_max or j < 0 or self.state[i, j] != player:
+            if i > i_max or j < 0 or self._state[i, j] != player:
                 break
             c += 1
             if c == 4:
@@ -297,7 +316,7 @@ class ConnectFourEnv:
         for _ in range(3):
             i -= 1
             j += 1
-            if i < 0 or j > j_max or self.state[i, j] != player:
+            if i < 0 or j > j_max or self._state[i, j] != player:
                 break
             c += 1
             if c == 4:
