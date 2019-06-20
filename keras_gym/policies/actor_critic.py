@@ -2,12 +2,11 @@ from tensorflow import keras
 
 from ..utils import (
     is_vfunction, is_qfunction, is_policy, check_tensor, check_numpy_array)
-from ..base.policy import BasePolicy
 from ..base.mixins import NumActionsMixin
 from ..base.function_approximators.generic import BaseFunctionApproximator
 
 
-class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
+class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
     """
     A generic actor-critic, adorning an :term:`updateable policy` with a
     :term:`value function <state value function>`.
@@ -143,16 +142,52 @@ class ActorCritic(BaseFunctionApproximator, BasePolicy, NumActionsMixin):
         return losses
 
     def __call__(self, s):
-        return self.policy(s)
+        """
+        Draw an action from the current policy :math:`\\pi(a|s)` and get the
+        expected value :math:`V(s)`.
 
-    def batch_eval(self, S):
-        return self.policy.batch_eval(S)
+        Parameters
+        ----------
+        s : state observation
 
-    def greedy(self, s):
-        return self.policy.greedy(s)
+            A single state observation.
 
-    def proba(self, s):
-        return self.policy.proba(s)
+        Returns
+        -------
+        proba, v : tuple (1d array of floats, float)
+
+            Returns a pair representing :math:`(\\pi(.|s), V(s))`.
+
+        """
+        return self.policy.proba(s), self.value_function(s)
+
+    def batch_eval(self, S, use_target_model=False):
+        """
+        Evaluate the policy on a batch of state observations.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        Pi, V : arrays with shapes: ([batch_size, num_actions], [batch_size])
+
+            A batch of action probabilities and values
+            :math:`(\\pi(.|s), V(s))`.
+
+        """  # noqa: E501
+        Pi = self.policy.batch_eval(S, use_target_model=use_target_model)
+        V = self.value_function.batch_eval(
+            S, use_target_model=use_target_model)
+        return Pi, V
 
     def sync_target_model(self, tau=1.0):
         self.policy.sync_target_model(tau=tau)
