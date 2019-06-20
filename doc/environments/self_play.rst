@@ -1,5 +1,5 @@
-Adversarial Environments
-========================
+Self-Play Environments
+======================
 
 .. autosummary::
     :nosignatures:
