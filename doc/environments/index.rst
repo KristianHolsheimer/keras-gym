@@ -5,17 +5,19 @@ Environments
 ============
 
 This is a collection of environments currently not included in `OpenAI Gym
-<https://gym.openai.com/>`_. The environments included in here are typically
-those that depend on the specific structure of the keras-gym package.
+<https://gym.openai.com/>`_.
 
 
 
-Adversarial Environments
-------------------------
+Self-Play Environments
+----------------------
 
-These environments depend on an adversarial policy in order to be able to run
-it. This goes beyond what Gym can support without the incorporation of policy
-objects. The first such environment we include is the :class:`ConnectFourEnv
+These environments are typically games. They are implemented in such a way that
+can be played from a single-player perspective. The environment switches the
+*current player* and *opponent* between turns. The way to picture this is that
+the environment keeps rotating the game board 180 degrees between turns, so
+that the agents always get the perspective of the player whose turn it is. The
+first such environment we include is the :class:`ConnectFourEnv
 <keras_gym.environments.ConnectFourEnv>`.
 
 
@@ -26,4 +28,4 @@ References
     :maxdepth: 2
     :glob:
 
-    adversarial
+    self_play
