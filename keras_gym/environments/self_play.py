@@ -136,7 +136,7 @@ class ConnectFourEnv(Env):
             A dict with some extra information (or None).
 
         """
-        if self._done:
+        if self.done:
             raise EpisodeDoneError("please reset env to start new episode")
         if not self.action_space.contains(a):
             raise ValueError("invalid action")
@@ -152,8 +152,8 @@ class ConnectFourEnv(Env):
         self._prev_action = a
 
         # run logic
-        self._done, reward = self._done_reward(a, self._current_player)
-        return self.state, reward, self._done, {'state_id': self.state_id}
+        self.done, reward = self._done_reward(a, self._current_player)
+        return self.state, reward, self.done, {'state_id': self.state_id}
 
     def render(self, *args, **kwargs):
         """
@@ -219,7 +219,7 @@ class ConnectFourEnv(Env):
         assert self.action_space.contains(a) or a == self.num_cols
         self._current_player = p    # 1 or 2
         self._other_player = 3 - p  # 2 or 1
-        self._done = state_id[0] == '1'
+        self.done = d == 1
         self._prev_action = None if a == self.num_cols else a
         s = np.base_repr(int(state_id[3:], 16), 3)
         z = np.zeros(self.num_rows * self.num_cols, dtype='uint8')
@@ -245,7 +245,7 @@ class ConnectFourEnv(Env):
         self._other_player = 2
         self._state = np.zeros((self.num_rows, self.num_cols), dtype='uint8')
         self._levels = np.full(self.num_cols, self.num_rows - 1, dtype='uint8')
-        self._done = False
+        self.done = False
 
     def _done_reward(self, a, player):
         """
