@@ -63,13 +63,11 @@ class ConnectFourEnv(Env):
             self,
             win_reward=1.0,
             draw_reward=-0.5,
-            intermediate_reward=0.0,
-            random_seed=None):
+            intermediate_reward=0.0):
 
         self.win_reward = win_reward
         self.draw_reward = draw_reward
         self.intermediate_reward = intermediate_reward
-        self.rnd = np.random.RandomState(random_seed)
         self._init_state()
 
     def reset(self):
