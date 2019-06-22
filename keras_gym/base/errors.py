@@ -36,5 +36,9 @@ class UnavailableActionError(KerasGymError):
     pass
 
 
+class LeafNodeError(KerasGymError):
+    pass
+
+
 class NotLeafNodeError(KerasGymError):
     pass
