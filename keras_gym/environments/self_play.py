@@ -198,14 +198,15 @@ class ConnectFourEnv(Env):
 
     @property
     def state_id(self):
-        s = ''.join(self._state.ravel().astype('str'))  # base-3 string
         p = str(self._current_player)
-        d = '1' if self._done else '0'
+        d = '1' if self.done else '0'
         if self._prev_action is None:
             a = str(self.num_cols)
         else:
             a = str(self._prev_action)
-        return p + d + a + '{:017x}'.format(int(s, 3))  # 20-char hex string
+        s = ''.join(self._state.ravel().astype('str'))  # base-3 string
+        s = '{:017x}'.format(int(s, 3))  # 17-char hex string
+        return p + d + a + s             # 20-char hex string
 
     def set_state(self, state_id):
         # decode state id
