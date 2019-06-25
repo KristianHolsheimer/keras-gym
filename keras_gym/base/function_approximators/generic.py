@@ -215,7 +215,7 @@ class GenericV(BaseFunctionApproximator):
         S = np.expand_dims(s, axis=0)
         V = self.batch_eval(S, use_target_model=use_target_model)
         check_numpy_array(V, shape=(1,))
-        V = np.squeeze(V, axis=0)
+        V = np.asscalar(V)
         return V
 
     def update(self, s, r, done):
@@ -381,7 +381,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             A = np.expand_dims(a, axis=0)
             Q = self.batch_eval(S, A, use_target_model=use_target_model)
             check_numpy_array(Q, shape=(1,))
-            Q = np.squeeze(Q, axis=0)
+            Q = np.asscalar(Q)
         else:
             Q = self.batch_eval(S, use_target_model=use_target_model)
             check_numpy_array(Q, shape=(1, self.num_actions))
