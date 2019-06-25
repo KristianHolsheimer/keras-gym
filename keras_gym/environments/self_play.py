@@ -15,17 +15,6 @@ class ConnectFourEnv(Env):
     An adversarial environment for playing the `Connect-Four game
     <https://en.wikipedia.org/wiki/Connect_Four>`_.
 
-    Parameters
-    ----------
-    win_reward : float, optional
-        The reward to give out when episode finishes on a win.
-
-    draw_reward : float, optional
-        The reward to give out when episode finishes on a draw.
-
-    intermediate_reward : float, optional
-        The reward to give out between turns when episode is ongoing.
-
     Attributes
     ----------
     action_space : gym.spaces.Discrete(7)
@@ -49,25 +38,71 @@ class ConnectFourEnv(Env):
     available_actions : array of int
         Array of available actions. This list shrinks when columns saturate.
 
+    win_reward : 1.0
+        The reward associated with a win.
+
+    loss_reward : -1.0
+        The reward associated with a loss.
+
+    draw_reward : 0.0
+        The reward associated with a draw.
+
     """  # noqa: E501
     # class attributes
     num_rows = 6
     num_cols = 7
     num_players = 2
-    shape = (num_rows + 1, num_cols, num_players)
+    win_reward = 1.0
+    loss_reward = -win_reward
+    draw_reward = 0.0
     action_space = Discrete(num_cols)
-    observation_space = MultiDiscrete(nvec=np.full(shape, 2, dtype='uint8'))
+    observation_space = MultiDiscrete(
+        nvec=np.full((num_rows + 1, num_cols, num_players), 2, dtype='uint8'))
     max_time_steps = int(np.ceil(num_rows * num_cols / 2))
+    filters = np.array([
+        [[0, 0, 0, 0],
+         [0, 0, 0, 0],
+         [0, 0, 0, 0],
+         [1, 1, 1, 1]],
+        [[0, 0, 0, 0],
+         [0, 0, 0, 0],
+         [1, 1, 1, 1],
+         [0, 0, 0, 0]],
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 1, 0],
+         [0, 0, 0, 1]],
+        [[0, 0, 0, 1],
+         [0, 0, 1, 0],
+         [0, 1, 0, 0],
+         [1, 0, 0, 0]],
+        [[0, 0, 0, 0],
+         [1, 1, 1, 1],
+         [0, 0, 0, 0],
+         [0, 0, 0, 0]],
+        [[1, 1, 1, 1],
+         [0, 0, 0, 0],
+         [0, 0, 0, 0],
+         [0, 0, 0, 0]],
+        [[1, 0, 0, 0],
+         [1, 0, 0, 0],
+         [1, 0, 0, 0],
+         [1, 0, 0, 0]],
+        [[0, 1, 0, 0],
+         [0, 1, 0, 0],
+         [0, 1, 0, 0],
+         [0, 1, 0, 0]],
+        [[0, 0, 1, 0],
+         [0, 0, 1, 0],
+         [0, 0, 1, 0],
+         [0, 0, 1, 0]],
+        [[0, 0, 0, 1],
+         [0, 0, 0, 1],
+         [0, 0, 0, 1],
+         [0, 0, 0, 1]],
+    ], dtype='uint8')
 
-    def __init__(
-            self,
-            win_reward=1.0,
-            draw_reward=-0.5,
-            intermediate_reward=0.0):
-
-        self.win_reward = win_reward
-        self.draw_reward = draw_reward
-        self.intermediate_reward = intermediate_reward
+    def __init__(self):
         self._init_state()
 
     def reset(self):
@@ -142,15 +177,14 @@ class ConnectFourEnv(Env):
             raise UnavailableActionError("action is not available")
 
         # swap players
-        self._current_player, self._other_player = (
-            self._other_player, self._current_player)
+        self._players = np.roll(self._players, -1)
 
         # update state
-        self._state[self._levels[a], a] = self._current_player
+        self._state[self._levels[a], a] = self._players[0]
         self._prev_action = a
 
         # run logic
-        self.done, reward = self._done_reward(a, self._current_player)
+        self.done, reward = self._done_reward(a)
         return self.state, reward, self.done, {'state_id': self.state_id}
 
     def render(self, *args, **kwargs):
@@ -170,7 +204,7 @@ class ConnectFourEnv(Env):
         hrule = '+---' * self.num_cols + '+\n'
         board = "  "
         board += "   ".join(
-            symbol.get(-(a == self._prev_action) * self._other_player, " ")
+            symbol.get(-(a == self._prev_action) * self._players[1], " ")
             for a in range(self.num_cols))
         board += "  \n"
         board += hrule
@@ -188,8 +222,8 @@ class ConnectFourEnv(Env):
     @property
     def state(self):
         stacked_layers = np.stack((
-            (self._state == self._current_player).astype('uint8'),
-            (self._state == self._other_player).astype('uint8'),
+            (self._state == self._players[0]).astype('uint8'),
+            (self._state == self._players[1]).astype('uint8'),
         ), axis=-1)  # shape: [num_rows, num_cols, num_players]
         available_actions_mask = np.zeros(
             (1, self.num_cols, self.num_players), dtype='uint8')
@@ -198,7 +232,7 @@ class ConnectFourEnv(Env):
 
     @property
     def state_id(self):
-        p = str(self._current_player)
+        p = str(self._players[0])
         d = '1' if self.done else '0'
         if self._prev_action is None:
             a = str(self.num_cols)
@@ -216,8 +250,8 @@ class ConnectFourEnv(Env):
         assert p in (1, 2)
         assert d in (0, 1)
         assert self.action_space.contains(a) or a == self.num_cols
-        self._current_player = p    # 1 or 2
-        self._other_player = 3 - p  # 2 or 1
+        self._players[0] = p    # 1 or 2
+        self._players[1] = 3 - p  # 2 or 1
         self.done = d == 1
         self._prev_action = None if a == self.num_cols else a
         s = np.base_repr(int(state_id[3:], 16), 3)
@@ -240,112 +274,34 @@ class ConnectFourEnv(Env):
 
     def _init_state(self):
         self._prev_action = None
-        self._current_player = 1
-        self._other_player = 2
+        self._players = np.array([1, 2], dtype='uint8')
         self._state = np.zeros((self.num_rows, self.num_cols), dtype='uint8')
         self._levels = np.full(self.num_cols, self.num_rows - 1, dtype='uint8')
         self.done = False
 
-    def _done_reward(self, a, player):
+    def _done_reward(self, a):
         """
-        Check whether the last action `a` by player `player` resulted in a win,
-        loss or draw for player 1 (the agent). This contains the main logic and
+        Check whether the last action `a` by the current player resulted in a
+        win or draw for player 1 (the agent). This contains the main logic and
         implements the rules of the game.
 
         """
         assert self.action_space.contains(a)
-        assert player in (1, 2)
-
-        # init values and upper bounds
-        i_init = self._levels[a]
-        j_init = a
-        i_max = self.num_rows - 1
-        j_max = self.num_cols - 1
 
         # update filling levels
         self._levels[a] -= 1
 
-        # check vertical: top -> bottom
-        c = 1
-        i, j = i_init, j_init
-        for _ in range(3):
-            i += 1
-            if i > i_max or self._state[i, j] != player:
-                break
-            c += 1
-            if c == 4:
-                return True, self.win_reward
-
-        # check horizontal: right -> left
-        c = 1
-        i, j = i_init, j_init
-        for _ in range(3):
-            j -= 1
-            if j < 0 or self._state[i, j] != player:
-                break
-            c += 1
-            if c == 4:
-                return True, self.win_reward
-
-        # check horizontal: left -> right
-        i, j = i_init, j_init
-        for _ in range(3):
-            j += 1
-            if j > j_max or self._state[i, j] != player:
-                break
-            c += 1
-            if c == 4:
-                return True, self.win_reward
-
-        # check diagonal: SE -> NW
-        c = 1
-        i, j = i_init, j_init
-        for _ in range(3):
-            i -= 1
-            j -= 1
-            if i < 0 or j < 0 or self._state[i, j] != player:
-                break
-            c += 1
-            if c == 4:
-                return True, self.win_reward
-
-        # check diagonal: NW -> SE
-        i, j = i_init, j_init
-        for _ in range(3):
-            i += 1
-            j += 1
-            if i > i_max or j > j_max or self._state[i, j] != player:
-                break
-            c += 1
-            if c == 4:
-                return True, self.win_reward
-
-        # check diagonal: NE -> SW
-        c = 1
-        i, j = i_init, j_init
-        for _ in range(3):
-            i += 1
-            j -= 1
-            if i > i_max or j < 0 or self._state[i, j] != player:
-                break
-            c += 1
-            if c == 4:
-                return True, self.win_reward
-
-        # check diagonal: SW -> NE
-        i, j = i_init, j_init
-        for _ in range(3):
-            i -= 1
-            j += 1
-            if i < 0 or j > j_max or self._state[i, j] != player:
-                break
-            c += 1
-            if c == 4:
-                return True, self.win_reward
+        s = self._state == self._players[0]
+        for i0 in range(2, -1, -1):
+            i1 = i0 + 4
+            for j0 in range(4):
+                j1 = j0 + 4
+                if np.any(np.tensordot(self.filters, s[i0:i1, j0:j1]) == 4):
+                    return True, 1.0
 
         # check for a draw
         if len(self.available_actions) == 0:
-            return True, self.draw_reward
+            return True, 0.0
 
         # this is what's returned throughout the episode
-        return False, self.intermediate_reward
+        return False, 0.0
