@@ -3,3 +3,4 @@ from ..base.function_approximators.generic import (
     GenericV, GenericQTypeI, GenericQTypeII)
 from .linear import *
 from .atari import *
+from .connect_four import *

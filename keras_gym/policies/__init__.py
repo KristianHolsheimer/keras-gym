@@ -5,3 +5,4 @@ from .linear import *
 from .special import *
 from .actor_critic import *
 from .atari import *
+from .connect_four import *

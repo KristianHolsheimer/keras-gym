@@ -8,6 +8,7 @@ __all__ = (
     'Huber',
     'ProjectedSemiGradientLoss',
     'RootMeanSquaredError',
+    'LoglossSign',
 )
 
 
@@ -209,3 +210,45 @@ class ProjectedSemiGradientLoss(BaseLoss):
         # the actual loss
         return self.base_loss(
             self.G, Q_pred_projected, sample_weight=sample_weight)
+
+
+class LoglossSign(BaseLoss):
+    """
+    Logloss implemented for predicted logits :math:`z\\in\\mathbb{R}` and
+    ground truth :math:`y\\pm1`.
+
+    .. math::
+
+        L\\ =\\ \\log\\left( 1 + \\exp(-y\\,z) \\right)
+
+    """
+    def __init__(self):
+        pass
+
+    def __call__(self, y_true, z_pred, sample_weight=None):
+        """
+        Parameters
+        ----------
+        y_true : Tensor, shape: [batch_size, ...]
+
+            Ground truth values :math:`y\\pm1`.
+
+        z_pred : Tensor, shape: [batch_size, ...]
+
+            The predicted logits :math:`z\\in\\mathbb{R}`.
+
+        sample_weight : Tensor, dtype: float, optional
+
+            Not yet implemented.
+
+            #TODO: implement this
+
+        """
+        if K.dtype(z_pred) == 'float32':
+            z_pred = K.clip(z_pred, -15, 15)
+        elif K.dtype(z_pred) == 'float64':
+            z_pred = K.clip(z_pred, -30, 30)
+        else:
+            raise TypeError('Expected dtype for z_pred: float32 or float64')
+
+        return K.log(1 + K.exp(-y_true * z_pred))

@@ -6,11 +6,6 @@ from ..base.mixins import NumActionsMixin, RandomStateMixin
 from ..base.errors import LeafNodeError, NotLeafNodeError, EpisodeDoneError
 from ..utils import argmax
 
-# FIXME: remove these imports eventually
-from ..preprocessing import feature_vector
-from ..environments import ConnectFourEnv
-
-
 __all__ = (
     'SearchNode',
 )
@@ -47,10 +42,6 @@ class SearchNode(NumActionsMixin, RandomStateMixin):
         self.v_max = -np.inf
         self.v = None
         self.P = None
-
-        # FIXME: this is a temporary hack - must be removed
-        self.env._s_orig = self.state
-        self.state = feature_vector(self.state, ConnectFourEnv.observation_space)
 
     def __repr__(self):
         s = "SearchNode('{}', v={:s} done={}".format(
@@ -153,7 +144,7 @@ class SearchNode(NumActionsMixin, RandomStateMixin):
             child.parent_action = a
             if done:
                 self.D[a] = True
-                child.v = -r  # careful: must to flip the sign!
+                child.v = -r  # note: flip sign for 'opponent'
             self.children[a] = child
             self.env.set_state(self.state_id)  # reset state to root
 
