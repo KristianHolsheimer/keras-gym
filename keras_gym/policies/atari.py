@@ -16,8 +16,7 @@ __all__ = (
 
 class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
     """
-    A specific :term:`type-II <type-II state-action value
-    function>` Q-function for Atari environments.
+    A specific :term:`updateable policy` for Atari environments.
 
     Parameters
     ----------
@@ -135,8 +134,7 @@ class AtariPolicy(GenericSoftmaxPolicy, AtariFunctionMixin):
 
 class AtariActorCritic(ActorCritic, AtariFunctionMixin):
     """
-    A specific :term:`type-II <type-II state-action value
-    function>` Q-function for Atari environments.
+    A specific :term:`actor-critic` for Atari environments.
 
     Parameters
     ----------
