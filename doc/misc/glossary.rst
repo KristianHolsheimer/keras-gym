@@ -63,6 +63,12 @@ In this package we have four distinct types of :term:`function approximators
         implemented by e.g. :class:`GenericSoftmaxPolicy
         <keras_gym.policies.GenericSoftmaxPolicy>`.
 
+    actor-critic
+
+        This is a special function approximator that allows for the sharing of
+        parts of the computation graph between a value function (critic) and a
+        policy (actor).
+
 
 .. note::
 
