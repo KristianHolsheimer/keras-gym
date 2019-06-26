@@ -1,18 +1,16 @@
 import gym
-
-from keras_gym.preprocessing import DefaultPreprocessor
-from keras_gym.value_functions import LinearQTypeI
-from keras_gym.policies import EpsilonGreedy
+import keras_gym as km
+from keras_gym.function_approximators import LinearFunctionApproximator
 
 
 # env with preprocessing
 env = gym.make('CartPole-v0')
-env = DefaultPreprocessor(env)
 
 # value function and its derived policy
-Q = LinearQTypeI(env, update_strategy='sarsa', bootstrap_n=1, gamma=0.8,
-                 interaction='elementwise_quadratic', lr=0.02, momentum=0.9)
-policy = EpsilonGreedy(Q)
+func = LinearFunctionApproximator(
+    env, interaction='elementwise_quadratic', lr=0.02, momentum=0.9)
+Q = km.QTypeI(func, update_strategy='sarsa', gamma=0.9, bootstrap_n=1)
+policy = km.EpsilonGreedy(Q)
 
 # static parameters
 num_episodes = 200

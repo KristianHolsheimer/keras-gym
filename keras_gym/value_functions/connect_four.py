@@ -1,11 +1,11 @@
 from tensorflow import keras
 
-from ..base.function_approximators.generic import GenericV
+from ..base.function_approximators.generic import BaseV
 from ..base.function_approximators.connect_four import ConnectFourFunctionMixin
 from ..losses import LoglossSign
 
 
-class ConnectFourV(GenericV, ConnectFourFunctionMixin):
+class ConnectFourV(BaseV, ConnectFourFunctionMixin):
     """
     A specific :term:`state value function` for the ConnectFour environment.
 

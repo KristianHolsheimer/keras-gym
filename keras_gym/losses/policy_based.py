@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from ..base.losses import BaseLoss, BasePolicyLoss
+from .base import BaseLoss, BasePolicyLoss
 from ..utils import project_onto_actions_tf, check_tensor, log_softmax_tf
 
 

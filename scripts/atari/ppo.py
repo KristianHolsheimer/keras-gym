@@ -2,11 +2,10 @@ import os
 import logging
 import gym
 
+import keras_gym as km
+from keras_gym.function_approximators import AtariFunctionApproximator
 from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
 from keras_gym.utils import TrainMonitor, generate_gif
-from keras_gym.value_functions import AtariV
-from keras_gym.policies import AtariPolicy, ActorCritic
-from keras_gym.caching import ExperienceReplayBuffer
 
 
 logging.basicConfig(level=logging.INFO)
@@ -20,26 +19,15 @@ env = TrainMonitor(env)
 
 
 # function approximators
-pi = AtariPolicy(
-    env,
-    update_strategy='ppo',
-    ppo_clipping=0.2,
-    entropy_bonus=0.01,
-    lr=0.00025)
-
-V = AtariV(
-    env,
-    lr=0.00025,
-    gamma=0.99,
-    bootstrap_n=10,
-    bootstrap_with_target_model=True)
-
-actor_critic = ActorCritic(pi, V)
+func = AtariFunctionApproximator(env, lr=0.00025)
+pi = km.SoftmaxPolicy(func, update_strategy='ppo')
+v = km.V(func, gamma=0.99, bootstrap_n=10, bootstrap_with_target_model=True)
+actor_critic = km.ActorCritic(pi, v)
 
 
 # we'll use this to temporarily store our experience
-buffer = ExperienceReplayBuffer.from_value_function(
-    V, capacity=256, batch_size=64)
+buffer = km.ExperienceReplayBuffer.from_value_function(
+    v, capacity=256, batch_size=64)
 
 
 # run episodes

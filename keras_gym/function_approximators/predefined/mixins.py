@@ -5,7 +5,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 
 
-class LinearFunctionMixin:
+class InteractionMixin:
     INTERACTION_OPTS = ('elementwise_quadratic', 'full_quadratic')
 
     @property
@@ -71,7 +71,7 @@ class LinearFunctionMixin:
 
     def _triu_slice(self, tensor):
         """ Take upper-triangular slices to avoid duplicated features. """
-        n = self.input_dim + 1  # needs to exists before first call
+        n = self.input_dim + 1  # input_dim needs to be known before first call
         indices = [[i, j] for i in range(n) for j in range(max(1, i), n)]
         return tf.gather_nd(tensor, indices)
 

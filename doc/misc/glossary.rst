@@ -21,6 +21,50 @@ outputs that our keras models expect.
 
         A function approximator is any object that can be updated.
 
+    body
+
+        The *body* is what we call the part of the computation graph that may
+        be shared between e.g. policy (actor) and value function (critic). It
+        is typlically the part of a neural net that does most of the heavy
+        lifting. One may think of the :func:`body` as an elaborate automatic
+        feature extractor.
+
+    head
+
+        The *head* is the part of the computation graph that actually generates
+        the desired output format/shape. As its input, it takes the output of
+        :term:`body`. The different heads that :class:`FunctionApproximator
+        <keras_gym.FunctionApproximator>` class provides are:
+
+        **head_v**
+
+            This is the :term:`state value <state value function>` head. It
+            returns a scalar V-value :math:`V(s)\in\mathbb{R}`.
+
+        **head_q1**
+
+            This is the :term:`type-I Q-value <type-I state-action value
+            function>` head. It returns a scalar Q-value
+            :math:`Q(s,a)\in\mathbb{R}`.
+
+        **head_q2**
+
+            This is the :term:`type-II Q-value <type-II state-action value
+            function>` head. It returns a vector of Q-values
+            :math:`Q(s,.)\in\mathbb{R}^n`.
+
+
+        **head_pi**
+
+            This is the policy head. It returns :term:`logits <Z>`
+            :math:`z\in\mathbb{R}^n`, i.e. not probabilities. Use a softmax to
+            turn the output into probabilities.
+
+    forward_pass
+
+        This is just the consecutive application of :term:`head` after
+        :term:`body`.
+
 
 In this package we have four distinct types of :term:`function approximators
 <function approximator>`:
@@ -29,8 +73,8 @@ In this package we have four distinct types of :term:`function approximators
 
     state value function
 
-        State value functions :math:`V(s)` are implemented by :class:`GenericV
-        <keras_gym.value_functions.GenericV>`.
+        State value functions :math:`V(s)` are implemented by :class:`V
+        <keras_gym.V>`.
 
     type-I state-action value function
 
@@ -41,8 +85,8 @@ In this package we have four distinct types of :term:`function approximators
 
             (s, a) \mapsto Q(s,a)\ \in\ \mathbb{R}
 
-        This function approximator is implemented by :class:`GenericQTypeI
-        <keras_gym.value_functions.GenericQTypeI>`.
+        This function approximator is implemented by :class:`QTypeI
+        <keras_gym.QTypeI>`.
 
     type-II state-action value function
 
@@ -54,14 +98,13 @@ In this package we have four distinct types of :term:`function approximators
             s \mapsto Q(s,.)\ \in\ \mathbb{R}^n
 
         where :math:`n` is the number of actions. The type-II Q-function is
-        implemented by :class:`GenericQTypeII
-        <keras_gym.value_functions.GenericQTypeII>`.
+        implemented by :class:`QTypeII <keras_gym.QTypeII>`.
 
     updateable policy
 
         This function approximator represents a policy directly. It is
-        implemented by e.g. :class:`GenericSoftmaxPolicy
-        <keras_gym.policies.GenericSoftmaxPolicy>`.
+        implemented by e.g. :class:`SoftmaxPolicy
+        <keras_gym.SoftmaxPolicy>`.
 
     actor-critic
 
@@ -192,7 +235,7 @@ inputs/outputs to our keras models.
         A batch of advantages :math:`\mathcal{A}(s,a) = Q(s,a) - V(s)`, which
         has shape: ``[batch_size]``.
 
-    Logits
+    Z
 
         A batch of logits, typically used in softmax policies. The expected
         shape is: ``[batch_size, num_actions]``.

@@ -2,11 +2,10 @@ import os
 import logging
 import gym
 
+import keras_gym as km
+from keras_gym.function_approximators import AtariFunctionApproximator
 from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
 from keras_gym.utils import TrainMonitor, generate_gif
-from keras_gym.value_functions import AtariQ
-from keras_gym.policies import EpsilonGreedy  # or BoltzmannPolicy
-from keras_gym.caching import ExperienceReplayBuffer
 
 
 logging.basicConfig(level=logging.INFO)
@@ -20,11 +19,11 @@ env = TrainMonitor(env)
 
 
 # value function
-Q = AtariQ(env, lr=0.00025, gamma=0.99, bootstrap_n=1,
-           bootstrap_with_target_model=True)
-buffer = ExperienceReplayBuffer.from_value_function(
-    Q, capacity=1000000, batch_size=32)
-policy = EpsilonGreedy(Q)
+func = AtariFunctionApproximator(env, lr=0.00025)
+q = km.QTypeII(func, gamma=0.99, bootstrap_n=1, bootstrap_with_target_model=True)
+buffer = km.ExperienceReplayBuffer.from_value_function(
+    q, capacity=1000000, batch_size=32)
+policy = km.EpsilonGreedy(q)
 
 
 # exploration schedule
@@ -64,10 +63,10 @@ for _ in range(num_episodes):
         buffer.add(s, a, r, done, env.ep)
 
         if env.T > buffer_warmup_period:
-            Q.batch_update(*buffer.sample())
+            q.batch_update(*buffer.sample())
 
         if env.T % target_model_sync_period == 0:
-            Q.sync_target_model()
+            q.sync_target_model()
 
         if done:
             break

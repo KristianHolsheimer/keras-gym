@@ -1,10 +1,12 @@
+import keras_gym as km
 from keras_gym.environments import ConnectFourEnv
-from keras_gym.policies import ConnectFourActorCritic
+from keras_gym.function_approximators import ConnectFourFunctionApproximator
 from keras_gym.planning import SearchNode
 
 
 env = ConnectFourEnv()
-ac = ConnectFourActorCritic(env)
+func = ConnectFourFunctionApproximator(env, lr=0.001)
+ac = km.ConjointActorCritic(func)
 
 
 # state_id = '20400000000000000099'

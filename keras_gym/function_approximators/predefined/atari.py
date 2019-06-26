@@ -1,28 +1,41 @@
-from abc import abstractmethod
-
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ...utils import diff_transform_matrix, get_env_attr
-from ...base.function_approximators.generic import BaseFunctionApproximator
+from ..generic import FunctionApproximator
 
 
 __all__ = (
-    'AtariFunctionMixin',
+    'AtariFunctionApproximator',
 )
 
 
-class AtariFunctionMixin(BaseFunctionApproximator):
-    @abstractmethod
-    def _head(self, X, variable_scope):
-        pass
+class AtariFunctionApproximator(FunctionApproximator):
+    """
 
-    def _forward_pass(self, S, variable_scope):
-        X = self._shared_forward_pass(S, variable_scope)
-        Y = self._head(X, variable_scope)
-        return Y
+    A :term:`function approximator` specifically designed for Atari 2600
+    environments.
 
-    def _shared_forward_pass(self, S, variable_scope):
+    Parameters
+    ----------
+    env : environment
+
+        An Atari 2600 gym environment.
+
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the SGD optimizer is used,
+        :class:`keras.optimizers.SGD`. See `keras documentation
+        <https://keras.io/optimizers/>`_ for more details.
+
+    **optimizer_kwargs : keyword arguments
+
+        Keyword arguments for the optimizer. This is useful when you want to
+        use the default optimizer with a different setting, e.g. changing the
+        learning rate.
+
+    """
+    def body(self, S, variable_scope):
         assert variable_scope in ('primary', 'target')
 
         def v(name):
@@ -47,18 +60,7 @@ class AtariFunctionMixin(BaseFunctionApproximator):
                 name=v('dense1'), units=256, activation='relu')]
 
         # forward pass
-        Y = S
+        X = S
         for layer in layers:
-            Y = layer(Y)
-        return Y
-
-    def _init_optimizer(self, optimizer, adam_kwargs):
-        if optimizer is None:
-            self.optimizer = keras.optimizers.Adam(**adam_kwargs)
-        elif isinstance(optimizer, keras.optimizers.Optimizer):
-            self.optimizer = optimizer
-        else:
-            raise ValueError(
-                "unknown optimizer, expected a keras.optimizers.Optimizer or "
-                "None (which sets the default keras.optimizers.Adam "
-                "optimizer)")
+            X = layer(X)
+        return X

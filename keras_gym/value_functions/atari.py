@@ -1,7 +1,7 @@
 from tensorflow import keras
 
 from ..losses import ProjectedSemiGradientLoss, Huber
-from ..base.function_approximators.generic import GenericV, GenericQTypeII
+from ..base.function_approximators.generic import BaseV, BaseQTypeII
 from ..base.function_approximators.atari import AtariFunctionMixin
 
 __all__ = (
@@ -10,7 +10,7 @@ __all__ = (
 )
 
 
-class AtariV(GenericV, AtariFunctionMixin):
+class AtariV(BaseV, AtariFunctionMixin):
     """
     A specific :term:`state value function` for Atari environments.
 
@@ -97,7 +97,7 @@ class AtariV(GenericV, AtariFunctionMixin):
         self.target_model = keras.Model(inputs=S, outputs=V_target)
 
 
-class AtariQ(GenericQTypeII, AtariFunctionMixin):
+class AtariQ(BaseQTypeII, AtariFunctionMixin):
     """
     A specific :term:`type-II <type-II state-action value
     function>` Q-function for Atari environments.

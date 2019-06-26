@@ -2,11 +2,10 @@ import os
 import logging
 import gym
 
+import keras_gym as km
+from keras_gym.function_approximators import AtariFunctionApproximator
 from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
 from keras_gym.utils import TrainMonitor, generate_gif
-from keras_gym.policies import AtariActorCritic
-from keras_gym.caching import ExperienceReplayBuffer
-
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,21 +18,21 @@ env = TrainMonitor(env)
 
 
 # actor-critic with shared weights between pi(a|s) and V(s)
-actor_critic = AtariActorCritic(
-    env,
+func = AtariFunctionApproximator(env, lr=0.00025)
+actor_critic = km.ConjointActorCritic(
+    func,
     gamma=0.99,
     bootstrap_n=10,
     update_strategy='ppo',
     ppo_clipping=0.2,
-    entropy_bonus=0.01,
-    lr=0.00025)
+    entropy_bonus=0.01)
 
 V = actor_critic.value_function
 pi = actor_critic.policy
 
 
 # we'll use this to temporarily store our experience
-buffer = ExperienceReplayBuffer.from_value_function(
+buffer = km.ExperienceReplayBuffer.from_value_function(
     V, capacity=256, batch_size=64)
 
 
@@ -64,9 +63,9 @@ while env.T < 3000000:
 
     # generate an animated GIF to see what's going on
     if env.ep % 50 == 0:
-        os.makedirs('./data/ppo/gifs/', exist_ok=True)
+        os.makedirs('./data/ppo2/gifs/', exist_ok=True)
         generate_gif(
             env=env,
             policy=pi,
-            filepath='./data/ppo/gifs/ep{:06d}.gif'.format(env.ep),
+            filepath='./data/ppo2/gifs/ep{:06d}.gif'.format(env.ep),
             resize_to=(320, 420))

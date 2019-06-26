@@ -4,7 +4,7 @@ from tensorflow.keras import backend as K
 
 from ..base.function_approximators.linear import LinearFunctionMixin
 from ..base.function_approximators.generic import (
-    GenericV, GenericQTypeI, GenericQTypeII)
+    BaseV, BaseQTypeI, BaseQTypeII)
 from ..losses import ProjectedSemiGradientLoss, Huber
 
 
@@ -15,7 +15,7 @@ __all__ = (
 )
 
 
-class LinearV(GenericV, LinearFunctionMixin):
+class LinearV(BaseV, LinearFunctionMixin):
     """
     Linear-model implementation of a :term:`state value function`.
 
@@ -140,7 +140,7 @@ class LinearV(GenericV, LinearFunctionMixin):
         self.target_model = keras.Model(S, V_target)
 
 
-class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
+class LinearQTypeI(BaseQTypeI, LinearFunctionMixin):
     """
     Linear-model implementation of a :term:`type-I <type-I state-action value
     function>` Q-function.
@@ -319,7 +319,7 @@ class LinearQTypeI(GenericQTypeI, LinearFunctionMixin):
         self.target_model = keras.Model([S, A], Q_target)
 
 
-class LinearQTypeII(GenericQTypeII, LinearFunctionMixin):
+class LinearQTypeII(BaseQTypeII, LinearFunctionMixin):
     """
     Linear-model implementation of a :term:`type-II <type-II state-action value
     function>` Q-function.

@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from ..utils import project_onto_actions_tf, check_tensor
-from ..base.losses import BaseLoss
+from .base import BaseLoss
 
 __all__ = (
     'Huber',

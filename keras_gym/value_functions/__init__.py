@@ -1,6 +1,6 @@
 # flake8: noqa
 from ..base.function_approximators.generic import (
-    GenericV, GenericQTypeI, GenericQTypeII)
+    BaseV, BaseQTypeI, BaseQTypeII)
 from .linear import *
 from .atari import *
 from .connect_four import *

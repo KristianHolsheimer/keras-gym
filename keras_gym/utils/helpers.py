@@ -739,8 +739,8 @@ def is_vfunction(obj):
 
     """
     # import at runtime to avoid circular dependence
-    from ..base.function_approximators.generic import GenericV
-    return isinstance(obj, GenericV)
+    from ..function_approximators.base import BaseV
+    return isinstance(obj, BaseV)
 
 
 def is_qfunction(obj, qtype=None):
@@ -767,15 +767,14 @@ def is_qfunction(obj, qtype=None):
 
     """
     # import at runtime to avoid circular dependence
-    from ..base.function_approximators.generic import (
-        GenericQTypeI, GenericQTypeII)
+    from ..function_approximators.base import BaseQTypeI, BaseQTypeII
 
     if qtype is None:
-        return isinstance(obj, (GenericQTypeI, GenericQTypeII))
+        return isinstance(obj, (BaseQTypeI, BaseQTypeII))
     elif qtype in (1, 1., '1', 'i', 'I'):
-        return isinstance(obj, GenericQTypeI)
+        return isinstance(obj, BaseQTypeI)
     elif qtype in (2, 2., '2', 'ii', 'II'):
-        return isinstance(obj, GenericQTypeII)
+        return isinstance(obj, BaseQTypeII)
     else:
         raise ValueError("unexpected qtype: {}".format(qtype))
 
@@ -803,9 +802,9 @@ def is_policy(obj, check_updateable=False):
 
     """
     # import at runtime to avoid circular dependence
-    from ..base.policy import BasePolicy
-    from ..base.function_approximators.generic import GenericSoftmaxPolicy
+    from ..policies.base import BasePolicy
+    from ..function_approximators.base import BaseSoftmaxPolicy
 
     if isinstance(obj, BasePolicy):
-        return isinstance(obj, GenericSoftmaxPolicy) if check_tensor else True
+        return isinstance(obj, BaseSoftmaxPolicy) if check_updateable else True
     return False

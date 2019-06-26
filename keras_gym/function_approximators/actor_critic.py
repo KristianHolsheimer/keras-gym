@@ -3,7 +3,12 @@ from tensorflow import keras
 from ..utils import (
     is_vfunction, is_qfunction, is_policy, check_tensor, check_numpy_array)
 from ..base.mixins import NumActionsMixin
-from ..base.function_approximators.generic import BaseFunctionApproximator
+from .base import BaseFunctionApproximator
+
+
+__all__ = (
+    'ActorCritic',
+)
 
 
 class ActorCritic(BaseFunctionApproximator, NumActionsMixin):

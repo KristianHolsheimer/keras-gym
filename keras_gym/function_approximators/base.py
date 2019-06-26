@@ -4,20 +4,20 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from ...utils import (
-    project_onto_actions_np, check_numpy_array, softmax, argmax)
-from ...caching import NStepCache
-from ...losses import SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss
-from ..errors import MissingModelError
-from ..mixins import RandomStateMixin, NumActionsMixin, LoggerMixin
-from ..policy import BasePolicy
+from ..base.errors import MissingModelError
+from ..base.mixins import RandomStateMixin, NumActionsMixin, LoggerMixin
+from ..policies.base import BasePolicy
+from ..caching import NStepCache
+from ..losses import SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss
+from ..utils import (
+    project_onto_actions_np, softmax, argmax, check_numpy_array)
 
 
 __all__ = (
-    'GenericV',
-    'GenericQTypeI',
-    'GenericQTypeII',
-    'GenericSoftmaxPolicy',
+    'BaseV',
+    'BaseQTypeI',
+    'BaseQTypeII',
+    'BaseSoftmaxPolicy',
 )
 
 
@@ -43,7 +43,7 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
             'env', 'gamma', 'bootstrap_n', 'train_model', 'predict_model',
             'target_model', '_cache']
 
-        if isinstance(self, GenericSoftmaxPolicy):
+        if isinstance(self, BaseSoftmaxPolicy):
             required_attrs.remove('bootstrap_n')
             required_attrs.remove('gamma')
             required_attrs.remove('_cache')
@@ -127,7 +127,7 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
                 "updated target_mode with tau = {:.3g}".format(tau))
 
 
-class GenericV(BaseFunctionApproximator):
+class BaseV(BaseFunctionApproximator):
     """
     Base class for modeling a :term:`state value function`.
 
@@ -583,7 +583,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         pass
 
 
-class GenericQTypeI(BaseGenericQ):
+class BaseQTypeI(BaseGenericQ):
     """
     Base class for modeling :term:`type-I <type-I state-action value function>`
     Q-function.
@@ -690,7 +690,7 @@ class GenericQTypeI(BaseGenericQ):
             return Q  # shape: [batch_size, num_actions]
 
 
-class GenericQTypeII(BaseGenericQ):
+class BaseQTypeII(BaseGenericQ):
     """
     Base class for modeling :term:`type-II <type-II state-action value
     function>` Q-function.
@@ -793,10 +793,7 @@ class GenericQTypeII(BaseGenericQ):
             return Q  # shape: [batch_size, num_actions]
 
 
-class GenericSoftmaxPolicy(
-        BasePolicy, BaseFunctionApproximator, NumActionsMixin,
-        RandomStateMixin):
-
+class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, RandomStateMixin):  # noqa: E501
     """
     Base class for modeling :term:`updateable policies <updateable policy>` for
     discrete action spaces.
@@ -807,15 +804,15 @@ class GenericSoftmaxPolicy(
 
         A gym environment.
 
-    train_model : keras.Model([:term:`S`, :term:`Adv`], :term:`Logits`)
+    train_model : keras.Model([:term:`S`, :term:`Adv`], :term:`Z`)
 
         Used for training.
 
-    predict_model : keras.Model(:term:`S`, :term:`Logits`)
+    predict_model : keras.Model(:term:`S`, :term:`Z`)
 
         Used for predicting.
 
-    target_model : keras.Model(:term:`S`, :term:`Logits`)
+    target_model : keras.Model(:term:`S`, :term:`Z`)
 
         A :term:`target_model` is used to make predictions on a bootstrapping
         scenario. It can be advantageous to use a point-in-time copy of the
@@ -871,7 +868,7 @@ class GenericSoftmaxPolicy(
         Sets the random state to get reproducible results.
 
     """
-    UPDATE_STRATEGIES = ('vanilla', 'trpo', 'ppo')
+    UPDATE_STRATEGIES = ('vanilla', 'ppo')
 
     def __init__(
             self, env, train_model, predict_model, target_model,
@@ -1027,9 +1024,9 @@ class GenericSoftmaxPolicy(
         """
         model = self.target_model if use_target_model else self.predict_model
 
-        Logits = model.predict_on_batch(S)
-        check_numpy_array(Logits, ndim=2, axis_size=self.num_actions, axis=1)
-        Pi = softmax(Logits, axis=1)
+        Z = model.predict_on_batch(S)
+        check_numpy_array(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        Pi = softmax(Z, axis=1)
         return Pi  # shape: [batch_size, num_actions]
 
     def batch_update(self, S, A, Adv):

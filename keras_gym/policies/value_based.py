@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin
-from ..base.policy import BasePolicy
+from ..policies.base import BasePolicy
 from ..utils import argmax
 
 
