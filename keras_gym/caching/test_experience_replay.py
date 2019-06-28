@@ -85,15 +85,15 @@ class TestExperienceReplayBuffer:
                        [[300, 300, 301], 0.9801, [301, 302, 303]],  # bootstrap
                        [[203, 204, 205], 0.0000, [205, 206, 300]]]
 
-        S, A, Rn, I_next, S_next, A_next = buffer.sample()
-        np.testing.assert_array_equal(I_next, [tr[1] for tr in transitions])
+        S, A, Rn, In, S_next, A_next = buffer.sample()
+        np.testing.assert_array_equal(In, [tr[1] for tr in transitions])
         np.testing.assert_array_equal(
             S[:, 0, :], [tr[0] for tr in transitions])
         np.testing.assert_array_equal(
             S_next[:, 0, :], [tr[2] for tr in transitions])
 
         # check if actions are separate by bootstrap_n steps
-        for a, i_next, a_next in zip(A, I_next, A_next):
+        for a, i_next, a_next in zip(A, In, A_next):
             if i_next != 0:
                 assert a_next - a == buffer.bootstrap_n
 
@@ -110,7 +110,7 @@ class TestExperienceReplayBuffer:
                 s = 100 * ep + i * np.ones((11, 13, 3), dtype='int')
                 buffer.add(s, a, r, done, ep)
 
-        S, A, Rn, I_next, S_next, A_next = buffer.sample()
+        S, A, Rn, In, S_next, A_next = buffer.sample()
         assert S.shape == (5, 11, 13, 3)
 
         # check if all frames come from the same episode

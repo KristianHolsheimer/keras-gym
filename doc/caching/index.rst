@@ -1,5 +1,3 @@
-.. automodule:: keras_gym.caching
-
 Caching
 =======
 
@@ -37,12 +35,10 @@ by sampling from it and then feeding the batch of transitions to our
 
 
 
-Reference
----------
+Objects
+-------
 
 .. toctree::
-    :maxdepth: 2
-    :glob:
 
     short_term
     experience_replay

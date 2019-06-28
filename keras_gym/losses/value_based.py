@@ -132,7 +132,7 @@ class ProjectedSemiGradientLoss(BaseLoss):
     """
     Loss function for type-II Q-function.
 
-    This loss function projects the predictions :math:`Q(s, .)` onto the
+    This loss function projects the predictions :math:`q(s, .)` onto the
     actions for which we actually received a feedback signal.
 
     Parameters
@@ -175,7 +175,7 @@ class ProjectedSemiGradientLoss(BaseLoss):
 
         Q_pred : 2d Tensor, shape: [batch_size, num_actions]
 
-            The predicted values :math:`Q(s,.)`, a.k.a. ``y_pred``.
+            The predicted values :math:`q(s,.)`, a.k.a. ``y_pred``.
 
         sample_weight : Tensor, dtype: float, optional
 
@@ -204,7 +204,7 @@ class ProjectedSemiGradientLoss(BaseLoss):
         check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
         check_tensor(Q_pred, ndim=2, axis_size=batch_size, axis=0)
 
-        # project onto actions taken: Q(s,.) --> Q(s,a)
+        # project onto actions taken: q(s,.) --> q(s,a)
         Q_pred_projected = project_onto_actions_tf(Q_pred, A)
 
         # the actual loss

@@ -39,19 +39,19 @@ outputs that our keras models expect.
         **head_v**
 
             This is the :term:`state value <state value function>` head. It
-            returns a scalar V-value :math:`V(s)\in\mathbb{R}`.
+            returns a scalar V-value :math:`v(s)\in\mathbb{R}`.
 
         **head_q1**
 
             This is the :term:`type-I Q-value <type-I state-action value
             function>` head. It returns a scalar Q-value
-            :math:`Q(s,a)\in\mathbb{R}`.
+            :math:`q(s,a)\in\mathbb{R}`.
 
         **head_q2**
 
             This is the :term:`type-II Q-value <type-II state-action value
             function>` head. It returns a vector of Q-values
-            :math:`Q(s,.)\in\mathbb{R}^n`.
+            :math:`q(s,.)\in\mathbb{R}^n`.
 
 
         **head_pi**
@@ -73,17 +73,17 @@ In this package we have four distinct types of :term:`function approximators
 
     state value function
 
-        State value functions :math:`V(s)` are implemented by :class:`V
+        State value functions :math:`v(s)` are implemented by :class:`V
         <keras_gym.V>`.
 
     type-I state-action value function
 
-        This is the standard state-action value function :math:`Q(s,a)`. It
+        This is the standard state-action value function :math:`q(s,a)`. It
         models the Q-function as
 
         .. math::
 
-            (s, a) \mapsto Q(s,a)\ \in\ \mathbb{R}
+            (s, a) \mapsto q(s,a)\ \in\ \mathbb{R}
 
         This function approximator is implemented by :class:`QTypeI
         <keras_gym.QTypeI>`.
@@ -95,7 +95,7 @@ In this package we have four distinct types of :term:`function approximators
 
         .. math::
 
-            s \mapsto Q(s,.)\ \in\ \mathbb{R}^n
+            s \mapsto q(s,.)\ \in\ \mathbb{R}^n
 
         where :math:`n` is the number of actions. The type-II Q-function is
         implemented by :class:`QTypeII <keras_gym.QTypeII>`.
@@ -191,24 +191,23 @@ inputs/outputs to our keras models.
         In other words, it's the part of the n-step return *without* the
         bootstrapping term. The shape is ``[batch_size]``.
 
-    I_next
+    In
 
         A batch of bootstrap factors. For instance, in n-step bootstrapping
-        these are given by :math:`I_t=\gamma^n` when bootstrapping and
-        :math:`I_t=0` otherwise. It is used in bootstrapped updates. For
-        instance, the n-step bootstrapped target makes use of :math:`I` as
-        follows:
+        these are given by :math:`I^{(n)}_t=\gamma^n` when bootstrapping and
+        :math:`I^{(n)}_t=0` otherwise. It is used in bootstrapped updates. For
+        instance, the n-step bootstrapped target makes use of it as follows:
 
             .. math::
 
-                G^{(n)}_t\ =\ R^{(n)}_t + I_t\,Q(S_{t+1}, A_{t+1})
+                G^{(n)}_t\ =\ R^{(n)}_t + I^{(n)}_t\,Q(S_{t+1}, A_{t+1})
 
         The shape is ``[batch_size]``.
 
     S_next
 
         A batch of (preprocessed) next-state observations. This is typically
-        used in bootstrapping (see :term:`I_next`). The shape is ``[batch_size,
+        used in bootstrapping (see :term:`In`). The shape is ``[batch_size,
         ...]`` where the ellipses might be any number of dimensions.
 
     A_next
@@ -219,20 +218,20 @@ inputs/outputs to our keras models.
 
     V
 
-        A batch of V-values :math:`V(s)` of shape ``[batch_size]``.
+        A batch of V-values :math:`v(s)` of shape ``[batch_size]``.
 
     Q_sa
 
-        A batch of Q-values :math:`Q(s,a)` of shape ``[batch_size]``.
+        A batch of Q-values :math:`q(s,a)` of shape ``[batch_size]``.
 
     Q_s
 
-        A batch of Q-values :math:`Q(s,.)` of shape
+        A batch of Q-values :math:`q(s,.)` of shape
         ``[batch_size, num_actions]``.
 
     Adv
 
-        A batch of advantages :math:`\mathcal{A}(s,a) = Q(s,a) - V(s)`, which
+        A batch of advantages :math:`\mathcal{A}(s,a) = q(s,a) - v(s)`, which
         has shape: ``[batch_size]``.
 
     Z

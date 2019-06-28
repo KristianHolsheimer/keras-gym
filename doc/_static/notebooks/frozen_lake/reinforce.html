@@ -13089,7 +13089,7 @@ div#notebook {
 
 <!-- Loading mathjax macro -->
 <!-- Load mathjax -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS_HTML"></script>
     <!-- MathJax configuration -->
     <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
@@ -13115,26 +13115,39 @@ div#notebook {
 
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[3]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># %load ../../scripts/frozen_lake/reinforce.py</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">keras_gym</span> <span class="k">as</span> <span class="nn">km</span>
+<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
+<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
 <span class="kn">from</span> <span class="nn">gym.envs.toy_text.frozen_lake</span> <span class="k">import</span> <span class="n">FrozenLakeEnv</span><span class="p">,</span> <span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">LEFT</span><span class="p">,</span> <span class="n">RIGHT</span>
 
-<span class="kn">from</span> <span class="nn">keras_gym.preprocessing</span> <span class="k">import</span> <span class="n">DefaultPreprocessor</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">LinearSoftmaxPolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.caching</span> <span class="k">import</span> <span class="n">MonteCarloCache</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 
 
-<span class="c1"># env with preprocessing</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">FrozenLakeEnv</span><span class="p">(</span><span class="n">is_slippery</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">DefaultPreprocessor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+<span class="c1"># the cart-pole MDP</span>
 <span class="n">actions</span> <span class="o">=</span> <span class="p">{</span><span class="n">LEFT</span><span class="p">:</span> <span class="s1">&#39;L&#39;</span><span class="p">,</span> <span class="n">RIGHT</span><span class="p">:</span> <span class="s1">&#39;R&#39;</span><span class="p">,</span> <span class="n">UP</span><span class="p">:</span> <span class="s1">&#39;U&#39;</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">:</span> <span class="s1">&#39;D&#39;</span><span class="p">}</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">FrozenLakeEnv</span><span class="p">(</span><span class="n">is_slippery</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">TrainMonitor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
 
-<span class="c1"># updateable policy</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">LinearSoftmaxPolicy</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
-<span class="n">cache</span> <span class="o">=</span> <span class="n">MonteCarloCache</span><span class="p">(</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.99</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">LinearFunc</span><span class="p">(</span><span class="n">km</span><span class="o">.</span><span class="n">FunctionApproximator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; linear function approximator (body only does one-hot encoding) &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">variable_scope</span><span class="p">):</span>
+        <span class="n">one_hot_encoding</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">K</span><span class="o">.</span><span class="n">one_hot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">one_hot_encoding</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+
+
+<span class="c1"># define function approximators</span>
+<span class="n">func</span> <span class="o">=</span> <span class="n">LinearFunc</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+<span class="n">pi</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">SoftmaxPolicy</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">update_strategy</span><span class="o">=</span><span class="s1">&#39;vanilla&#39;</span><span class="p">)</span>
+<span class="n">cache</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">caching</span><span class="o">.</span><span class="n">MonteCarloCache</span><span class="p">(</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.99</span><span class="p">)</span>
 
 
 <span class="c1"># static parameters</span>
@@ -13148,7 +13161,7 @@ div#notebook {
     <span class="n">cache</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 
     <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_steps</span><span class="p">):</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">pi</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
         <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
         <span class="c1"># small incentive to keep moving</span>
@@ -13160,7 +13173,7 @@ div#notebook {
         <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
             <span class="k">while</span> <span class="n">cache</span><span class="p">:</span>
                 <span class="n">S</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">G</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
-                <span class="n">policy</span><span class="o">.</span><span class="n">batch_update</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">G</span><span class="p">)</span>
+                <span class="n">pi</span><span class="o">.</span><span class="n">batch_update</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">G</span><span class="p">)</span>
             <span class="k">break</span>
 
         <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
@@ -13173,10 +13186,10 @@ div#notebook {
 <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_steps</span><span class="p">):</span>
 
     <span class="c1"># print individual action probabilities</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">policy</span><span class="o">.</span><span class="n">proba</span><span class="p">(</span><span class="n">s</span><span class="p">)):</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pi</span><span class="o">.</span><span class="n">proba</span><span class="p">(</span><span class="n">s</span><span class="p">)):</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  π(</span><span class="si">{:s}</span><span class="s2">|s) = </span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">actions</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p</span><span class="p">))</span>
 
-    <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">pi</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
     <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
     <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
@@ -13186,82 +13199,6 @@ div#notebook {
 </pre></div>
 
     </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>
-<span class="ansi-red-bg">S</span>FFF
-FHFH
-FFFH
-HFFG
-  π(L|s) = 0.001
-  π(D|s) = 0.993
-  π(R|s) = 0.005
-  π(U|s) = 0.001
-  (Down)
-SFFF
-<span class="ansi-red-bg">F</span>HFH
-FFFH
-HFFG
-  π(L|s) = 0.002
-  π(D|s) = 0.993
-  π(R|s) = 0.004
-  π(U|s) = 0.001
-  (Down)
-SFFF
-FHFH
-<span class="ansi-red-bg">F</span>FFH
-HFFG
-  π(L|s) = 0.004
-  π(D|s) = 0.012
-  π(R|s) = 0.982
-  π(U|s) = 0.002
-  (Right)
-SFFF
-FHFH
-F<span class="ansi-red-bg">F</span>FH
-HFFG
-  π(L|s) = 0.003
-  π(D|s) = 0.974
-  π(R|s) = 0.023
-  π(U|s) = 0.001
-  (Down)
-SFFF
-FHFH
-FFFH
-H<span class="ansi-red-bg">F</span>FG
-  π(L|s) = 0.004
-  π(D|s) = 0.078
-  π(R|s) = 0.916
-  π(U|s) = 0.003
-  (Right)
-SFFF
-FHFH
-FFFH
-HF<span class="ansi-red-bg">F</span>G
-  π(L|s) = 0.003
-  π(D|s) = 0.044
-  π(R|s) = 0.952
-  π(U|s) = 0.001
-  (Right)
-SFFF
-FHFH
-FFFH
-HFF<span class="ansi-red-bg">G</span>
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 

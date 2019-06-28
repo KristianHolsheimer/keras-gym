@@ -1,8 +1,8 @@
 from tensorflow import keras
 
-from ..utils import (
-    is_vfunction, is_qfunction, is_policy, check_tensor, check_numpy_array)
+from .. import utils
 from ..base.mixins import NumActionsMixin
+from ..policies.base import BasePolicy
 from .base import BaseFunctionApproximator
 
 
@@ -11,19 +11,15 @@ __all__ = (
 )
 
 
-class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
+class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
     """
-    A generic actor-critic, adorning an :term:`updateable policy` with a
+    A generic actor-critic, combining an :term:`updateable policy` with a
     :term:`value function <state value function>`.
 
-    The added value of using :class:`ActorCritic` to combine a policy with a
+    The added value of using an :class:`ActorCritic` to combine a policy with a
     value function is that it avoids having to feed in :term:`S` (potentially
     very large) three times at training time. Instead, it only feeds it in
     once.
-
-    Moreover, the way :class:`ActorCritic` is implemented allows for the policy
-    and value function to share parts of the computation graph, e.g. with a
-    multi-head architecture.
 
     Parameters
     ----------
@@ -33,7 +29,7 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
 
     value_function : value-function object
 
-        A :term:`state value function` :math:`V(s)`. Support for state-action
+        A :term:`state value function` :math:`v(s)`. Support for state-action
         value functions (Q-functions) is coming.
 
         #TODO: implement for Q-functions  -Kris
@@ -86,7 +82,7 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
-    def batch_update(self, S, A, Rn, I_next, S_next, A_next=None):
+    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
         """
         Update both actor and critic on a batch of transitions.
 
@@ -113,13 +109,13 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
             In other words, it's the non-bootstrapped part of the n-step
             return.
 
-        I_next : 1d array, dtype: float, shape: [batch_size]
+        In : 1d array, dtype: float, shape: [batch_size]
 
             A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
-            and :math:`I_t=0` otherwise. This allows us to write the
-            bootstrapped target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},
-            A_{t+n})`.
+            this is given by :math:`I^{(n)}_t=\\gamma^n` if the episode is
+            ongoing and :math:`I^{(n)}_t=0` otherwise. This allows us to write
+            the bootstrapped target as
+            :math:`G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n}, A_{t+n})`.
 
         S_next : nd array, shape: [batch_size, ...]
 
@@ -140,16 +136,36 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
         V_next = self.value_function.batch_eval(
             S_next,
             use_target_model=self.value_function.bootstrap_with_target_model)
-        G = Rn + I_next * V_next
-        check_numpy_array(G, ndim=1, dtype='float')
-        check_numpy_array(A, ndim=1, dtype=('int', 'int32', 'int64'))
+        G = Rn + In * V_next
+        utils.check_numpy_array(G, ndim=1, dtype='float')
+        utils.check_numpy_array(A, ndim=1, dtype=('int', 'int32', 'int64'))
         losses = self._train_on_batch([S, G], [A, G])
         return losses
 
     def __call__(self, s):
         """
         Draw an action from the current policy :math:`\\pi(a|s)` and get the
-        expected value :math:`V(s)`.
+        expected value :math:`v(s)`.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        Returns
+        -------
+        a, v : tuple (1d array of floats, float)
+
+            Returns a pair representing :math:`(a, v(s))`.
+
+        """
+        return self.policy(s), self.value_function(s)
+
+    def proba(self, s):
+        """
+        Get the action probabilities under the current policy :math:`\\pi(a|s)`
+        and get the expected value :math:`v(s)`.
 
         Parameters
         ----------
@@ -161,10 +177,30 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
         -------
         proba, v : tuple (1d array of floats, float)
 
-            Returns a pair representing :math:`(\\pi(.|s), V(s))`.
+            Returns a pair representing :math:`(\\pi(.|s), v(s))`.
 
         """
         return self.policy.proba(s), self.value_function(s)
+
+    def greedy(self, s):
+        """
+        Draw a greedy action :math:`a=\\arg\\max_{a'}\\pi(a'|s)` and get the
+        expected value :math:`v(s)`.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        Returns
+        -------
+        a, v : tuple (1d array of floats, float)
+
+            Returns a pair representing :math:`(a, v(s))`.
+
+        """
+        return self.policy.greedy(s), self.value_function(s)
 
     def batch_eval(self, S, use_target_model=False):
         """
@@ -186,7 +222,7 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
         Pi, V : arrays with shapes: ([batch_size, num_actions], [batch_size])
 
             A batch of action probabilities and values
-            :math:`(\\pi(.|s), V(s))`.
+            :math:`(\\pi(.|s), v(s))`.
 
         """  # noqa: E501
         Pi = self.policy.batch_eval(S, use_target_model=use_target_model)
@@ -199,13 +235,13 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
         self.value_function.sync_target_model(tau=tau)
 
     def _check_function_types(self):
-        if not is_vfunction(self.value_function):
-            if is_qfunction(self.value_function):
+        if not utils.is_vfunction(self.value_function):
+            if utils.is_qfunction(self.value_function):
                 raise NotImplementedError(
                     "ActorCritic hasn't been yet implemented for Q-functions, "
                     "please let me know is you need this; for the time being, "
                     "please use V-function instead.")
-        if not is_policy(self.policy, check_updateable=True):
+        if not utils.is_policy(self.policy, check_updateable=True):
             raise TypeError("expected an updateable policy")
         if self.policy.env != self.value_function.env:
             raise ValueError(
@@ -226,8 +262,8 @@ class ActorCritic(BaseFunctionApproximator, NumActionsMixin):
             self.policy.target_model, name='Z_target')(S)
 
         # check if shapes are what we expect
-        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
-        check_tensor(V, ndim=2, axis_size=1, axis=1)
+        utils.check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        utils.check_tensor(V, ndim=2, axis_size=1, axis=1)
 
         # update loss with advantage coming directly from graph
         policy_loss = self.policy._policy_loss(G - V, Z_target)

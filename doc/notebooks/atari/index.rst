@@ -9,4 +9,4 @@ environment.
 
     DQN <dqn>
     PPO <ppo>
-    PPO (with shared weights) <ppo_shared_weights>
+    PPO (with shared weights) <ppo_conjoint>

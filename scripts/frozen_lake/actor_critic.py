@@ -4,26 +4,27 @@ import numpy as np
 import keras_gym as km
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, LEFT, RIGHT, UP, DOWN
+from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
 
 
 logging.basicConfig(level=logging.INFO)
 
 
-# env with preprocessing
+# the cart-pole MDP
 actions = {LEFT: 'L', RIGHT: 'R', UP: 'U', DOWN: 'D'}
 env = FrozenLakeEnv(is_slippery=False)
-env = km.utils.TrainMonitor(env)
+env = km.wrappers.TrainMonitor(env)
 
 
-class LinearFunctionApproximator(km.FunctionApproximator):
+class LinearFunc(km.FunctionApproximator):
+    """ linear function approximator (body only does one-hot encoding) """
     def body(self, S, variable_scope):
-        one_hot = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
-        return one_hot(S)
+        one_hot_encoding = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
+        return one_hot_encoding(S)
 
 
 # define function approximators
-func = LinearFunctionApproximator(env, lr=0.01)
+func = LinearFunc(env, lr=0.01)
 pi = km.SoftmaxPolicy(func, update_strategy='ppo')
 v = km.V(func, gamma=0.9, bootstrap_n=1)
 
@@ -68,7 +69,7 @@ env.render()
 for t in range(num_steps):
 
     # print individual action probabilities
-    print("  V(s) = {:.3f}".format(v(s)))
+    print("  v(s) = {:.3f}".format(v(s)))
     for i, p in enumerate(pi.proba(s)):
         print("  π({:s}|s) = {:.3f}".format(actions[i], p))
 

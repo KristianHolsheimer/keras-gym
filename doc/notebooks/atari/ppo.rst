@@ -7,12 +7,10 @@ algorithm with `PPO <https://openai.com/blog/openai-baselines-ppo/>`_ policy
 updates.
 
 We use convolutional neural nets (without pooling) as our function
-approximators for the :term:`state value function` :math:`V(s)` and
-:term:`policy <updateable policy>` :math:`\pi(a|s)`, see :class:`AtariV
-<keras_gym.value_functions.AtariV>` and :class:`AtariPolicy
-<keras_gym.policies.AtariPolicy>`. The policy (actor) and value function
-(critic) are combined into a single actor-critic object using
-:class:`ActorCritic <keras_gym.policies.ActorCritic>`.
+approximators for the :term:`state value function` :math:`v(s)` and
+:term:`policy <updateable policy>` :math:`\pi(a|s)`, see
+:class:`AtariFunctionApproximator
+<keras_gym.value_functions.AtariFunctionApproximator>`.
 
 This notebook periodically generates GIFs, so that we can inspect how the
 training is progressing.
@@ -20,7 +18,7 @@ training is progressing.
 After a few hundred episodes, this is what you can expect:
 
 .. image:: ../../_static/img/pong.gif
-  :alt: DQN beating Atari 2600 Pong after a few hundred episodes.
+  :alt: Beating Atari 2600 Pong after a few hundred episodes.
   :align: center
 
 

@@ -7,11 +7,11 @@ from ..base.errors import LeafNodeError, NotLeafNodeError, EpisodeDoneError
 from ..utils import argmax
 
 __all__ = (
-    'SearchNode',
+    'MCTSNode',
 )
 
 
-class SearchNode(NumActionsMixin, RandomStateMixin):
+class MCTSNode(NumActionsMixin, RandomStateMixin):
     def __init__(
             self,
             state_id,
@@ -44,7 +44,7 @@ class SearchNode(NumActionsMixin, RandomStateMixin):
         self.P = None
 
     def __repr__(self):
-        s = "SearchNode('{}', v={:s} done={}".format(
+        s = "MCTSNode('{}', v={:s} done={}".format(
             self.state_id, self._str(self.v, length=5, suffix=','),
             self._str(self.done, suffix=')', length=5))
         return s
@@ -133,13 +133,13 @@ class SearchNode(NumActionsMixin, RandomStateMixin):
         if self.done:
             raise EpisodeDoneError("cannot expand further; episode is done")
 
-        self.P, v = self.actor_critic(self.state)
+        self.P, v = self.actor_critic.proba(self.state)
         if self.v is None:
             self.v = float(v)
 
         for a in self.env.available_actions:
             s_next, r, done, info = self.env.step(a)
-            child = SearchNode(info['state_id'], self.actor_critic)
+            child = MCTSNode(info['state_id'], self.actor_critic)
             child.parent_node = self
             child.parent_action = a
             if done:

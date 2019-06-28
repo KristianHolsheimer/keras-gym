@@ -277,7 +277,7 @@ class MaskedLoss:
     """
     Loss function for type-II Q-function.
 
-    This loss function projects the predictions :math:`Q(s, .)` onto the
+    This loss function projects the predictions :math:`q(s, .)` onto the
     actions for which we actually received a feedback signal.
 
     Parameters
@@ -317,7 +317,7 @@ class MaskedLoss:
 
         Q_pred : 2d Tensor, shape = [batch_size, num_actions]
 
-            The predicted values :math:`Q(s,.)`, a.k.a. ``y_pred``.
+            The predicted values :math:`q(s,.)`, a.k.a. ``y_pred``.
 
         Returns
         -------
@@ -337,7 +337,7 @@ class MaskedLoss:
         assert K.ndim(self.G) == 1, "bad shape"
         assert K.int_shape(self.G)[0] == K.int_shape(Q_pred)[0], "bad shape"
 
-        # project onto actions taken: Q(s,.) --> Q(s,a)
+        # project onto actions taken: q(s,.) --> q(s,a)
         Q_pred_projected = self.project_onto_actions(Q_pred, A)
 
         # the actuall loss

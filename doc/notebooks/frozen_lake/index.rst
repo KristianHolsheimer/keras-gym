@@ -8,5 +8,4 @@ In these notebooks we solve a non-slippery version of the `FrozenLake-v0
     :maxdepth: 1
 
     REINFORCE <reinforce>
-    Vanilla Policy Gradient <actor_critic>
-    PPO <ppo>
+    Actor-Critic <actor_critic>

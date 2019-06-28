@@ -37,11 +37,11 @@ class DefaultPreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
     :class:`DefaultPreprocessor`. See example below.
 
     >>> import gym
-    >>> from keras_gym.preprocessing import DefaultPreprocessor
-    >>> from keras_gym.utils import get_transition
+    >>> import keras_gym as km
     >>> env = gym.make('FrozenLake-v0')
-    >>> env = DefaultPreprocessor(env)
+    >>> env = km.wrappers.DefaultPreprocessor(env)
     >>> s = env.reset()
+    >>> a = env.action_space.sample()
     >>> s_next, r, done, info = env.step(a)
     >>> info
     {'prob': 0.3333333333333333, 's_orig': [0], 's_next_orig': [1]}

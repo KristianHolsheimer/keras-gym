@@ -13122,12 +13122,7 @@ div#notebook {
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">gym</span>
-
-<span class="kn">from</span> <span class="nn">keras_gym.preprocessing</span> <span class="k">import</span> <span class="n">ImagePreprocessor</span><span class="p">,</span> <span class="n">FrameStacker</span>
-<span class="kn">from</span> <span class="nn">keras_gym.utils</span> <span class="k">import</span> <span class="n">TrainMonitor</span><span class="p">,</span> <span class="n">generate_gif</span>
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">AtariQ</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">EpsilonGreedy</span>  <span class="c1"># or BoltzmannPolicy</span>
-<span class="kn">from</span> <span class="nn">keras_gym.caching</span> <span class="k">import</span> <span class="n">ExperienceReplayBuffer</span>
+<span class="kn">import</span> <span class="nn">keras_gym</span> <span class="k">as</span> <span class="nn">km</span>
 
 
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
@@ -13135,17 +13130,18 @@ div#notebook {
 
 <span class="c1"># env with preprocessing</span>
 <span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;PongDeterministic-v4&#39;</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">ImagePreprocessor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">105</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">grayscale</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">FrameStacker</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">TrainMonitor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">ImagePreprocessor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">105</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">grayscale</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">FrameStacker</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">TrainMonitor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
 
 
 <span class="c1"># value function</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">AtariQ</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.00025</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">bootstrap_n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-           <span class="n">bootstrap_with_target_model</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">buffer</span> <span class="o">=</span> <span class="n">ExperienceReplayBuffer</span><span class="o">.</span><span class="n">from_value_function</span><span class="p">(</span>
-    <span class="n">Q</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mi">1000000</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">EpsilonGreedy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+<span class="n">func</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">predefined</span><span class="o">.</span><span class="n">AtariFunctionApproximator</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.00025</span><span class="p">)</span>
+<span class="n">q</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">QTypeII</span><span class="p">(</span>
+    <span class="n">func</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">bootstrap_n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bootstrap_with_target_model</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">buffer</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">caching</span><span class="o">.</span><span class="n">ExperienceReplayBuffer</span><span class="o">.</span><span class="n">from_value_function</span><span class="p">(</span>
+    <span class="n">q</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mi">1000000</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">EpsilonGreedy</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
 
 
 <span class="c1"># exploration schedule</span>
@@ -13168,11 +13164,11 @@ div#notebook {
 
 <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_episodes</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">env</span><span class="o">.</span><span class="n">ep</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">env</span><span class="o">.</span><span class="n">T</span> <span class="o">&gt;</span> <span class="n">buffer_warmup_period</span><span class="p">:</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./data/gifs/&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">generate_gif</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./data/dqn/gifs/&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">km</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">generate_gif</span><span class="p">(</span>
             <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
             <span class="n">policy</span><span class="o">=</span><span class="n">policy</span><span class="o">.</span><span class="n">set_epsilon</span><span class="p">(</span><span class="mf">0.01</span><span class="p">),</span>
-            <span class="n">filepath</span><span class="o">=</span><span class="s1">&#39;./data/gifs/ep</span><span class="si">{:06d}</span><span class="s1">.gif&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">ep</span><span class="p">),</span>
+            <span class="n">filepath</span><span class="o">=</span><span class="s1">&#39;./data/dqn/gifs/ep</span><span class="si">{:06d}</span><span class="s1">.gif&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">ep</span><span class="p">),</span>
             <span class="n">resize_to</span><span class="o">=</span><span class="p">(</span><span class="mi">320</span><span class="p">,</span> <span class="mi">420</span><span class="p">))</span>
 
     <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
@@ -13185,10 +13181,10 @@ div#notebook {
         <span class="n">buffer</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">ep</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">env</span><span class="o">.</span><span class="n">T</span> <span class="o">&gt;</span> <span class="n">buffer_warmup_period</span><span class="p">:</span>
-            <span class="n">Q</span><span class="o">.</span><span class="n">batch_update</span><span class="p">(</span><span class="o">*</span><span class="n">buffer</span><span class="o">.</span><span class="n">sample</span><span class="p">())</span>
+            <span class="n">q</span><span class="o">.</span><span class="n">batch_update</span><span class="p">(</span><span class="o">*</span><span class="n">buffer</span><span class="o">.</span><span class="n">sample</span><span class="p">())</span>
 
         <span class="k">if</span> <span class="n">env</span><span class="o">.</span><span class="n">T</span> <span class="o">%</span> <span class="n">target_model_sync_period</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">Q</span><span class="o">.</span><span class="n">sync_target_model</span><span class="p">()</span>
+            <span class="n">q</span><span class="o">.</span><span class="n">sync_target_model</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
             <span class="k">break</span>

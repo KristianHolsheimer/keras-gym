@@ -7,6 +7,7 @@ from ..utils import argmax
 
 __all__ = (
     'EpsilonGreedy',
+    # 'BoltzmannPolicy',  #TODO: implement
 )
 
 

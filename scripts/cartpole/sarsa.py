@@ -1,16 +1,24 @@
 import gym
 import keras_gym as km
-from keras_gym.function_approximators import LinearFunctionApproximator
+from tensorflow import keras
 
 
-# env with preprocessing
+# the cart-pole MDP
 env = gym.make('CartPole-v0')
 
+
+class MLP(km.FunctionApproximator):
+    """ multi-layer perceptron with one hidden layer """
+    def body(self, S, variable_scope):
+        X = keras.layers.Flatten()(S)
+        X = keras.layers.Dense(units=4, name=(variable_scope + '/hidden'))(X)
+        return X
+
+
 # value function and its derived policy
-func = LinearFunctionApproximator(
-    env, interaction='elementwise_quadratic', lr=0.02, momentum=0.9)
-Q = km.QTypeI(func, update_strategy='sarsa', gamma=0.9, bootstrap_n=1)
-policy = km.EpsilonGreedy(Q)
+func = MLP(env, lr=0.01)
+q = km.QTypeI(func, update_strategy='sarsa')
+policy = km.EpsilonGreedy(q)
 
 # static parameters
 num_episodes = 200
@@ -29,7 +37,7 @@ for ep in range(num_episodes):
         a = policy(s)
         s_next, r, done, info = env.step(a)
 
-        Q.update(s, a, r, done)
+        q.update(s, a, r, done)
 
         if done:
             if t == num_steps - 1:

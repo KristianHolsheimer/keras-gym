@@ -132,7 +132,7 @@ class BaseV(BaseFunctionApproximator):
     Base class for modeling a :term:`state value function`.
 
     A :term:`state value function` is implemented by mapping :math:`s\\mapsto
-    V(s)`.
+    v(s)`.
 
     Parameters
     ----------
@@ -208,7 +208,7 @@ class BaseV(BaseFunctionApproximator):
         -------
         V : float or array of floats
 
-            The estimated value of the state :math:`V(s)`.
+            The estimated value of the state :math:`v(s)`.
 
         """
         assert self.env.observation_space.contains(s)
@@ -242,10 +242,10 @@ class BaseV(BaseFunctionApproximator):
 
         # eager updates
         while self._cache:
-            S, _, Rn, I_next, S_next, _ = self._cache.pop()
-            self.batch_update(S, Rn, I_next, S_next)
+            S, _, Rn, In, S_next, _ = self._cache.pop()
+            self.batch_update(S, Rn, In, S_next)
 
-    def batch_update(self, S, Rn, I_next, S_next):
+    def batch_update(self, S, Rn, In, S_next):
         """
         Update the value function on a batch of transitions.
 
@@ -268,13 +268,17 @@ class BaseV(BaseFunctionApproximator):
             In other words, it's the non-bootstrapped part of the n-step
             return.
 
-        I_next : 1d array, dtype: float, shape: [batch_size]
+        In : 1d array, dtype: float, shape: [batch_size]
 
             A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
-            and :math:`I_t=0` otherwise. This allows us to write the
-            bootstrapped target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},
-            A_{t+n})`.
+            this is given by :math:`I^{(n)}_t=\\gamma^n` if the episode is
+            ongoing and :math:`I^{(n)}_t=0` otherwise. This allows us to write
+            the bootstrapped target as:
+
+            .. math::
+
+                G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n}, A_{t+n})
+
 
         S_next : nd array, shape: [batch_size, ...]
 
@@ -289,7 +293,7 @@ class BaseV(BaseFunctionApproximator):
         """
         V_next = self.batch_eval(
             S_next, use_target_model=self.bootstrap_with_target_model)
-        Gn = Rn + I_next * V_next
+        Gn = Rn + In * V_next
         losses = self._train_on_batch(S, Gn)
         return losses
 
@@ -368,8 +372,8 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         Q : float or array of floats
 
             If action ``a`` is provided, a single float representing
-            :math:`Q(s,a)` is returned. If, on the other hand, ``a`` is left
-            unspecified, a vector representing :math:`Q(s,.)` is returned
+            :math:`q(s,a)` is returned. If, on the other hand, ``a`` is left
+            unspecified, a vector representing :math:`q(s,.)` is returned
             instead. The shape of the latter return value is ``[num_actions]``,
             which is only well-defined for discrete action spaces.
 
@@ -419,7 +423,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
-    def batch_update(self, S, A, Rn, I_next, S_next, A_next=None):
+    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
         """
         Update the value function on a batch of transitions.
 
@@ -446,13 +450,17 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             In other words, it's the non-bootstrapped part of the n-step
             return.
 
-        I_next : 1d array, dtype: float, shape: [batch_size]
+        In : 1d array, dtype: float, shape: [batch_size]
 
             A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
-            and :math:`I_t=0` otherwise. This allows us to write the
-            bootstrapped target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},
-            A_{t+n})`.
+            this is given by :math:`I^{(n)}_t=\\gamma^n` if the episode is
+            ongoing and :math:`I^{(n)}_t=0` otherwise. This allows us to write
+            the bootstrapped target as:
+
+            .. math::
+
+                G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n}, A_{t+n})
+
 
         S_next : nd array, shape: [batch_size, ...]
 
@@ -470,16 +478,14 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        G = self.bootstrap_target_np(Rn, I_next, S_next, A_next)
+        G = self.bootstrap_target(Rn, In, S_next, A_next)
         losses = self._train_on_batch([S, G], A)
         return losses
 
-    def bootstrap_target_np(self, Rn, I_next, S_next, A_next=None):
+    def bootstrap_target(self, Rn, In, S_next, A_next=None):
         """
         Get the bootstrapped target
         :math:`G^{(n)}_t=R^{(n)}_t+\\gamma^nQ(S_{t+n}, A_{t+n})`.
-
-        This is the *numpy* implementation.
 
         Parameters
         ----------
@@ -496,12 +502,17 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             In other words, it's the non-bootstrapped part of the n-step
             return.
 
-        I_next : 1d array, dtype: float, shape: [batch_size]
+        In : 1d array, dtype: float, shape: [batch_size]
 
             A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I_t=\\gamma^n` if the episode is ongoing
-            and :I_t=0: otherwise. This allows us to write the bootstrapped
-            target as :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})`.
+            this is given by :math:`I^{(n)}_t=\\gamma^n` if the episode is
+            ongoing and :math:`I^{(n)}_t=0` otherwise. This allows us to write
+            the bootstrapped target as:
+
+            .. math::
+
+                G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n},A_{t+n})
+
 
         S_next : nd array, shape: [batch_size, ...]
 
@@ -516,7 +527,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         Gn : 1d array, dtype: int, shape: [batch_size]
 
             A batch of bootstrap-estimated returns
-            :math:`G^{(n)}_t=R^{(n)}_t+I_tQ(S_{t+n},A_{t+n})` computed
+            :math:`G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n},A_{t+n})` computed
             according to given ``update_strategy``.
 
         """
@@ -543,7 +554,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         else:
             raise ValueError("unknown update_strategy")
 
-        Gn = Rn + I_next * Q_next
+        Gn = Rn + In * Q_next
         return Gn
 
     @abstractmethod
@@ -572,8 +583,8 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         Q : 1d or 2d array of floats
 
             If action ``A`` is provided, a 1d array representing a batch of
-            :math:`Q(s,a)` is returned. If, on the other hand, ``A`` is left
-            unspecified, a vector representing a batch of :math:`Q(s,.)` is
+            :math:`q(s,a)` is returned. If, on the other hand, ``A`` is left
+            unspecified, a vector representing a batch of :math:`q(s,.)` is
             returned instead. The shape of the latter return value is
             ``[batch_size, num_actions]``, which is only well-defined for
             discrete action
@@ -589,7 +600,7 @@ class BaseQTypeI(BaseGenericQ):
     Q-function.
 
     A :term:`type-I <type-I state-action value function>` Q-function is
-    implemented by mapping :math:`(s, a)\\mapsto Q(s,a)`.
+    implemented by mapping :math:`(s, a)\\mapsto q(s,a)`.
 
     Parameters
     ----------
@@ -696,7 +707,7 @@ class BaseQTypeII(BaseGenericQ):
     function>` Q-function.
 
     A :term:`type-II <type-II state-action value function>` Q-function is
-    implemented by mapping :math:`s\\mapsto Q(s,.)`.
+    implemented by mapping :math:`s\\mapsto q(s,.)`.
 
     Parameters
     ----------
@@ -988,8 +999,8 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
 
         advantage : float
 
-            A value for the advantage :math:`\\mathcal{A}(s,a)=Q(s,a)-V(s)`.
-            This might be sampled and/or estimated version of the true
+            A value for the advantage :math:`\\mathcal{A}(s,a) = q(s,a) -
+            v(s)`. This might be sampled and/or estimated version of the true
             advantage.
 
         """
@@ -1045,8 +1056,8 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
 
         Adv : 1d array, dtype: float, shape: [batch_size]
 
-            A value for the advantage :math:`\\mathcal{A}(s,a)=Q(s,a)-V(s)`.
-            This might be sampled and/or estimated version of the true
+            A value for the advantage :math:`\\mathcal{A}(s,a) = q(s,a) -
+            v(s)`. This might be sampled and/or estimated version of the true
             advantage.
 
         Returns

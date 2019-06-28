@@ -3,8 +3,9 @@ Non-Slippery Frozen Lake with Actor-Critic
 
 In this notebook we solve a non-slippery version of the `FrozenLake-v0
 <https://gym.openai.com/envs/FrozenLake-v0/>`_ environment using the TD actor
-critic algorithm. We'll use a linear function approximator for our
-:term:`policy <updateable policy>` and our :term:`state value function`.
+critic algorithm with PPO policy updates. We'll use a linear function
+approximator for our :term:`policy <updateable policy>` and our :term:`state
+value function`.
 
 
 GitHub version

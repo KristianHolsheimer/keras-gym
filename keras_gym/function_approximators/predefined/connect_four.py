@@ -4,6 +4,11 @@ from tensorflow.keras import backend as K
 from ..generic import FunctionApproximator
 
 
+__all__ = (
+    'ConnectFourFunctionApproximator',
+)
+
+
 class ConnectFourFunctionApproximator(FunctionApproximator):
     def body(self, S, variable_scope):
         assert variable_scope in ('primary', 'target')

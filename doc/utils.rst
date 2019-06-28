@@ -1,14 +1,9 @@
-.. automodule:: keras_gym.utils
-
 Utilities
 =========
 
 .. autosummary::
     :nosignatures:
 
-
-
-    keras_gym.utils.TrainMonitor
     keras_gym.utils.argmax
     keras_gym.utils.argmin
     keras_gym.utils.check_numpy_array
@@ -28,8 +23,6 @@ Utilities
     keras_gym.utils.project_onto_actions_tf
     keras_gym.utils.softmax
 
-
-.. autoclass:: keras_gym.utils.TrainMonitor
 
 .. autofunction:: keras_gym.utils.argmax
 .. autofunction:: keras_gym.utils.argmin

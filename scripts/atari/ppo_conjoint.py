@@ -1,24 +1,21 @@
 import os
 import logging
 import gym
-
 import keras_gym as km
-from keras_gym.function_approximators import AtariFunctionApproximator
-from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
-from keras_gym.utils import TrainMonitor, generate_gif
+
 
 logging.basicConfig(level=logging.INFO)
 
 
 # env with preprocessing
 env = gym.make('PongDeterministic-v4')
-env = ImagePreprocessor(env, height=105, width=80, grayscale=True)
-env = FrameStacker(env, num_frames=3)
-env = TrainMonitor(env)
+env = km.wrappers.ImagePreprocessor(env, height=105, width=80, grayscale=True)
+env = km.wrappers.FrameStacker(env, num_frames=3)
+env = km.wrappers.TrainMonitor(env)
 
 
-# actor-critic with shared weights between pi(a|s) and V(s)
-func = AtariFunctionApproximator(env, lr=0.00025)
+# actor-critic with shared weights between pi(a|s) and v(s)
+func = km.predefined.AtariFunctionApproximator(env, lr=0.00025)
 actor_critic = km.ConjointActorCritic(
     func,
     gamma=0.99,
@@ -27,13 +24,13 @@ actor_critic = km.ConjointActorCritic(
     ppo_clipping=0.2,
     entropy_bonus=0.01)
 
-V = actor_critic.value_function
+v = actor_critic.value_function
 pi = actor_critic.policy
 
 
 # we'll use this to temporarily store our experience
-buffer = km.ExperienceReplayBuffer.from_value_function(
-    V, capacity=256, batch_size=64)
+buffer = km.caching.ExperienceReplayBuffer.from_value_function(
+    v, capacity=256, batch_size=64)
 
 
 # run episodes
@@ -64,7 +61,7 @@ while env.T < 3000000:
     # generate an animated GIF to see what's going on
     if env.ep % 50 == 0:
         os.makedirs('./data/ppo2/gifs/', exist_ok=True)
-        generate_gif(
+        km.utils.generate_gif(
             env=env,
             policy=pi,
             filepath='./data/ppo2/gifs/ep{:06d}.gif'.format(env.ep),

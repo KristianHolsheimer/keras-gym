@@ -1,8 +1,8 @@
-from ..generic import FunctionApproximator
-from .mixins import InteractionMixin
-
 from tensorflow import keras
 from tensorflow.keras import backend as K
+
+from ..generic import FunctionApproximator
+from .mixins import InteractionMixin
 
 
 __all__ = (
@@ -51,8 +51,8 @@ class LinearFunctionApproximator(FunctionApproximator, InteractionMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the SGD optimizer is used,
-        :class:`keras.optimizers.SGD`. See `keras documentation
+        If left unspecified (``optimizer=None``), the function approximator's
+        DEFAULT_OPTIMIZER is used. See `keras documentation
         <https://keras.io/optimizers/>`_ for more details.
 
     **optimizer_kwargs : keyword arguments

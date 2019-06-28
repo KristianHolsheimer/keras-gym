@@ -1,11 +1,7 @@
 import os
 import logging
 import gym
-
 import keras_gym as km
-from keras_gym.function_approximators import AtariFunctionApproximator
-from keras_gym.preprocessing import ImagePreprocessor, FrameStacker
-from keras_gym.utils import TrainMonitor, generate_gif
 
 
 logging.basicConfig(level=logging.INFO)
@@ -13,20 +9,20 @@ logging.basicConfig(level=logging.INFO)
 
 # env with preprocessing
 env = gym.make('PongDeterministic-v4')
-env = ImagePreprocessor(env, height=105, width=80, grayscale=True)
-env = FrameStacker(env, num_frames=3)
-env = TrainMonitor(env)
+env = km.wrappers.ImagePreprocessor(env, height=105, width=80, grayscale=True)
+env = km.wrappers.FrameStacker(env, num_frames=3)
+env = km.wrappers.TrainMonitor(env)
 
 
 # function approximators
-func = AtariFunctionApproximator(env, lr=0.00025)
+func = km.predefined.AtariFunctionApproximator(env, lr=0.00025)
 pi = km.SoftmaxPolicy(func, update_strategy='ppo')
 v = km.V(func, gamma=0.99, bootstrap_n=10, bootstrap_with_target_model=True)
 actor_critic = km.ActorCritic(pi, v)
 
 
 # we'll use this to temporarily store our experience
-buffer = km.ExperienceReplayBuffer.from_value_function(
+buffer = km.caching.ExperienceReplayBuffer.from_value_function(
     v, capacity=256, batch_size=64)
 
 
@@ -58,7 +54,7 @@ while env.T < 3000000:
     # generate an animated GIF to see what's going on
     if env.ep % 50 == 0:
         os.makedirs('./data/ppo/gifs/', exist_ok=True)
-        generate_gif(
+        km.utils.generate_gif(
             env=env,
             policy=pi,
             filepath='./data/ppo/gifs/ep{:06d}.gif'.format(env.ep),

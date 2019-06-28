@@ -27,32 +27,37 @@ class FunctionApproximator(NumActionsMixin):
 
     This is the central object object that provides an interface between a
     gym-type environment and function approximators like :term:`value functions
-    <state value function>` and :term:`updateable policies`.
+    <state value function>` and :term:`updateable policies <updateable
+    policy>`.
 
     In order to create a valid function approximator, you need to implement the
     :term:`body` method. For example, to implement a simple multi-layer
     perceptron function approximator you would do something like:
 
-    .. code::
+    .. code:: python
 
         import gym
         import keras_gym as km
-        from keras.layers import Dense
+        from tensorflow.keras.layers import Flatten, Dense
 
-        class MLP(km.FunctionApproximator):
-            def body(self, S, variable_scope):
-                X = Dense(units=6, name=(variable_scope + '/dense1'))(S)
-                X = Dense(units=3, name=(variable_scope + '/dense2'))(X)
-                return X
-
-        # environment
+        # the cart-pole MDP
         env = gym.make('CartPole-v0')
 
-        # generic function approximator
-        mlp = MLP(env)
+        class MLP(km.FunctionApproximator):
+            \"\"\" multi-layer perceptron with one hidden layer \"\"\"
+            def body(self, S, variable_scope):
+                X = Flatten()(S)
+                X = Dense(units=4, name=(variable_scope + '/hidden'))(X)
+                return X
 
-        # policy and value function
-        pi, v = km.SoftmaxPolicy(mlp), km.V(mlp)
+            # environment
+            env = gym.make('CartPole-v0')
+
+            # generic function approximator
+            mlp = MLP(env)
+
+            # policy and value function
+            pi, v = km.SoftmaxPolicy(mlp), km.V(mlp)
 
     The default :term:`heads <head>` are simple (multi) linear regression
     layers, which can be overridden by your own implementation.
@@ -65,8 +70,8 @@ class FunctionApproximator(NumActionsMixin):
 
     optimizer : keras.optimizers.Optimizer, optional
 
-        If left unspecified (``optimizer=None``), the Adam optimizer is used,
-        :class:`keras.optimizers.Adam`. See `keras documentation
+        If left unspecified (``optimizer=None``), the function approximator's
+        DEFAULT_OPTIMIZER is used. See `keras documentation
         <https://keras.io/optimizers/>`_ for more details.
 
     **optimizer_kwargs : keyword arguments
@@ -85,7 +90,7 @@ class FunctionApproximator(NumActionsMixin):
     def head_v(self, X, variable_scope):
         """
         This is the :term:`state value <state value function>` head. It returns
-        a scalar V-value :math:`V(s)\\in\\mathbb{R}`.
+        a scalar V-value :math:`v(s)\\in\\mathbb{R}`.
 
         Parameters
         ----------
@@ -99,7 +104,7 @@ class FunctionApproximator(NumActionsMixin):
         -------
         Q_s : nd Tensor, shape: [batch_size, num_actions]
 
-            The output :term:`state values <V>` :math:`V(s)\\in\\mathbb{R}`.
+            The output :term:`state values <V>` :math:`v(s)\\in\\mathbb{R}`.
 
         """
         linear_regression_layer = keras.layers.Dense(
@@ -112,7 +117,7 @@ class FunctionApproximator(NumActionsMixin):
         """
         This is the :term:`type-I <type-I state-action value function>`
         Q-value head. It returns a scalar Q-value
-        :math:`Q(s,a)\\in\\mathbb{R}`.
+        :math:`q(s,a)\\in\\mathbb{R}`.
 
         Parameters
         ----------
@@ -127,7 +132,7 @@ class FunctionApproximator(NumActionsMixin):
         Q_sa : nd Tensor, shape: [batch_size, num_actions]
 
             The output :term:`type-I <Q_sa>` Q-values
-            :math:`Q(s,a)\\in\\mathbb{R}`.
+            :math:`q(s,a)\\in\\mathbb{R}`.
 
         """
         linear_regression_layer = keras.layers.Dense(
@@ -140,7 +145,7 @@ class FunctionApproximator(NumActionsMixin):
         """
         This is the :term:`type-II <type-II state-action value function>`
         Q-value head. It returns a vector of Q-values
-        :math:`Q(s,.)\\in\\mathbb{R}^n`.
+        :math:`q(s,.)\\in\\mathbb{R}^n`.
 
         Parameters
         ----------
@@ -155,7 +160,7 @@ class FunctionApproximator(NumActionsMixin):
         Q_s : nd Tensor, shape: [batch_size, num_actions]
 
             The output :term:`type-II <Q_s>` Q-values
-            :math:`Q(s,.)\\in\\mathbb{R}^n`.
+            :math:`q(s,.)\\in\\mathbb{R}^n`.
 
         """
         multilinear_regression_layer = keras.layers.Dense(
@@ -232,13 +237,13 @@ class FunctionApproximator(NumActionsMixin):
 
 class V(BaseV):
     """
-    A specific :term:`state value function` for the ConnectFour environment.
+    A :term:`state value function` :math:`s\\mapsto v(s)`.
 
     Parameters
     ----------
     function_approximator : FunctionApproximator object
 
-        The main :doc:`function approximator <function_approximators/index>`.
+        The main :term:`function approximator`.
 
     gamma : float, optional
 
@@ -306,13 +311,13 @@ class V(BaseV):
 
 class QTypeI(BaseQTypeI):
     """
-    A :term:`type-I <type-I state-action value function>` Q-function.
+    A :term:`type-I state-action value function` :math:`(s,a)\\mapsto q(s,a)`.
 
     Parameters
     ----------
     function_approximator : FunctionApproximator object
 
-        The main :doc:`function approximator <function_approximators/index>`.
+        The main :term:`function approximator`.
 
     gamma : float, optional
 
@@ -431,13 +436,13 @@ class QTypeI(BaseQTypeI):
 
 class QTypeII(BaseQTypeII):
     """
-    A :term:`type-II <type-II state-action value function>` Q-function.
+    A :term:`type-II state-action value function` :math:`s\\mapsto q(s,.)`.
 
     Parameters
     ----------
     function_approximator : FunctionApproximator object
 
-        The main :doc:`function approximator <function_approximators/index>`.
+        The main :term:`function approximator`.
 
     gamma : float, optional
 
@@ -558,7 +563,7 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
     ----------
     function_approximator : FunctionApproximator object
 
-        The main :doc:`function approximator <function_approximators/index>`.
+        The main :term:`function approximator`.
 
     update_strategy : str, optional
 
@@ -667,14 +672,14 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
 class ConjointActorCritic(ActorCritic):
     """
 
-    An :term:`actor-critic` that whose :term:`body` is shared between actor and
+    An :term:`actor-critic` whose :term:`body` is shared between actor and
     critic.
 
     Parameters
     ----------
     function_approximator : FunctionApproximator object
 
-        The main :doc:`function approximator <function_approximators/index>`.
+        The main :term:`function approximator`.
 
     gamma : float, optional
 

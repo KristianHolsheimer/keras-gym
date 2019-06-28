@@ -1,11 +1,8 @@
 import keras_gym as km
-from keras_gym.environments import ConnectFourEnv
-from keras_gym.function_approximators import ConnectFourFunctionApproximator
-from keras_gym.planning import SearchNode
 
 
-env = ConnectFourEnv()
-func = ConnectFourFunctionApproximator(env, lr=0.001)
+env = km.envs.ConnectFourEnv()
+func = km.predefined.ConnectFourFunctionApproximator(env, lr=0.001)
 ac = km.ConjointActorCritic(func)
 
 
@@ -14,7 +11,7 @@ ac = km.ConjointActorCritic(func)
 # state_id = '10600000000000005609'  # attack
 state_id = '20600000000000004d7e'  # defend
 # state_id = '106000000001a021e87f'
-n = SearchNode(state_id, ac, random_seed=7)
+n = km.planning.MCTSNode(state_id, ac, random_seed=7)
 
 
 n.env.render()

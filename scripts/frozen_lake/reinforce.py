@@ -1,26 +1,32 @@
-import keras_gym as km
+import logging
+
 import numpy as np
+import keras_gym as km
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
 
 
-# env with preprocessing
+logging.basicConfig(level=logging.INFO)
+
+
+# the cart-pole MDP
 actions = {LEFT: 'L', RIGHT: 'R', UP: 'U', DOWN: 'D'}
 env = FrozenLakeEnv(is_slippery=False)
-env = km.utils.TrainMonitor(env)
+env = km.wrappers.TrainMonitor(env)
 
 
-class LinearFunctionApproximator(km.FunctionApproximator):
+class LinearFunc(km.FunctionApproximator):
+    """ linear function approximator (body only does one-hot encoding) """
     def body(self, S, variable_scope):
-        one_hot = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
-        return one_hot(S)
+        one_hot_encoding = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
+        return one_hot_encoding(S)
 
 
 # define function approximators
-func = LinearFunctionApproximator(env, lr=0.01)
+func = LinearFunc(env, lr=0.01)
 pi = km.SoftmaxPolicy(func, update_strategy='vanilla')
-cache = km.MonteCarloCache(gamma=0.99)
+cache = km.caching.MonteCarloCache(gamma=0.99)
 
 
 # static parameters
