@@ -157,18 +157,18 @@ class ExperienceReplayBuffer(RandomStateMixin):
 
         Returns
         -------
-        S, A, Rn, I_next, S_next, A_next : tuple of arrays
+        S, A, Rn, In, S_next, A_next : tuple of arrays
 
             The returned tuple represents a batch of preprocessed transitions:
 
-                (:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`)
+                (:term:`S`, :term:`A`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`)
 
             These are typically used for bootstrapped updates, e.g. minimizing
             the bootstrapped MSE:
 
             .. math::
 
-                \\left( R^{(n)}_t + I_t\\,Q(S_{t+n},A_{t+n})
+                \\left( R^{(n)}_t + I^{(n)}_t\\,Q(S_{t+n},A_{t+n})
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
@@ -179,9 +179,9 @@ class ExperienceReplayBuffer(RandomStateMixin):
         S = []
         A = []
         Rn = []
+        In = []
         S_next = []
         A_next = []
-        I_next = []
 
         for attempt in range(10 * self.batch_size):
             # js are the S indices and ks are the S_next indices
@@ -229,9 +229,9 @@ class ExperienceReplayBuffer(RandomStateMixin):
             S_next.append(self._s[ks].transpose(perm))
             A_next.append(self._a[ks[-1:]])
             if done:
-                I_next.append(np.zeros(1))
+                In.append(np.zeros(1))
             else:
-                I_next.append(
+                In.append(
                     np.power([self.gamma], self.bootstrap_n))
 
             if len(S) == self.batch_size:
@@ -243,7 +243,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
         S = np.stack(S, axis=0)
         A = np.concatenate(A, axis=0)
         Rn = np.concatenate(Rn, axis=0)
-        I_next = np.concatenate(I_next, axis=0)
+        In = np.concatenate(In, axis=0)
         S_next = np.stack(S_next, axis=0)
         A_next = np.concatenate(A_next, axis=0)
 
@@ -251,7 +251,7 @@ class ExperienceReplayBuffer(RandomStateMixin):
             S = np.squeeze(S, axis=-1)
             S_next = np.squeeze(S_next, axis=-1)
 
-        return S, A, Rn, I_next, S_next, A_next
+        return S, A, Rn, In, S_next, A_next
 
     def clear(self):
         """

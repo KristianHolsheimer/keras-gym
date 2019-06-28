@@ -2,12 +2,13 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from ..utils import project_onto_actions_tf, check_tensor
-from ..base.losses import BaseLoss
+from .base import BaseLoss
 
 __all__ = (
     'Huber',
     'ProjectedSemiGradientLoss',
     'RootMeanSquaredError',
+    'LoglossSign',
 )
 
 
@@ -131,7 +132,7 @@ class ProjectedSemiGradientLoss(BaseLoss):
     """
     Loss function for type-II Q-function.
 
-    This loss function projects the predictions :math:`Q(s, .)` onto the
+    This loss function projects the predictions :math:`q(s, .)` onto the
     actions for which we actually received a feedback signal.
 
     Parameters
@@ -174,7 +175,7 @@ class ProjectedSemiGradientLoss(BaseLoss):
 
         Q_pred : 2d Tensor, shape: [batch_size, num_actions]
 
-            The predicted values :math:`Q(s,.)`, a.k.a. ``y_pred``.
+            The predicted values :math:`q(s,.)`, a.k.a. ``y_pred``.
 
         sample_weight : Tensor, dtype: float, optional
 
@@ -203,9 +204,51 @@ class ProjectedSemiGradientLoss(BaseLoss):
         check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
         check_tensor(Q_pred, ndim=2, axis_size=batch_size, axis=0)
 
-        # project onto actions taken: Q(s,.) --> Q(s,a)
+        # project onto actions taken: q(s,.) --> q(s,a)
         Q_pred_projected = project_onto_actions_tf(Q_pred, A)
 
         # the actual loss
         return self.base_loss(
             self.G, Q_pred_projected, sample_weight=sample_weight)
+
+
+class LoglossSign(BaseLoss):
+    """
+    Logloss implemented for predicted logits :math:`z\\in\\mathbb{R}` and
+    ground truth :math:`y\\pm1`.
+
+    .. math::
+
+        L\\ =\\ \\log\\left( 1 + \\exp(-y\\,z) \\right)
+
+    """
+    def __init__(self):
+        pass
+
+    def __call__(self, y_true, z_pred, sample_weight=None):
+        """
+        Parameters
+        ----------
+        y_true : Tensor, shape: [batch_size, ...]
+
+            Ground truth values :math:`y\\pm1`.
+
+        z_pred : Tensor, shape: [batch_size, ...]
+
+            The predicted logits :math:`z\\in\\mathbb{R}`.
+
+        sample_weight : Tensor, dtype: float, optional
+
+            Not yet implemented.
+
+            #TODO: implement this
+
+        """
+        if K.dtype(z_pred) == 'float32':
+            z_pred = K.clip(z_pred, -15, 15)
+        elif K.dtype(z_pred) == 'float64':
+            z_pred = K.clip(z_pred, -30, 30)
+        else:
+            raise TypeError('Expected dtype for z_pred: float32 or float64')
+
+        return K.log(1 + K.exp(-y_true * z_pred))

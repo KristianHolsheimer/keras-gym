@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from ..base.losses import BaseLoss, BasePolicyLoss
+from .base import BaseLoss, BasePolicyLoss
 from ..utils import project_onto_actions_tf, check_tensor, log_softmax_tf
 
 
@@ -23,9 +23,9 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
     *advantages* :math:`\\mathcal{A}(s, a)`, which are essentially shifted
     returns, cf. Chapter 13 of `Sutton & Barto
     <http://incompleteideas.net/book/the-book-2nd.html>`_. The advantage
-    function is often defined as :math:`\\mathcal{A}(s, a) = Q(s, a) - V(s)`.
-    The baseline function :math:`V(s)` can be anything you like; a common
-    choice is :math:`V(s) = \\sum_a\\pi(a|s)\\,Q(s,a)`, in which case
+    function is often defined as :math:`\\mathcal{A}(s, a) = q(s, a) - v(s)`.
+    The baseline function :math:`v(s)` can be anything you like; a common
+    choice is :math:`v(s) = \\sum_a\\pi(a|s)\\,q(s,a)`, in which case
     :math:`\\mathcal{A}(s, a)` is a proper advantage function with vanishing
     expectation value.
 
@@ -133,7 +133,7 @@ class ClippedSurrogateLoss(BasePolicyLoss):
 
     .. math::
 
-        L_t(\\theta)\\ =\\ -\\min\\Big(
+        L(\\theta)\\ =\\ -\\hat{\\mathbb{E}}_t\\min\\Big(
             r_t(\\theta)\\,\\mathcal{A}(S_t,A_t)\\,,\\
             \\text{clip}\\big(
                 r_t(\\theta), 1-\\epsilon, 1+\\epsilon\\big)
@@ -214,12 +214,12 @@ class PolicyKLDivergence(BaseLoss):
     .. math::
 
         \\hat{\\mathbb{E}}_t\\left\\{\\,
-            KL[\\pi_{\\theta_\\text{old}}(.|s_t), \\pi_\\theta(.|s_t)]
+            KL[\\pi_{\\theta_\\text{old}}(.|S_t), \\pi_\\theta(.|S_t)]
         \\right\\}
         \\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
-            \\sum_a \\pi_{\\theta_\\text{old}}(a|s_t)\\,
-                \\log\\frac{\\pi_{\\theta_\\text{old}}(a|s_t)}
-                           {\\pi_\\theta(a|s_t)}\\right\\}
+            \\sum_a \\pi_{\\theta_\\text{old}}(a|S_t)\\,
+                \\log\\frac{\\pi_{\\theta_\\text{old}}(a|S_t)}
+                           {\\pi_\\theta(a|S_t)}\\right\\}
 
 
     Parameters
@@ -279,9 +279,9 @@ class PolicyEntropy(BaseLoss):
 
     .. math::
 
-        \\hat{\\mathbb{E}}_t\\left\\{S[\\pi(.|s_t)]\\right\\}
+        \\hat{\\mathbb{E}}_t\\left\\{S[\\pi(.|S_t)]\\right\\}
         \\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
-            -\\sum_a \\pi(a|s_t)\\,\\log\\pi(a|s_t)\\right\\}
+            -\\sum_a \\pi(a|S_t)\\,\\log\\pi(a|S_t)\\right\\}
 
     """
     def __init__(self):

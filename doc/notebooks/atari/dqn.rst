@@ -14,7 +14,7 @@ training is progressing.
 After a few hundred episodes, this is what you can expect:
 
 .. image:: ../../_static/img/pong.gif
-  :alt: DQN beating Atari 2600 Pong after a few hundred episodes.
+  :alt: Beating Atari 2600 Pong after a few hundred episodes.
   :align: center
 
 

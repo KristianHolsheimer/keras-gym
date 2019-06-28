@@ -13089,7 +13089,7 @@ div#notebook {
 
 <!-- Loading mathjax macro -->
 <!-- Load mathjax -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS_HTML"></script>
     <!-- MathJax configuration -->
     <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
@@ -13115,25 +13115,31 @@ div#notebook {
 
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[1]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># %load ../../scripts/cartpole/sarsa.py</span>
 <span class="kn">import</span> <span class="nn">gym</span>
-
-<span class="kn">from</span> <span class="nn">keras_gym.preprocessing</span> <span class="k">import</span> <span class="n">DefaultPreprocessor</span>
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearQTypeI</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">EpsilonGreedy</span>
+<span class="kn">import</span> <span class="nn">keras_gym</span> <span class="k">as</span> <span class="nn">km</span>
+<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
 
 
-<span class="c1"># env with preprocessing</span>
+<span class="c1"># the cart-pole MDP</span>
 <span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">DefaultPreprocessor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">MLP</span><span class="p">(</span><span class="n">km</span><span class="o">.</span><span class="n">FunctionApproximator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; multi-layer perceptron with one hidden layer &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">variable_scope</span><span class="p">):</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()(</span><span class="n">S</span><span class="p">)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="p">(</span><span class="n">variable_scope</span> <span class="o">+</span> <span class="s1">&#39;/hidden&#39;</span><span class="p">))(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">X</span>
+
 
 <span class="c1"># value function and its derived policy</span>
-<span class="n">Q</span> <span class="o">=</span> <span class="n">LinearQTypeI</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
-                 <span class="n">update_strategy</span><span class="o">=</span><span class="s1">&#39;sarsa&#39;</span><span class="p">,</span> <span class="n">bootstrap_n</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">EpsilonGreedy</span><span class="p">(</span><span class="n">Q</span><span class="p">)</span>
+<span class="n">func</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+<span class="n">q</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">QTypeI</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">update_strategy</span><span class="o">=</span><span class="s1">&#39;sarsa&#39;</span><span class="p">)</span>
+<span class="n">policy</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">EpsilonGreedy</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
 
 <span class="c1"># static parameters</span>
 <span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">200</span>
@@ -13152,7 +13158,7 @@ div#notebook {
         <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
         <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
-        <span class="n">Q</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
+        <span class="n">q</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">num_steps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
@@ -13188,76 +13194,6 @@ div#notebook {
 </pre></div>
 
     </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>WARNING:tensorflow:From /home/kris/.local/lib/python3.6/site-packages/tensorflow/python/ops/resource_variable_ops.py:435: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Colocations handled automatically by placer.
-WARNING:tensorflow:From /home/kris/.local/lib/python3.6/site-packages/tensorflow/python/ops/losses/losses_impl.py:448: to_float (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Use tf.cast instead.
-failed after 105 steps
-failed after 63 steps
-failed after 64 steps
-failed after 126 steps
-failed after 106 steps
-failed after 84 steps
-failed after 160 steps
-failed after 80 steps
-failed after 83 steps
-failed after 190 steps
-failed after 152 steps
-failed after 85 steps
-failed after 62 steps
-failed after 157 steps
-failed after 57 steps
-failed after 64 steps
-failed after 65 steps
-failed after 91 steps
-failed after 81 steps
-failed after 137 steps
-num_consecutive_successes: 1
-num_consecutive_successes: 2
-num_consecutive_successes: 3
-num_consecutive_successes: 4
-num_consecutive_successes: 5
-num_consecutive_successes: 6
-failed after 155 steps
-num_consecutive_successes: 1
-failed after 146 steps
-num_consecutive_successes: 1
-num_consecutive_successes: 2
-num_consecutive_successes: 3
-num_consecutive_successes: 4
-num_consecutive_successes: 5
-num_consecutive_successes: 6
-num_consecutive_successes: 7
-failed after 198 steps
-num_consecutive_successes: 1
-num_consecutive_successes: 2
-num_consecutive_successes: 3
-num_consecutive_successes: 4
-num_consecutive_successes: 5
-num_consecutive_successes: 6
-num_consecutive_successes: 7
-num_consecutive_successes: 8
-num_consecutive_successes: 9
-num_consecutive_successes: 10
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 

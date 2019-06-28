@@ -2,6 +2,8 @@
 *Plug-n-Play Reinforcement Learning in Python*
 
 
+![cartpole_video](doc/_static/img/cartpole.gif)
+
 Create simple, reproducible RL solutions with Keras function approximators.
 
 
@@ -26,56 +28,59 @@ $ pip install -e ./keras-gym
 
 ## Examples
 
-Check out the [notebooks](notebooks/) for examples. These are also included in
-the documentation:
+To get started, check out the [notebooks](notebooks/) for examples. These are
+also included in the documentation:
 
 * https://keras-gym.readthedocs.io/notebooks/
 
 
 
 Here's one of the examples from the notebooks, in which we solve the
-`'CartPole-v0'` environment with the SARSA algorithm, using a linear function
-approximator for Q(s, a):
+`CartPole-v0` environment with the SARSA algorithm, using a simple
+multi-layer perceptron (MLP) with one hidden layer as our Q-function
+approximator:
 
 
 ```python
 import gym
+import keras_gym as km
+from tensorflow import keras
 
-from keras_gym.preprocessing import DefaultPreprocessor
-from keras_gym.value_functions import LinearQTypeI
-from keras_gym.policies import EpsilonGreedy
-
-
-# env with preprocessing
+# the cart-pole MDP
 env = gym.make('CartPole-v0')
-env = DefaultPreprocessor(env)
 
-# value function and its derived policy
-Q = LinearQTypeI(env, update_strategy='sarsa', bootstrap_n=1, gamma=0.8,
-                 interaction='elementwise_quadratic', lr=0.02, momentum=0.9)
-policy = EpsilonGreedy(Q)
 
-# static parameters
-num_episodes = 200
-num_steps = env.spec.max_episode_steps
+class MLP(km.FunctionApproximator):
+    """ multi-layer perceptron with one hidden layer """
+    def body(self, S, variable_scope):
+        X = keras.layers.Flatten()(S)
+        X = keras.layers.Dense(units=4, name=(variable_scope + '/hidden'))(X)
+        return X
+
+
+# value function and its derived policy pi(a|s)
+func = MLP(env, lr=0.01)
+q = km.QTypeI(func, update_strategy='sarsa')
+pi = km.EpsilonGreedy(q)
+
 
 # used for early stopping
 num_consecutive_successes = 0
 
 
 # train
-for ep in range(num_episodes):
+for episode in range(200):
     s = env.reset()
-    policy.epsilon = 0.1 if ep < 10 else 0.01
+    pi.epsilon = 0.1 if episode < 10 else 0.01
 
-    for t in range(num_steps):
-        a = policy(s)
+    for t in range(env.spec.max_episode_steps):
+        a = pi(s)
         s_next, r, done, info = env.step(a)
 
-        Q.update(s, a, r, done)
+        q.update(s, a, r, done)
 
         if done:
-            if t == num_steps - 1:
+            if t == env.spec.max_episode_steps - 1:
                 num_consecutive_successes += 1
                 print("num_consecutive_successes: {}"
                       .format(num_consecutive_successes))
@@ -93,11 +98,11 @@ for ep in range(num_episodes):
 # run env one more time to render
 s = env.reset()
 env.render()
-policy.epsilon = 0
+pi.epsilon = 0
 
-for t in range(num_steps):
+for t in range(env.spec.max_episode_steps):
 
-    a = policy(s)
+    a = pi(s)
     s, r, done, info = env.step(a)
     env.render()
 
@@ -108,7 +113,6 @@ env.close()
 
 ```
 
-The last episode is rendered, which shows something like this:
-
-![cartpole_video](doc/_static/img/cartpole.gif)
+The last episode is rendered, which shows something like the gif at the top of
+this page.
 

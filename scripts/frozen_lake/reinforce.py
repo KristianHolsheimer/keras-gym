@@ -1,19 +1,32 @@
+import logging
+
 import numpy as np
+import keras_gym as km
+from tensorflow import keras
+from tensorflow.keras import backend as K
 from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
 
-from keras_gym.preprocessing import DefaultPreprocessor
-from keras_gym.policies import LinearSoftmaxPolicy
-from keras_gym.caching import MonteCarloCache
+
+logging.basicConfig(level=logging.INFO)
 
 
-# env with preprocessing
-env = FrozenLakeEnv(is_slippery=False)
-env = DefaultPreprocessor(env)
+# the cart-pole MDP
 actions = {LEFT: 'L', RIGHT: 'R', UP: 'U', DOWN: 'D'}
+env = FrozenLakeEnv(is_slippery=False)
+env = km.wrappers.TrainMonitor(env)
 
-# updateable policy
-policy = LinearSoftmaxPolicy(env, lr=0.1)
-cache = MonteCarloCache(gamma=0.99)
+
+class LinearFunc(km.FunctionApproximator):
+    """ linear function approximator (body only does one-hot encoding) """
+    def body(self, S, variable_scope):
+        one_hot_encoding = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
+        return one_hot_encoding(S)
+
+
+# define function approximators
+func = LinearFunc(env, lr=0.01)
+pi = km.SoftmaxPolicy(func, update_strategy='vanilla')
+cache = km.caching.MonteCarloCache(gamma=0.99)
 
 
 # static parameters
@@ -27,7 +40,7 @@ for ep in range(num_episodes):
     cache.reset()
 
     for t in range(num_steps):
-        a = policy(s)
+        a = pi(s)
         s_next, r, done, info = env.step(a)
 
         # small incentive to keep moving
@@ -39,7 +52,7 @@ for ep in range(num_episodes):
         if done:
             while cache:
                 S, A, G = cache.pop()
-                policy.batch_update(S, A, G)
+                pi.batch_update(S, A, G)
             break
 
         s = s_next
@@ -52,10 +65,10 @@ env.render()
 for t in range(num_steps):
 
     # print individual action probabilities
-    for i, p in enumerate(policy.proba(s)):
+    for i, p in enumerate(pi.proba(s)):
         print("  π({:s}|s) = {:.3f}".format(actions[i], p))
 
-    a = policy.greedy(s)
+    a = pi.greedy(s)
     s, r, done, info = env.step(a)
 
     env.render()

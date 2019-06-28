@@ -1,25 +1,41 @@
+import logging
+
 import numpy as np
-from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, LEFT, RIGHT, UP, DOWN
+import keras_gym as km
+from tensorflow import keras
+from tensorflow.keras import backend as K
+from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
 
-from keras_gym.preprocessing import DefaultPreprocessor
-from keras_gym.policies import LinearSoftmaxPolicy, ActorCritic
-from keras_gym.value_functions import LinearV
+
+logging.basicConfig(level=logging.INFO)
 
 
-# env with preprocessing
-env = FrozenLakeEnv(is_slippery=False)
-env = DefaultPreprocessor(env)
+# the cart-pole MDP
 actions = {LEFT: 'L', RIGHT: 'R', UP: 'U', DOWN: 'D'}
+env = FrozenLakeEnv(is_slippery=False)
+env = km.wrappers.TrainMonitor(env)
 
 
-# updateable policy
-policy = LinearSoftmaxPolicy(env, lr=0.1, update_strategy='vanilla')
-V = LinearV(env, lr=0.1, gamma=0.9, bootstrap_n=1)
-actor_critic = ActorCritic(policy, V)
+class LinearFunc(km.FunctionApproximator):
+    """ linear function approximator (body only does one-hot encoding) """
+    def body(self, S, variable_scope):
+        one_hot_encoding = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
+        return one_hot_encoding(S)
+
+
+# define function approximators
+func = LinearFunc(env, lr=0.01)
+pi = km.SoftmaxPolicy(func, update_strategy='ppo')
+v = km.V(func, gamma=0.9, bootstrap_n=1)
+
+
+# combine into one actor-critic
+actor_critic = km.ActorCritic(pi, v)
 
 
 # static parameters
-num_episodes = 500
+target_model_sync_period = 20
+num_episodes = 250
 num_steps = 30
 
 
@@ -28,7 +44,7 @@ for ep in range(num_episodes):
     s = env.reset()
 
     for t in range(num_steps):
-        a = policy(s)
+        a = pi(s, use_target_model=True)
         s_next, r, done, info = env.step(a)
 
         # small incentive to keep moving
@@ -36,9 +52,9 @@ for ep in range(num_episodes):
             r = -0.1
 
         actor_critic.update(s, a, r, done)
-        # g = r + (1 - done) * V.gamma * V(s_next)
-        # policy.update(s, a, g - V(s))
-        # V.update(s, r, done)
+
+        if env.T % target_model_sync_period == 0:
+            pi.sync_target_model(tau=1.0)
 
         if done:
             break
@@ -53,11 +69,11 @@ env.render()
 for t in range(num_steps):
 
     # print individual action probabilities
-    print("  V(s) = {:.3f}".format(V(s)))
-    for i, p in enumerate(policy.proba(s)):
+    print("  v(s) = {:.3f}".format(v(s)))
+    for i, p in enumerate(pi.proba(s)):
         print("  π({:s}|s) = {:.3f}".format(actions[i], p))
 
-    a = policy.greedy(s)
+    a = pi.greedy(s)
     s, r, done, info = env.step(a)
     env.render()
 

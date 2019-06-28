@@ -13089,7 +13089,7 @@ div#notebook {
 
 <!-- Loading mathjax macro -->
 <!-- Load mathjax -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS_HTML"></script>
     <!-- MathJax configuration -->
     <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
@@ -13115,32 +13115,48 @@ div#notebook {
 
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># %load ../../scripts/frozen_lake/actor_critic.py</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">gym.envs.toy_text.frozen_lake</span> <span class="k">import</span> <span class="n">FrozenLakeEnv</span><span class="p">,</span> <span class="n">LEFT</span><span class="p">,</span> <span class="n">RIGHT</span><span class="p">,</span> <span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span>
+<span class="kn">import</span> <span class="nn">keras_gym</span> <span class="k">as</span> <span class="nn">km</span>
+<span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
+<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
+<span class="kn">from</span> <span class="nn">gym.envs.toy_text.frozen_lake</span> <span class="k">import</span> <span class="n">FrozenLakeEnv</span><span class="p">,</span> <span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">LEFT</span><span class="p">,</span> <span class="n">RIGHT</span>
 
-<span class="kn">from</span> <span class="nn">keras_gym.preprocessing</span> <span class="k">import</span> <span class="n">DefaultPreprocessor</span>
-<span class="kn">from</span> <span class="nn">keras_gym.policies</span> <span class="k">import</span> <span class="n">LinearSoftmaxPolicy</span><span class="p">,</span> <span class="n">ActorCritic</span>
-<span class="kn">from</span> <span class="nn">keras_gym.value_functions</span> <span class="k">import</span> <span class="n">LinearV</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 
 
-<span class="c1"># env with preprocessing</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">FrozenLakeEnv</span><span class="p">(</span><span class="n">is_slippery</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">DefaultPreprocessor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+<span class="c1"># the cart-pole MDP</span>
 <span class="n">actions</span> <span class="o">=</span> <span class="p">{</span><span class="n">LEFT</span><span class="p">:</span> <span class="s1">&#39;L&#39;</span><span class="p">,</span> <span class="n">RIGHT</span><span class="p">:</span> <span class="s1">&#39;R&#39;</span><span class="p">,</span> <span class="n">UP</span><span class="p">:</span> <span class="s1">&#39;U&#39;</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">:</span> <span class="s1">&#39;D&#39;</span><span class="p">}</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">FrozenLakeEnv</span><span class="p">(</span><span class="n">is_slippery</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">TrainMonitor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
 
 
-<span class="c1"># updateable policy</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">LinearSoftmaxPolicy</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">update_strategy</span><span class="o">=</span><span class="s1">&#39;vanilla&#39;</span><span class="p">)</span>
-<span class="n">V</span> <span class="o">=</span> <span class="n">LinearV</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">bootstrap_n</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">actor_critic</span> <span class="o">=</span> <span class="n">ActorCritic</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">V</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">LinearFunc</span><span class="p">(</span><span class="n">km</span><span class="o">.</span><span class="n">FunctionApproximator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; linear function approximator (body only does one-hot encoding) &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">variable_scope</span><span class="p">):</span>
+        <span class="n">one_hot_encoding</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">K</span><span class="o">.</span><span class="n">one_hot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">one_hot_encoding</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+
+
+<span class="c1"># define function approximators</span>
+<span class="n">func</span> <span class="o">=</span> <span class="n">LinearFunc</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+<span class="n">pi</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">SoftmaxPolicy</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">update_strategy</span><span class="o">=</span><span class="s1">&#39;ppo&#39;</span><span class="p">)</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">V</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">bootstrap_n</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+
+<span class="c1"># combine into one actor-critic</span>
+<span class="n">actor_critic</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">ActorCritic</span><span class="p">(</span><span class="n">pi</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
 
 
 <span class="c1"># static parameters</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">target_model_sync_period</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">250</span>
 <span class="n">num_steps</span> <span class="o">=</span> <span class="mi">30</span>
 
 
@@ -13149,7 +13165,7 @@ div#notebook {
     <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 
     <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_steps</span><span class="p">):</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">pi</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">use_target_model</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
         <span class="c1"># small incentive to keep moving</span>
@@ -13157,9 +13173,9 @@ div#notebook {
             <span class="n">r</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.1</span>
 
         <span class="n">actor_critic</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
-        <span class="c1"># g = r + (1 - done) * V.gamma * V(s_next)</span>
-        <span class="c1"># policy.update(s, a, g - V(s))</span>
-        <span class="c1"># V.update(s, r, done)</span>
+
+        <span class="k">if</span> <span class="n">env</span><span class="o">.</span><span class="n">T</span> <span class="o">%</span> <span class="n">target_model_sync_period</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pi</span><span class="o">.</span><span class="n">sync_target_model</span><span class="p">(</span><span class="n">tau</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
             <span class="k">break</span>
@@ -13174,11 +13190,11 @@ div#notebook {
 <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_steps</span><span class="p">):</span>
 
     <span class="c1"># print individual action probabilities</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  V(s) = </span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">V</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">policy</span><span class="o">.</span><span class="n">proba</span><span class="p">(</span><span class="n">s</span><span class="p">)):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  v(s) = </span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pi</span><span class="o">.</span><span class="n">proba</span><span class="p">(</span><span class="n">s</span><span class="p">)):</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  π(</span><span class="si">{:s}</span><span class="s2">|s) = </span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">actions</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p</span><span class="p">))</span>
 
-    <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">pi</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
     <span class="n">s</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
     <span class="n">env</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
 
@@ -13187,94 +13203,6 @@ div#notebook {
 </pre></div>
 
     </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>WARNING:tensorflow:From /home/kris/.local/lib/python3.6/site-packages/tensorflow/python/ops/resource_variable_ops.py:435: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Colocations handled automatically by placer.
-WARNING:tensorflow:From /home/kris/.local/lib/python3.6/site-packages/tensorflow/python/ops/losses/losses_impl.py:448: to_float (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Use tf.cast instead.
-
-<span class="ansi-red-bg">S</span>FFF
-FHFH
-FFFH
-HFFG
-  V(s) = 0.530
-  π(L|s) = 0.002
-  π(D|s) = 0.973
-  π(R|s) = 0.024
-  π(U|s) = 0.002
-  (Down)
-SFFF
-<span class="ansi-red-bg">F</span>HFH
-FFFH
-HFFG
-  V(s) = 0.617
-  π(L|s) = 0.002
-  π(D|s) = 0.986
-  π(R|s) = 0.010
-  π(U|s) = 0.002
-  (Down)
-SFFF
-FHFH
-<span class="ansi-red-bg">F</span>FFH
-HFFG
-  V(s) = 0.694
-  π(L|s) = 0.004
-  π(D|s) = 0.032
-  π(R|s) = 0.960
-  π(U|s) = 0.004
-  (Right)
-SFFF
-FHFH
-F<span class="ansi-red-bg">F</span>FH
-HFFG
-  V(s) = 0.779
-  π(L|s) = 0.008
-  π(D|s) = 0.764
-  π(R|s) = 0.222
-  π(U|s) = 0.005
-  (Down)
-SFFF
-FHFH
-FFFH
-H<span class="ansi-red-bg">F</span>FG
-  V(s) = 0.876
-  π(L|s) = 0.007
-  π(D|s) = 0.141
-  π(R|s) = 0.846
-  π(U|s) = 0.007
-  (Right)
-SFFF
-FHFH
-FFFH
-HF<span class="ansi-red-bg">F</span>G
-  V(s) = 0.994
-  π(L|s) = 0.004
-  π(D|s) = 0.071
-  π(R|s) = 0.921
-  π(U|s) = 0.004
-  (Right)
-SFFF
-FHFH
-FFFH
-HFF<span class="ansi-red-bg">G</span>
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 

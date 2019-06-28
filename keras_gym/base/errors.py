@@ -34,3 +34,11 @@ class MissingAdversaryError(KerasGymError):
 
 class UnavailableActionError(KerasGymError):
     pass
+
+
+class LeafNodeError(KerasGymError):
+    pass
+
+
+class NotLeafNodeError(KerasGymError):
+    pass

@@ -1,6 +1,6 @@
 from ..base.errors import UnavailableActionError
 from ..base.mixins import RandomStateMixin, NumActionsMixin
-from ..base.policy import BasePolicy
+from ..policies.base import BasePolicy
 
 __all__ = (
     'RandomPolicy',

@@ -23,3 +23,12 @@ sftp*-config.json
 
 # line profiler
 *.lprof
+
+# visual studio
+.vs
+*.pyproj
+*.pyperf
+*.sln
+
+# pycharm
+.idea

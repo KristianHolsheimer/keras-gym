@@ -122,18 +122,18 @@ class NStepCache(BaseShortTermCache):
 
         Returns
         -------
-        S, A, Rn, I_next, S_next, A_next : tuple of arrays, batch_size=1
+        S, A, Rn, In, S_next, A_next : tuple of arrays, batch_size=1
 
             The returned tuple represents a batch of preprocessed transitions:
 
-                (:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`)
+                (:term:`S`, :term:`A`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`)
 
             These are typically used for bootstrapped updates, e.g. minimizing
             the bootstrapped MSE:
 
             .. math::
 
-                \\left( R^{(n)}_t + I_t\\,Q(S_{t+n},A_{t+n})
+                \\left( R^{(n)}_t + I^{(n)}_t\\,Q(S_{t+n},A_{t+n})
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
@@ -160,11 +160,11 @@ class NStepCache(BaseShortTermCache):
         S = np.array([s])
         A = np.array([a])
         Rn = np.array([rn])
-        I_next = np.array([i_next])
+        In = np.array([i_next])
         S_next = np.array([s_next])
         A_next = np.array([a_next])
 
-        return S, A, Rn, I_next, S_next, A_next  # batch_size=1
+        return S, A, Rn, In, S_next, A_next  # batch_size=1
 
     def flush(self):
         """
@@ -172,18 +172,18 @@ class NStepCache(BaseShortTermCache):
 
         Returns
         -------
-        S, A, Rn, I_next, S_next, A_next : tuple of arrays
+        S, A, Rn, In, S_next, A_next : tuple of arrays
 
             The returned tuple represents a batch of preprocessed transitions:
 
-                (:term:`S`, :term:`A`, :term:`Rn`, :term:`I_next`, :term:`S_next`, :term:`A_next`)
+                (:term:`S`, :term:`A`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`)
 
             These are typically used for bootstrapped updates, e.g. minimizing
             the bootstrapped MSE:
 
             .. math::
 
-                \\left( R^{(n)}_t + I_t\\,Q(S_{t+n},A_{t+n})
+                \\left( R^{(n)}_t + I^{(n)}_t\\,Q(S_{t+n},A_{t+n})
                     - Q(S_t, A_t) \\right)^2
 
         """  # noqa: E501
@@ -195,7 +195,7 @@ class NStepCache(BaseShortTermCache):
         S = []
         A = []
         Rn = []
-        I_next = []
+        In = []
         S_next = []
         A_next = []
 
@@ -204,18 +204,18 @@ class NStepCache(BaseShortTermCache):
             S.append(s[0])
             A.append(a[0])
             Rn.append(gn[0])
-            I_next.append(i_next[0])
+            In.append(i_next[0])
             S_next.append(s_next[0])
             A_next.append(a_next[0])
 
         S = np.stack(S, axis=0)
         A = np.stack(A, axis=0)
         Rn = np.stack(Rn, axis=0)
-        I_next = np.stack(I_next, axis=0)
+        In = np.stack(In, axis=0)
         S_next = np.stack(S_next, axis=0)
         A_next = np.stack(A_next, axis=0)
 
-        return S, A, Rn, I_next, S_next, A_next
+        return S, A, Rn, In, S_next, A_next
 
 
 class MonteCarloCache(BaseShortTermCache):

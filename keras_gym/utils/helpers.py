@@ -1,7 +1,5 @@
-import time
 import logging
 
-import gym
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -9,11 +7,9 @@ from scipy.special import binom
 from PIL import Image
 
 from ..base.errors import NumpyArrayCheckError, TensorCheckError
-from ..base.mixins import LoggerMixin
 
 
 __all__ = (
-    'TrainMonitor',
     'argmax',
     'argmin',
     'check_numpy_array',
@@ -33,100 +29,6 @@ __all__ = (
     'project_onto_actions_tf',
     'softmax',
 )
-
-
-class TrainMonitor(gym.Wrapper, LoggerMixin):
-    """
-    Environment wrapper for monitoring the training process.
-
-    This wrapper logs some diagnostics at the end of each episode and it also
-    gives us some handy attributes (listed below).
-
-    Parameters
-    ----------
-    env : gym environment
-
-        A gym environment.
-
-    Attributes
-    ----------
-    T : positive int
-
-        Global step counter. This is not reset by ``env.reset()``, use
-        ``env.reset_global()`` instead.
-
-    ep : positive int
-
-        Global episode counter. This is not reset by ``env.reset()``, use
-        ``env.reset_global()`` instead.
-
-    t : positive int
-
-        Step counter within an episode.
-
-    G : float
-
-        The amount of reward accumulated from the start of the current episode.
-
-    avg_r : float
-
-        The average reward received from the start of the episode.
-
-    dt_ms : float
-
-        The average wall time of a single step, in milliseconds.
-
-    """
-    def __init__(self, env):
-        super().__init__(env)
-        self.reset_global()
-
-    def reset_global(self):
-        """ Reset the global counters, not just the episodic ones. """
-        self.T = 0
-        self.ep = 0
-        self.t = 0
-        self.G = 0.0
-        self._ep_starttime = time.time()
-
-    def reset(self):
-        # increment global counters:
-        self.T += 1
-        self.ep += 1
-        # reset episodic counters:
-        self.t = 0
-        self.G = 0.0
-        self._ep_starttime = time.time()
-        return self.env.reset()
-
-    @property
-    def dt_ms(self):
-        if self.t <= 0:
-            return np.nan
-        return 1000 * (time.time() - self._ep_starttime) / self.t
-
-    @property
-    def avg_r(self):
-        if self.t <= 0:
-            return np.nan
-        return self.G / self.t
-
-    def step(self, a):
-        s_next, r, done, info = self.env.step(a)
-        if info is None:
-            info = {}
-        info['monitor'] = {'T': self.T, 'ep': self.ep}
-        self.t += 1
-        self.T += 1
-        self.G += r
-        if done:
-            self.logger.info(
-                "ep: {:d}, T: {:,d}, G: {:.3g}, avg(r): {:.3f}, t: {:d}, "
-                "dt: {:.3f}ms"
-                .format(
-                    self.ep, self.T, self.G, self.avg_r, self.t, self.dt_ms))
-
-        return s_next, r, done, info
 
 
 def get_transition(env):
@@ -739,8 +641,8 @@ def is_vfunction(obj):
 
     """
     # import at runtime to avoid circular dependence
-    from ..base.function_approximators.generic import GenericV
-    return isinstance(obj, GenericV)
+    from ..function_approximators.base import BaseV
+    return isinstance(obj, BaseV)
 
 
 def is_qfunction(obj, qtype=None):
@@ -767,15 +669,14 @@ def is_qfunction(obj, qtype=None):
 
     """
     # import at runtime to avoid circular dependence
-    from ..base.function_approximators.generic import (
-        GenericQTypeI, GenericQTypeII)
+    from ..function_approximators.base import BaseQTypeI, BaseQTypeII
 
     if qtype is None:
-        return isinstance(obj, (GenericQTypeI, GenericQTypeII))
+        return isinstance(obj, (BaseQTypeI, BaseQTypeII))
     elif qtype in (1, 1., '1', 'i', 'I'):
-        return isinstance(obj, GenericQTypeI)
+        return isinstance(obj, BaseQTypeI)
     elif qtype in (2, 2., '2', 'ii', 'II'):
-        return isinstance(obj, GenericQTypeII)
+        return isinstance(obj, BaseQTypeII)
     else:
         raise ValueError("unexpected qtype: {}".format(qtype))
 
@@ -803,9 +704,9 @@ def is_policy(obj, check_updateable=False):
 
     """
     # import at runtime to avoid circular dependence
-    from ..base.policy import BasePolicy
-    from ..base.function_approximators.generic import GenericSoftmaxPolicy
+    from ..policies.base import BasePolicy
+    from ..function_approximators.base import BaseSoftmaxPolicy
 
     if isinstance(obj, BasePolicy):
-        return isinstance(obj, GenericSoftmaxPolicy) if check_tensor else True
+        return isinstance(obj, BaseSoftmaxPolicy) if check_updateable else True
     return False
