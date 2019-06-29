@@ -1,5 +1,6 @@
 import logging
 
+import gym
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -15,6 +16,7 @@ __all__ = (
     'check_numpy_array',
     'check_tensor',
     'diff_transform_matrix',
+    'feature_vector',
     'generate_gif',
     'get_env_attr',
     'get_transition',
@@ -25,10 +27,86 @@ __all__ = (
     'is_vfunction',
     'log_softmax',
     'log_softmax_tf',
+    'one_hot',
     'project_onto_actions_np',
     'project_onto_actions_tf',
     'softmax',
 )
+
+
+def one_hot(i, n, dtype='float'):
+    """
+    Create a dense one-hot encoded vector.
+
+    Parameters
+    ----------
+    i : int
+
+        The index of the non-zero entry.
+
+    n : int
+
+        The dimensionality of the dense vector. Note that `n` must be greater
+        than `i`.
+
+    dtype : str or datatype
+
+        The output data type, default is `'float'`.
+
+    Returns
+    -------
+    x : 1d array of length n
+
+        The dense one-hot encoded vector.
+
+    """
+    if not 0 <= i < n:
+        raise ValueError("i must be a non-negative and smaller than n")
+    x = np.zeros(int(n), dtype=dtype)
+    x[int(i)] = 1.0
+    return x
+
+
+def feature_vector(x, space):
+    """
+    Create a feature vector out of a state observation :math:`s` or an action
+    :math:`a`. This is used in the :class:`DefaultPreprocessor`.
+
+    Parameters
+    ----------
+    x : state or action
+
+        A state observation :math:`s` or an action :math:`a`.
+
+    space : gym space
+
+        A gym space, e.g. :class:`gym.spaces.Box`,
+        :class:`gym.spaces.Discrete`, etc.
+
+    """
+    if space is None:
+        if not (isinstance(x, np.ndarray) and x.ndim == 1):
+            raise TypeError(
+                "if space is None, x must be a 1d numpy array already")
+    elif isinstance(space, gym.spaces.Tuple):
+        x = np.concatenate([
+            feature_vector(x_, space_)  # recursive
+            for x_, space_ in zip(x, space.spaces)], axis=0)
+    elif isinstance(space, gym.spaces.MultiDiscrete):
+        x = np.concatenate([
+            feature_vector(x_, gym.spaces.Discrete(n))  # recursive
+            for x_, n in zip(x.ravel(), space.nvec.ravel()) if n], axis=0)
+    elif isinstance(space, gym.spaces.Discrete):
+        x = one_hot(x, space.n)
+    elif isinstance(space, (gym.spaces.MultiBinary, gym.spaces.Box)):
+        x = x.ravel()
+    else:
+        raise NotImplementedError(
+            "haven't implemented a preprocessor for space type: {}"
+            .format(type(space)))
+
+    assert x.ndim == 1, "x must be 1d array, got shape: {}".format(x.shape)
+    return x
 
 
 def get_transition(env):
