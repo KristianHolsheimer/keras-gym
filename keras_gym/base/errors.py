@@ -42,3 +42,7 @@ class LeafNodeError(KerasGymError):
 
 class NotLeafNodeError(KerasGymError):
     pass
+
+
+class InconsistentCacheInputError(KerasGymError):
+    pass

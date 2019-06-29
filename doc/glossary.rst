@@ -173,6 +173,11 @@ inputs/outputs to our keras models.
 
         A batch of actions taken, with shape ``[batch_size]``.
 
+    Pi
+
+        A batch of action propensities according to the policy
+        :math:`\pi(a|s)`.
+
     G
 
         A batch of (:math:`\gamma`-discounted) returns, shape:
@@ -215,6 +220,11 @@ inputs/outputs to our keras models.
         A batch of next-actions to be taken. These can be actions that were
         actually taken (on-policy), but they can also be any other would-be
         next-actions (off-policy). The shape is ``[batch_size]``.
+
+    Pi_next
+
+        A batch of action propensities according to the policy
+        :math:`\pi(a|s)`.
 
     V
 

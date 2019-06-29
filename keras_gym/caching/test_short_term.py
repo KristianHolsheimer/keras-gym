@@ -3,7 +3,9 @@ from itertools import islice
 import pytest
 import numpy as np
 
-from ..base.errors import InsufficientCacheError, EpisodeDoneError
+from ..utils import one_hot, check_numpy_array
+from ..base.errors import (
+    InsufficientCacheError, EpisodeDoneError, InconsistentCacheInputError)
 from .short_term import NStepCache, MonteCarloCache
 
 
@@ -185,6 +187,52 @@ class TestNStepCache:
         with pytest.raises(InsufficientCacheError):
             cache.flush()
 
+    def test_pop_pi(self):
+        cache = NStepCache(self.n, gamma=self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            pi = one_hot(a, 10)
+            cache.add(s, a, r, done, pi)
+
+        i = 0
+        while cache:
+            s, a, pi, rn, i_next, s_next, a_next, pi_next = cache.pop()
+            assert s == self.S[i]
+            assert a == self.A[i]
+            check_numpy_array(pi, dtype='float', ndim=2, axis_size=10, axis=1)
+            assert rn == self.Rn[i]
+            assert i_next == self.In[i]
+            if i < 13 - self.n:
+                assert s_next == self.S[i + self.n]
+                assert a_next == self.A[i + self.n]
+            check_numpy_array(
+                pi_next, dtype='float', ndim=2, axis_size=10, axis=1)
+            i += 1
+
+    def test_add_pi_inconsistent(self):
+        cache = NStepCache(self.n, gamma=self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            if i == 1:
+                pi = one_hot(a, 10)
+                cache.add(s, a, r, done, pi)
+            else:
+                msg = (
+                    "propensities 'pi' must be provided if they were provided "
+                    "once before")
+                with pytest.raises(InconsistentCacheInputError, match=msg):
+                    cache.add(s, a, r, done)
+
+        cache = NStepCache(self.n, gamma=self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            if i == 1:
+                cache.add(s, a, r, done)
+            else:
+                msg = (
+                    "propensities 'pi' cannot be provided if they were left "
+                    "blank once before")
+                with pytest.raises(InconsistentCacheInputError, match=msg):
+                    pi = one_hot(a, 10)
+                    cache.add(s, a, r, done, pi)
+
 
 class TestMonteCarloCache:
     gamma = 0.85
@@ -245,3 +293,52 @@ class TestMonteCarloCache:
         np.testing.assert_array_equal(S, self.S[::-1])
         np.testing.assert_array_equal(A, self.A[::-1])
         np.testing.assert_array_equal(G, self.G[::-1])
+
+    def test_pop_pi(self):
+        cache = MonteCarloCache(self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            pi = one_hot(a, 10)
+            cache.add(s, a, r, done, pi)
+            assert len(cache) == i
+
+        assert cache
+        assert len(cache) == 13
+
+        for i in range(13):
+            assert cache
+            s, a, pi, g = cache.pop()
+            check_numpy_array(s, ndim=1, axis_size=1, axis=0)
+            check_numpy_array(a, ndim=1, axis_size=1, axis=0)
+            check_numpy_array(pi, dtype='float', ndim=2, axis_size=10, axis=1)
+            check_numpy_array(pi, axis_size=1, axis=0)
+            check_numpy_array(g, ndim=1, axis_size=1, axis=0)
+            assert self.S[12 - i] == s
+            assert self.A[12 - i] == a
+            assert self.G[12 - i] == g
+
+        assert not cache
+
+    def test_pop_pi_inconsistent(self):
+        cache = MonteCarloCache(self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            if i == 1:
+                pi = one_hot(a, 10)
+                cache.add(s, a, r, done, pi)
+            else:
+                msg = (
+                    "propensities 'pi' must be provided if they were provided "
+                    "once before")
+                with pytest.raises(InconsistentCacheInputError, match=msg):
+                    cache.add(s, a, r, done)
+
+        cache = MonteCarloCache(self.gamma)
+        for i, (s, a, r, done) in enumerate(self.episode, 1):
+            if i == 1:
+                cache.add(s, a, r, done)
+            else:
+                msg = (
+                    "propensities 'pi' cannot be provided if they were left "
+                    "blank once before")
+                with pytest.raises(InconsistentCacheInputError, match=msg):
+                    pi = one_hot(a, 10)
+                    cache.add(s, a, r, done, pi)
