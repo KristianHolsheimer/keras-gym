@@ -15,12 +15,26 @@ n = km.planning.MCTSNode(state_id, ac, random_seed=7)
 
 
 n.env.render()
-n.search(n=128)
-print('-' * 80)
-n.show(depth=3)
+# n.search(n=64)
+# n.show(max_depth=2)
+# n.play(tau=0)
+# print('-' * 80)
+# n.show(max_depth=2)
+# print('-' * 80)
+# # n.search(n=64)
+# for _ in range(10):
+#     n.search(1)
+# print('-' * 80)
+# n.show(max_depth=2)
 
 
-s, a, r, done = n.play(tau=0)
-n.env.render()
-print('-' * 80)
-n.show(depth=3)
+for t in range(100):
+    n.search(n=100)
+    # n.show(2)
+    s, a, pi, r, done = n.play(tau=0)
+    n.env.render()
+
+    if done:
+        break
+
+print(t, r, done)
