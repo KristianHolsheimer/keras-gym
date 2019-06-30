@@ -265,12 +265,18 @@ class ConnectFourEnv(Env):
                     break
                 self._levels[j] -= 1
 
-    @ property
+    @property
     def available_actions(self):
         actions = np.argwhere(
             (self._levels >= 0) & (self._levels < self.num_rows)).ravel()
         assert actions.size <= self.num_cols
         return actions
+
+    @property
+    def available_actions_mask(self):
+        mask = np.zeros(self.num_cols, dtype='bool')
+        mask[self.available_actions] = True
+        return mask
 
     def _init_state(self):
         self._prev_action = None
