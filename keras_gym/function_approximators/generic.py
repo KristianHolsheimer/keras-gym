@@ -82,6 +82,7 @@ class FunctionApproximator(NumActionsMixin):
 
     """
     DEFAULT_OPTIMIZER = keras.optimizers.Adam
+    VALUE_LOSS_FUNCTION = Huber()
 
     def __init__(self, env, optimizer=None, **optimizer_kwargs):
         self.env = env
@@ -301,7 +302,8 @@ class V(BaseV):
         # regular models
         self.train_model = keras.Model(inputs=S, outputs=V)
         self.train_model.compile(
-            loss=Huber(), optimizer=self.function_approximator.optimizer)
+            loss=self.function_approximator.VALUE_LOSS_FUNCTION,
+            optimizer=self.function_approximator.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=V)
 
         # target model
@@ -426,7 +428,8 @@ class QTypeI(BaseQTypeI):
         Q = self.forward_pass(S, A, variable_scope='primary')
         self.train_model = keras.Model(inputs=[S, A], outputs=Q)
         self.train_model.compile(
-            loss=Huber(), optimizer=self.function_approximator.optimizer)
+            loss=self.function_approximator.VALUE_LOSS_FUNCTION,
+            optimizer=self.function_approximator.optimizer)
         self.predict_model = self.train_model  # yes, it's trivial for type-I
 
         # target model
@@ -541,7 +544,8 @@ class QTypeII(BaseQTypeII):
         Q = self.forward_pass(S, variable_scope='primary')
 
         # loss
-        loss = ProjectedSemiGradientLoss(G, base_loss=Huber())
+        loss = ProjectedSemiGradientLoss(
+            G, base_loss=self.function_approximator.VALUE_LOSS_FUNCTION)
 
         # regular models
         self.train_model = keras.Model(inputs=[S, G], outputs=Q)
@@ -798,7 +802,7 @@ class ConjointActorCritic(ActorCritic):
         # loss and target tensor (depends on self.update_strategy)
         Adv = G - V_target
         policy_loss = self.policy._policy_loss(Adv, Z_target)
-        value_loss = Huber()
+        value_loss = self.function_approximator.VALUE_LOSS_FUNCTION
 
         # joint train model
         self.train_model = keras.Model(inputs=[S, G], outputs=[Z, V])
