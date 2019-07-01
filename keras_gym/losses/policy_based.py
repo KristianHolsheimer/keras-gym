@@ -98,29 +98,24 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
         Z_mean = K.expand_dims(tf.einsum('ij,ij->i', pi, Z), axis=1)
         return Z - Z_mean
 
-    def __call__(self, A, Z, sample_weight=None):
+    def __call__(self, P, Z, sample_weight=None):
         batch_size = K.int_shape(self.Adv)[0]
 
-        # input shape of A is generally [None, None]
-        A.set_shape([None, 1])     # we know that axis=1 must have size 1
-        A = tf.squeeze(A, axis=1)  # A.shape = [batch_size]
-        A = tf.cast(A, tf.int64)   # must be int (we'll use `A` for slicing)
-
         # check shapes
-        check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
+        check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
         check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
 
         # construct the surrogate for logpi(.|s)
         logpi_all = self.logpi_surrogate(Z)  # [batch_size, num_actions]
 
         # project onto actions taken: logpi(.|s) --> logpi(a|s)
-        logpi = project_onto_actions_tf(logpi_all, A)  # shape: [batch_size]
+        logpi = tf.einsum('ij,ij->i', logpi_all, P)  # shape: [batch_size]
 
         # construct the final surrogate loss
         surrogate_loss = -K.mean(self.Adv * logpi)
 
         # entropy bonus term (notice minus sign)
-        L_entropy = -self.entropy_bonus * PolicyEntropy()(A, Z)
+        L_entropy = -self.entropy_bonus * PolicyEntropy()(P, Z)
 
         return surrogate_loss + L_entropy
 
@@ -133,19 +128,25 @@ class ClippedSurrogateLoss(BasePolicyLoss):
 
     .. math::
 
-        L(\\theta)\\ =\\ -\\hat{\\mathbb{E}}_t\\min\\Big(
-            r_t(\\theta)\\,\\mathcal{A}(S_t,A_t)\\,,\\
-            \\text{clip}\\big(
-                r_t(\\theta), 1-\\epsilon, 1+\\epsilon\\big)
-                    \\,\\mathcal{A}(S_t,A_t)\\Big)
+        L(\\theta)\\ =\\ -\\hat{\\mathbb{E}}_t\\min\\big(
+            r_t(\\theta)          \\,\\mathcal{A}_t\\,,\\
+            r^\\epsilon_t(\\theta)\\,\\mathcal{A}_t\\big)
 
-    where :math:`r(\\theta)` is the probability ratio:
+    where :math:`\\mathcal{A}_t=\\mathcal{A}(S_t,A_t)` is the (sampled)
+    advantage and :math:`r_t(\\theta)` is the probability ratio:
 
     .. math::
 
         r_t(\\theta)\\ =\\ \\frac
             {\\pi(A_t|S_t,\\theta)}
             {\\pi(A_t|S_t,\\theta_\\text{old})}
+
+    Also, :math:`r^\\epsilon_t(\\theta)` is the *clipped* probability ratio:
+
+    .. math::
+
+        r^\\epsilon_t(\\theta)\\ =\\ \\texttt{clip}\\big(
+            r_t(\\theta), 1-\\epsilon, 1+\\epsilon\\big)
 
     Parameters
     ----------
@@ -177,22 +178,17 @@ class ClippedSurrogateLoss(BasePolicyLoss):
         check_tensor(Z_target, ndim=2)
         self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
 
-    def __call__(self, A, Z, sample_weight=None):
+    def __call__(self, P, Z, sample_weight=None):
         batch_size = K.int_shape(self.Adv)[0]
 
-        # input shape of A is generally [None, None]
-        A.set_shape([None, 1])     # we know that axis=1 must have size 1
-        A = tf.squeeze(A, axis=1)  # A.shape = [batch_size]
-        A = tf.cast(A, tf.int64)   # must be int (we'll use `A` for slicing)
-
         # check shapes
-        check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
+        check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
         check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
 
         # construct probability ratio, r = pi / pi_old
         logpi = log_softmax_tf(Z)
         r = K.exp(logpi - self.logpi_old)  # shape: [batch_size, num_actions]
-        r = project_onto_actions_tf(r, A)  # shape: [batch_size]
+        r = tf.einsum('ij,ij->i', r, P)    # shape: [batch_size]
 
         # construct the final clipped surrogate loss (notice minus sign)
         L_clip = -K.mean(K.minimum(
@@ -200,7 +196,7 @@ class ClippedSurrogateLoss(BasePolicyLoss):
             K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
 
         # entropy bonus term (notice minus sign)
-        L_entropy = -self.entropy_bonus * PolicyEntropy()(A, Z)
+        L_entropy = -self.entropy_bonus * PolicyEntropy()(None, Z)
 
         return L_clip + L_entropy
 
@@ -238,14 +234,14 @@ class PolicyKLDivergence(BaseLoss):
         self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
         self.pi_old = K.stop_gradient(K.softmax(Z_target, axis=1))
 
-    def __call__(self, A, Z, sample_weight=None):
+    def __call__(self, P, Z, sample_weight=None):
         """
 
         Compute the the old-vs-new policy KL divergence.
 
         Parameters
         ----------
-        A : Tensor
+        P : Tensor
 
             This input is ignored.
 
@@ -293,7 +289,7 @@ class PolicyEntropy(BaseLoss):
 
         Parameters
         ----------
-        A : Tensor
+        P : Tensor
 
             This input is ignored.
 

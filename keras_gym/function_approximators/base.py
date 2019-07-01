@@ -187,7 +187,7 @@ class BaseV(BaseFunctionApproximator):
         self.bootstrap_n = int(bootstrap_n)
         self.bootstrap_with_target_model = bool(bootstrap_with_target_model)
 
-        self._cache = NStepCache(self.bootstrap_n, self.gamma)
+        self._cache = NStepCache(self.env, self.bootstrap_n, self.gamma)
 
     def __call__(self, s, use_target_model=False):
         """
@@ -346,7 +346,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
         self.bootstrap_with_target_model = bool(bootstrap_with_target_model)
         self.update_strategy = update_strategy
 
-        self._cache = NStepCache(self.bootstrap_n, self.gamma)
+        self._cache = NStepCache(self.env, self.bootstrap_n, self.gamma)
 
     def __call__(self, s, a=None, use_target_model=False):
         """
@@ -392,7 +392,7 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             Q = np.squeeze(Q, axis=0)
         return Q
 
-    def update(self, s, a, r, done):
+    def update(self, s, pi, r, done):
         """
         Update the Q-function.
 
@@ -402,9 +402,14 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
             A single state observation.
 
-        a : action
+        pi : int or 1d array, shape: [num_actions]
 
-            A single action that was taken.
+            Vector of action propensities under the behavior policy. This may
+            be just an indicator if the action propensities are inferred
+            through sampling. For instance, let's say our action space is
+            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
+            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+            :math:`a=2` was drawn from the behavior policy.
 
         r : float
 
@@ -416,14 +421,14 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
         """
         assert self.env.observation_space.contains(s)
-        assert self.env.action_space.contains(a)
-        self._cache.add(s, a, r, done)
+        pi = self.check_pi(pi)
+        self._cache.add(s, pi, r, done)
 
         # eager updates
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
-    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
+    def batch_update(self, S, P, Rn, In, S_next, P_next=None):
         """
         Update the value function on a batch of transitions.
 
@@ -433,9 +438,13 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
             A batch of state observations.
 
-        A : 1d array, dtype: int, shape: [batch_size]
+        P : 2d Tensor, dtype: int, shape: [batch_size]
 
-            A batch of actions that were taken.
+            A batch of action propensities. :term:`P` is typically just an
+            indicator for which action was chosen by the behavior policy. In
+            this sense, :term:`P` acts as a projector more than a prediction
+            target. That is, :term:`P` is used to project our predicted values
+            down to those for which we actually received the feedback signal.
 
         Rn : 1d array, dtype: float, shape: [batch_size]
 
@@ -466,10 +475,10 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
             A batch of next-state observations.
 
-        A_next : 1d array, dtype: int, shape: [batch_size]
+        P_next : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
 
-            A batch of next-actions that were taken. This is only required for
-            SARSA (on-policy) updates.
+            Action propensities :term:`P_next` for the (potential) next action.
+            This argument is only used if ``update_strategy='sarsa'``.
 
         Returns
         -------
@@ -478,11 +487,11 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        G = self.bootstrap_target(Rn, In, S_next, A_next)
-        losses = self._train_on_batch([S, G], A)
+        G = self.bootstrap_target(Rn, In, S_next, P_next)
+        losses = self._train_on_batch([S, G], P)
         return losses
 
-    def bootstrap_target(self, Rn, In, S_next, A_next=None):
+    def bootstrap_target(self, Rn, In, S_next, P_next=None):
         """
         Get the bootstrapped target
         :math:`G^{(n)}_t=R^{(n)}_t+\\gamma^nQ(S_{t+n}, A_{t+n})`.
@@ -518,9 +527,10 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
             A batch of next-state observations.
 
-        A_next : 1d array, dtype: int, shape: [batch_size], optional
+        P_next : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
 
-            A batch of next-actions that were taken.
+            Action propensities :term:`P_next` for the (potential) next action.
+            This argument is only used if ``update_strategy='sarsa'``.
 
         Returns
         -------
@@ -532,10 +542,10 @@ class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
 
         """
         if self.update_strategy == 'sarsa':
-            assert A_next is not None
+            assert P_next is not None
             Q_next = self.batch_eval(
-                S_next, A_next,
-                use_target_model=self.bootstrap_with_target_model)
+                S_next, use_target_model=self.bootstrap_with_target_model)
+            Q_next = np.einsum('ij,ij->i', Q_next, P_next)
         elif self.update_strategy == 'q_learning':
             Q_next = np.max(
                 self.batch_eval(
@@ -644,7 +654,7 @@ class BaseQTypeI(BaseGenericQ):
     update_strategy : str, optional
 
         The update strategy that we use to select the (would-be) next-action
-        :math:`A_{t+n}` in the bootsrapped target:
+        :math:`A_{t+n}` in the bootstrapped target:
 
         .. math::
 
@@ -672,15 +682,6 @@ class BaseQTypeI(BaseGenericQ):
                         \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
                     G^{(n)}_t\\ &=\\ R^{(n)}_t
                         + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
-
-            'expected_sarsa'
-                Similar to SARSA in that it's on-policy, except that we take
-                the expectated Q-value rather than a sample of it, i.e.
-
-                .. math::
-
-                    G^{(n)}_t\\ =\\ R^{(n)}_t
-                        + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
 
     """
     def batch_eval(self, S, A=None, use_target_model=False):
@@ -777,15 +778,6 @@ class BaseQTypeII(BaseGenericQ):
                         \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
                     G^{(n)}_t\\ &=\\ R^{(n)}_t
                         + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
-
-            'expected_sarsa'
-                Similar to SARSA in that it's on-policy, except that we take
-                the expectated Q-value rather than a sample of it, i.e.
-
-                .. math::
-
-                    G^{(n)}_t\\ =\\ R^{(n)}_t
-                        + \\gamma^n\\sum_a\\pi(a|s)\\,Q(S_{t+n}, a)
 
     """
     def batch_eval(self, S, A=None, use_target_model=False):
@@ -953,9 +945,9 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
         """
         assert self.env.observation_space.contains(s)
         S = np.expand_dims(s, axis=0)
-        Pi = self.batch_eval(S, use_target_model=use_target_model)
-        check_numpy_array(Pi, shape=(1, self.num_actions))
-        pi = np.squeeze(Pi, axis=0)
+        P = self.batch_eval(S, use_target_model=use_target_model)
+        check_numpy_array(P, shape=(1, self.num_actions))
+        pi = np.squeeze(P, axis=0)
         return pi
 
     def greedy(self, s, use_target_model=False):
@@ -983,7 +975,7 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
         a = argmax(self.proba(s, use_target_model=use_target_model))
         return a
 
-    def update(self, s, a, advantage):
+    def update(self, s, pi, advantage):
         """
         Update the policy.
 
@@ -993,9 +985,13 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
 
             A single state observation.
 
-        a : action
+        pi : 1d array, shape: [num_actions]
 
-            A single action that was taken.
+            Vector of action propensities under the behavior policy. This may
+            be just an indicator if the action propensities are inferred
+            through sampling, e.g. if we have four possible actions ``pi = [0,
+            0, 1, 0]`` would indicate that the action :math:`a=2` was drawn
+            from the behavior policy.
 
         advantage : float
 
@@ -1005,11 +1001,12 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
 
         """
         assert self.env.observation_space.contains(s)
-        assert self.env.action_space.contains(a)
+        check_numpy_array(pi, ndim=1, axis_size=self.num_actions, axis=0)
+
         S = np.expand_dims(s, axis=0)
-        A = np.expand_dims(a, axis=0)
+        P = np.expand_dims(pi, axis=0)
         Adv = np.expand_dims(advantage, axis=0)
-        self.batch_update(S, A, Adv)
+        self.batch_update(S, P, Adv)
 
     def batch_eval(self, S, use_target_model=False):
         """
@@ -1028,19 +1025,19 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
 
         Returns
         -------
-        Pi : 2d array, shape: [batch_size, num_actions]
+        P : 2d array, shape: [batch_size, num_actions]
 
-            A batch of action probabilities :math:`\\pi(a|s)`.
+            A batch of predicted action probabilities :math:`\\pi(a|s)`.
 
         """
         model = self.target_model if use_target_model else self.predict_model
 
         Z = model.predict_on_batch(S)
         check_numpy_array(Z, ndim=2, axis_size=self.num_actions, axis=1)
-        Pi = softmax(Z, axis=1)
-        return Pi  # shape: [batch_size, num_actions]
+        P = softmax(Z, axis=1)
+        return P  # shape: [batch_size, num_actions]
 
-    def batch_update(self, S, A, Adv):
+    def batch_update(self, S, P, Adv):
         """
         Update the policy on a batch of transitions.
 
@@ -1050,13 +1047,18 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
 
             A batch of state observations.
 
-        A : 1d array, dtype: int, shape: [batch_size]
+        P : 2d Tensor, dtype: int, shape: [batch_size]
 
-            A batch of actions that were taken.
+            A batch of action propensities. :term:`P` is typically just an
+            indicator for which action was chosen by the behavior policy. In
+            this sense, :term:`P` acts as a projector more than a prediction
+            target. That is, :term:`P` is used to project our predicted values
+            down to those for which we actually received the feedback signal:
+            :term:`Adv`.
 
         Adv : 1d array, dtype: float, shape: [batch_size]
 
-            A value for the advantage :math:`\\mathcal{A}(s,a) = q(s,a) -
+            A value for the :term:`advantage <Adv>` :math:`\\mathcal{A}(s,a) = q(s,a) -
             v(s)`. This might be sampled and/or estimated version of the true
             advantage.
 
@@ -1067,7 +1069,8 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        losses = self._train_on_batch([S, Adv], A)
+        check_numpy_array(P, ndim=2, axis_size=self.num_actions, axis=1)
+        losses = self._train_on_batch([S, Adv], P)
         return losses
 
     def _policy_loss(self, Adv, Z_target=None):

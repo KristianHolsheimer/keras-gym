@@ -51,7 +51,7 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
     def _cache(self):
         return self.value_function._cache
 
-    def update(self, s, a, r, done):
+    def update(self, s, pi, r, done):
         """
         Update both actor and critic.
 
@@ -61,9 +61,14 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
 
             A single state observation.
 
-        a : action
+        pi : int or 1d array, shape: [num_actions]
 
-            A single action that was taken.
+            Vector of action propensities under the behavior policy. This may
+            be just an indicator if the action propensities are inferred
+            through sampling. For instance, let's say our action space is
+            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
+            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+            :math:`a=2` was drawn from the behavior policy.
 
         r : float
 
@@ -75,14 +80,14 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
 
         """
         assert self.env.observation_space.contains(s)
-        assert self.env.action_space.contains(a)
-        self._cache.add(s, a, r, done)
+        pi = self.check_pi(pi)
+        self._cache.add(s, pi, r, done)
 
         # eager updates
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
-    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
+    def batch_update(self, S, P, Rn, In, S_next, P_next=None):
         """
         Update both actor and critic on a batch of transitions.
 
@@ -92,9 +97,13 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
 
             A batch of state observations.
 
-        A : 1d array, dtype: int, shape: [batch_size]
+        P : 2d Tensor, dtype: int, shape: [batch_size]
 
-            A batch of actions that were taken.
+            A batch of action propensities. :term:`P` is typically just an
+            indicator for which action was chosen by the behavior policy. In
+            this sense, :term:`P` acts as a projector more than a prediction
+            target. That is, :term:`P` is used to project our predicted values
+            down to those for which we actually received the feedback signal.
 
         Rn : 1d array, dtype: float, shape: [batch_size]
 
@@ -121,10 +130,10 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
 
             A batch of next-state observations.
 
-        A_next : 1d array, dtype: int, shape: [batch_size], optional
+        P_next : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
 
-            A batch of next-actions that were taken. This is only required for
-            SARSA (on-policy) updates.
+            Same as :term:`P`, except for the (potential) next action. This
+            argument is only used if ``update_strategy='sarsa'``.
 
         Returns
         -------
@@ -133,13 +142,13 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        V_next = self.value_function.batch_eval(
-            S_next,
-            use_target_model=self.value_function.bootstrap_with_target_model)
+        use_target_model = self.value_function.bootstrap_with_target_model
+        V_next = self.value_function.batch_eval(S_next, use_target_model)
         G = Rn + In * V_next
         utils.check_numpy_array(G, ndim=1, dtype='float')
-        utils.check_numpy_array(A, ndim=1, dtype=('int', 'int32', 'int64'))
-        losses = self._train_on_batch([S, G], [A, G])
+        utils.check_numpy_array(
+            P, ndim=2, dtype='float', axis_size=self.num_actions, axis=1)
+        losses = self._train_on_batch([S, G], [P, G])
         return losses
 
     def __call__(self, s):
@@ -219,16 +228,16 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
 
         Returns
         -------
-        Pi, V : arrays with shapes: ([batch_size, num_actions], [batch_size])
+        P, V : arrays with shapes: ([batch_size, num_actions], [batch_size])
 
             A batch of action probabilities and values
             :math:`(\\pi(.|s), v(s))`.
 
         """  # noqa: E501
-        Pi = self.policy.batch_eval(S, use_target_model=use_target_model)
+        P = self.policy.batch_eval(S, use_target_model=use_target_model)
         V = self.value_function.batch_eval(
             S, use_target_model=use_target_model)
-        return Pi, V
+        return P, V
 
     def sync_target_model(self, tau=1.0):
         self.policy.sync_target_model(tau=tau)

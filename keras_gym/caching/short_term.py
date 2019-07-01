@@ -6,6 +6,7 @@ import numpy as np
 
 from ..base.errors import (
     InsufficientCacheError, EpisodeDoneError, InconsistentCacheInputError)
+from ..base.mixins import NumActionsMixin
 
 
 __all__ = (
@@ -14,9 +15,12 @@ __all__ = (
 )
 
 
-class BaseShortTermCache(ABC):
+class BaseShortTermCache(ABC, NumActionsMixin):
+    def __init__(self, env):
+        self.env = env
+
     @abstractmethod
-    def add(self, s, a, r, done, pi=None):
+    def add(self, s, pi, r, done):
         """
         Add a transition to the experience cache.
 
@@ -26,9 +30,14 @@ class BaseShortTermCache(ABC):
 
             A single state observation.
 
-        a : action
+        pi : int or 1d array, shape: [num_actions]
 
-            A single action that was taken.
+            Vector of action propensities under the behavior policy. This may
+            be just an indicator if the action propensities are inferred
+            through sampling. For instance, let's say our action space is
+            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
+            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+            :math:`a=2` was drawn from the behavior policy.
 
         r : float
 
@@ -37,13 +46,6 @@ class BaseShortTermCache(ABC):
         done : bool
 
             Whether the episode has finished.
-
-        pi : 1d array, dtype: float, shape: [num_actions], optional
-
-            The action propensities according to the policy :math:`\\pi(a|s)`.
-
-            Note that :func:`pop` will also return the propensities if ``pi``
-            is provided here.
 
         """
         pass
@@ -87,6 +89,10 @@ class NStepCache(BaseShortTermCache):
 
     Parameters
     ----------
+    env : gym environment
+
+        The main gym environment. This is needed to determine ``num_actions``.
+
     n : positive int
 
         The number of steps over which to bootstrap.
@@ -96,11 +102,11 @@ class NStepCache(BaseShortTermCache):
         The amount by which to discount future rewards.
 
     """
-    def __init__(self, n, gamma):
+    def __init__(self, env, n, gamma):
+        super().__init__(env)
         self.n = int(n)
         self.gamma = float(gamma)
         self.reset()
-        self._include_propensities = None
 
     def reset(self):
         self._deque_sa = deque([])
@@ -109,26 +115,13 @@ class NStepCache(BaseShortTermCache):
         self._gammas = np.power(self.gamma, np.arange(self.n))
         self._gamman = np.power(self.gamma, self.n)
 
-    def add(self, s, a, r, done, pi=None):
+    def add(self, s, pi, r, done):
         if self._done and len(self):
             raise EpisodeDoneError(
                 "please flush cache (or repeatedly call popleft) before "
                 "appending new transitions")
-        if self._include_propensities is None:
-            self._include_propensities = pi is not None
-        if self._include_propensities and pi is None:
-            raise InconsistentCacheInputError(
-                "propensities 'pi' must be provided if they were provided "
-                "once before")
-        if not self._include_propensities and pi is not None:
-            raise InconsistentCacheInputError(
-                "propensities 'pi' cannot be provided if they were left blank "
-                "once before")
-
-        if self._include_propensities:
-            self._deque_sa.append((s, a, pi))
-        else:
-            self._deque_sa.append((s, a))
+        pi = self.check_pi(pi)
+        self._deque_sa.append((s, pi))
         self._deque_r.append(r)
         self._done = bool(done)
 
@@ -144,24 +137,21 @@ class NStepCache(BaseShortTermCache):
 
         Returns
         -------
-        S, A, [Pi], Rn, In, S_next, A_next, [Pi_next] : tuple of arrays, batch_size=1
+        S, P, Rn, In, S_next, P_next : tuple of arrays, batch_size=1
 
             The returned tuple represents a batch of preprocessed transitions:
 
-                (:term:`S`, :term:`A`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`)
-
-            If action propensities are included, the return signature instead
-            is:
-
-                (:term:`S`, :term:`A`, :term:`Pi`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`, :term:`Pi_next`)
+                (:term:`S`, :term:`P`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`P_next`)
 
             These are typically used for bootstrapped updates, e.g. minimizing
             the bootstrapped MSE:
 
             .. math::
 
-                \\left( R^{(n)}_t + I^{(n)}_t\\,Q(S_{t+n},A_{t+n})
-                    - Q(S_t, A_t) \\right)^2
+                \\left(
+                    R^{(n)}_t
+                    + I^{(n)}_t\\,\\sum_aP(a|S_{t+n})\\,Q(S_{t+n},a)
+                    - \\sum_aP(a|S_t)\\,Q(S_t,a) \\right)^2
 
         """  # noqa: E501
         if not self:
@@ -169,11 +159,8 @@ class NStepCache(BaseShortTermCache):
                 "cache needs to receive more transitions before it can be "
                 "popped from")
 
-        # pop state-action pair
-        if self._include_propensities:
-            s, a, pi = self._deque_sa.popleft()
-        else:
-            s, a = self._deque_sa.popleft()
+        # pop state-action (propensities) pair
+        s, pi = self._deque_sa.popleft()
 
         # n-step partial return
         zipped = zip(self._gammas, self._deque_r)
@@ -182,30 +169,19 @@ class NStepCache(BaseShortTermCache):
 
         # keep in mind that we've already popped (s, a)
         if len(self) >= self.n:
-            if self._include_propensities:
-                s_next, a_next, pi_next = self._deque_sa[self.n - 1]
-            else:
-                s_next, a_next = self._deque_sa[self.n - 1]
+            s_next, pi_next = self._deque_sa[self.n - 1]
             i_next = self._gamman
         else:
-            s_next, a_next, i_next = s, a, 0.  # no more bootstrapping
-            if self._include_propensities:
-                pi_next = np.zeros_like(pi)
-                pi_next[a_next] = 1
+            s_next, pi_next, i_next = s, pi, 0.  # no more bootstrapping
 
         S = np.array([s])
-        A = np.array([a])
+        P = np.array([pi])
         Rn = np.array([rn])
         In = np.array([i_next])
         S_next = np.array([s_next])
-        A_next = np.array([a_next])
+        P_next = np.array([pi_next])
 
-        if self._include_propensities:
-            Pi = np.array([pi])
-            Pi_next = np.array([pi_next])
-            return S, A, Pi, Rn, In, S_next, A_next, Pi_next  # batch_size=1
-        else:
-            return S, A, Rn, In, S_next, A_next  # batch_size=1
+        return S, P, Rn, In, S_next, P_next  # batch_size=1
 
     def flush(self):
         """
@@ -213,24 +189,21 @@ class NStepCache(BaseShortTermCache):
 
         Returns
         -------
-        S, A, Rn, In, S_next, A_next : tuple of arrays
+        S, P, Rn, In, S_next, P_next : tuple of arrays
 
             The returned tuple represents a batch of preprocessed transitions:
 
-                (:term:`S`, :term:`A`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`)
-
-            If action propensities are included, the return signature instead
-            is:
-
-                (:term:`S`, :term:`A`, :term:`Pi`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`, :term:`Pi_next`)
+                (:term:`S`, :term:`P`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`P_next`)
 
             These are typically used for bootstrapped updates, e.g. minimizing
             the bootstrapped MSE:
 
             .. math::
 
-                \\left( R^{(n)}_t + I^{(n)}_t\\,Q(S_{t+n},A_{t+n})
-                    - Q(S_t, A_t) \\right)^2
+                \\left(
+                    R^{(n)}_t
+                    + I^{(n)}_t\\,\\sum_aP(a|S_{t+n})\\,Q(S_{t+n},a)
+                    - \\sum_aP(a|S_t)\\,Q(S_t,a) \\right)^2
 
         """  # noqa: E501
         if not self:
@@ -239,74 +212,50 @@ class NStepCache(BaseShortTermCache):
                 "flushed")
 
         S = []
-        A = []
-        Pi = []
+        P = []
         Rn = []
         In = []
         S_next = []
-        A_next = []
-        Pi_next = []
+        P_next = []
 
         while self:
-            if self._include_propensities:
-                s, a, pi, gn, i_next, s_next, a_next, pi_next = self.pop()
-                Pi.append(pi[0])
-                Pi_next.append(pi_next[0])
-            else:
-                s, a, gn, i_next, s_next, a_next = self.pop()
+            s, p, gn, i_next, s_next, p_next = self.pop()
             S.append(s[0])
-            A.append(a[0])
+            P.append(p[0])
             Rn.append(gn[0])
             In.append(i_next[0])
             S_next.append(s_next[0])
-            A_next.append(a_next[0])
+            P_next.append(p_next[0])
 
         S = np.stack(S, axis=0)
-        A = np.stack(A, axis=0)
+        P = np.stack(P, axis=0)
         Rn = np.stack(Rn, axis=0)
         In = np.stack(In, axis=0)
         S_next = np.stack(S_next, axis=0)
-        A_next = np.stack(A_next, axis=0)
+        P_next = np.stack(P_next, axis=0)
 
-        if self._include_propensities:
-            Pi = np.stack(Pi, axis=0)
-            Pi_next = np.stack(Pi_next, axis=0)
-            return S, A, Pi, Rn, In, S_next, A_next, Pi_next
-        else:
-            return S, A, Rn, In, S_next, A_next
+        return S, P, Rn, In, S_next, P_next
 
 
 class MonteCarloCache(BaseShortTermCache):
-    def __init__(self, gamma):
+    def __init__(self, env, gamma):
+        super().__init__(env)
         self.gamma = float(gamma)
         self.reset()
-        self._include_propensities = None
 
     def reset(self):
         self._list = []
         self._done = False
         self._g = 0  # accumulator for return
 
-    def add(self, s, a, r, done, pi=None):
+    def add(self, s, pi, r, done):
         if self._done and len(self):
             raise EpisodeDoneError(
                 "please flush cache (or repeatedly pop) before appending new "
                 "transitions")
-        if self._include_propensities is None:
-            self._include_propensities = pi is not None
-        if self._include_propensities and pi is None:
-            raise InconsistentCacheInputError(
-                "propensities 'pi' must be provided if they were provided "
-                "once before")
-        if not self._include_propensities and pi is not None:
-            raise InconsistentCacheInputError(
-                "propensities 'pi' cannot be provided if they were left blank "
-                "once before")
 
-        if self._include_propensities:
-            self._list.append((s, a, r, pi))
-        else:
-            self._list.append((s, a, r))
+        pi = self.check_pi(pi)
+        self._list.append((s, pi, r))
         self._done = bool(done)
         if done:
             self._g = 0.  # init return
@@ -323,16 +272,11 @@ class MonteCarloCache(BaseShortTermCache):
 
         Returns
         -------
-        S, A, [Pi], G : tuple of arrays, batch_size=1
+        S, P, G : tuple of arrays, batch_size=1
 
             The returned tuple represents a batch of preprocessed transitions:
 
-                (:term:`S`, :term:`A`, :term:`G`)
-
-            If action propensities are included, the return signature instead
-            is:
-
-                (:term:`S`, :term:`A`, :term:`Pi`, :term:`G`)
+                (:term:`S`, :term:`P`, :term:`G`)
 
         """
         if not self:
@@ -344,24 +288,17 @@ class MonteCarloCache(BaseShortTermCache):
                 raise InsufficientCacheError(
                     "cannot pop from cache before before receiving done=True")
 
-        # pop state-action pair
-        if self._include_propensities:
-            s, a, r, pi = self._list.pop()
-        else:
-            s, a, r = self._list.pop()
+        # pop state-action (propensities) pair
+        s, pi, r = self._list.pop()
 
         # update return
         self._g = r + self.gamma * self._g
 
         S = np.array([s])
-        A = np.array([a])
+        P = np.array([pi])
         G = np.array([self._g])
 
-        if self._include_propensities:
-            Pi = np.array([pi])
-            return S, A, Pi, G  # batch_size=1
-        else:
-            return S, A, G  # batch_size=1
+        return S, P, G  # batch_size=1
 
     def flush(self):
         """
@@ -369,16 +306,11 @@ class MonteCarloCache(BaseShortTermCache):
 
         Returns
         -------
-        S, A, [Pi], G : tuple of arrays
+        S, P, G : tuple of arrays
 
             The returned tuple represents a batch of preprocessed transitions:
 
                 (:term:`S`, :term:`A`, :term:`G`)
-
-            If action propensities are included, the return signature instead
-            is:
-
-                (:term:`S`, :term:`A`, :term:`Pi`, :term:`G`)
 
         """
         if not self:
@@ -391,25 +323,16 @@ class MonteCarloCache(BaseShortTermCache):
                     "cannot flush cache before before receiving done=True")
 
         S = []
-        A = []
+        P = []
         G = []
-        Pi = []
 
         while self:
-            if self._include_propensities:
-                s, a, g, pi = self.pop()
-                Pi.append(pi)
-            else:
-                s, a, g = self.pop()
+            s, pi, g = self.pop()
             S.append(s[0])
-            A.append(a[0])
+            P.append(pi[0])
             G.append(g[0])
 
         S = np.stack(S, axis=0)
-        A = np.stack(A, axis=0)
+        P = np.stack(P, axis=0)
         G = np.stack(G, axis=0)
-        if self._include_propensities:
-            Pi = np.stack(Pi, axis=0)
-            return S, A, Pi, G
-        else:
-            return S, A, G
+        return S, P, G

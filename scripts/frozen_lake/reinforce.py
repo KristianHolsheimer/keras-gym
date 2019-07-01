@@ -26,7 +26,7 @@ class LinearFunc(km.FunctionApproximator):
 # define function approximators
 func = LinearFunc(env, lr=0.01)
 pi = km.SoftmaxPolicy(func, update_strategy='vanilla')
-cache = km.caching.MonteCarloCache(gamma=0.99)
+cache = km.caching.MonteCarloCache(env, gamma=0.99)
 
 
 # static parameters
@@ -51,8 +51,8 @@ for ep in range(num_episodes):
 
         if done:
             while cache:
-                S, A, G = cache.pop()
-                pi.batch_update(S, A, G)
+                S, P, G = cache.pop()
+                pi.batch_update(S, P, G)
             break
 
         s = s_next

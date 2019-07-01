@@ -158,20 +158,20 @@ class ProjectedSemiGradientLoss(BaseLoss):
         self.G = K.stop_gradient(G)
         self.base_loss = base_loss
 
-    def __call__(self, A, Q_pred, sample_weight=None):
+    def __call__(self, P, Q_pred, sample_weight=None):
         """
         Compute the projected MSE.
 
         Parameters
         ----------
-        A : 2d Tensor, dtype = int, shape = [batch_size, 1]
+        P : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
 
-            This is a batch of actions that were actually taken. This argument
-            of the loss function is usually reserved for ``y_true``, i.e. a
-            prediction target. In this case, ``A`` doesn't act as a prediction
-            target but rather as a mask. We use this mask to project our
-            predicted logits down to those for which we actually received a
-            feedback signal.
+            A batch of action propensities, a.k.a. ``y_true``. In a typical
+            application, :term:`P` is just an indicator for which action was
+            chosen by the behavior policy. In this sense, :term:`P` acts as a
+            projector more than a prediction target. That is, :term:`P` is used
+            to project our predicted values down to those for which we actually
+            received the feedback signal: :term:`G`.
 
         Q_pred : 2d Tensor, shape: [batch_size, num_actions]
 
@@ -193,19 +193,13 @@ class ProjectedSemiGradientLoss(BaseLoss):
             The batch loss.
 
         """
-        # input shape of A is generally [None, None]
-        check_tensor(A, ndim=2)
-        A.set_shape([None, 1])     # we know that axis=1 must have size 1
-        A = tf.squeeze(A, axis=1)  # A.shape = [batch_size]
-        A = tf.cast(A, tf.int64)   # must be int (we'll use `A` for slicing)
-
         # check shapes
         batch_size = K.int_shape(self.G)[0]
-        check_tensor(A, ndim=1, axis_size=batch_size, axis=0)
+        check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
         check_tensor(Q_pred, ndim=2, axis_size=batch_size, axis=0)
 
-        # project onto actions taken: q(s,.) --> q(s,a)
-        Q_pred_projected = project_onto_actions_tf(Q_pred, A)
+        # project onto actions taken: q(s,.) --> sum_a pi(a|s) q(s,a)
+        Q_pred_projected = tf.einsum('ij,ij->i', Q_pred, P)
 
         # the actual loss
         return self.base_loss(

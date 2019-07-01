@@ -173,7 +173,7 @@ inputs/outputs to our keras models.
 
         A batch of actions taken, with shape ``[batch_size]``.
 
-    Pi
+    P
 
         A batch of action propensities according to the policy
         :math:`\pi(a|s)`.
@@ -221,7 +221,7 @@ inputs/outputs to our keras models.
         actually taken (on-policy), but they can also be any other would-be
         next-actions (off-policy). The shape is ``[batch_size]``.
 
-    Pi_next
+    P_next
 
         A batch of action propensities according to the policy
         :math:`\pi(a|s)`.

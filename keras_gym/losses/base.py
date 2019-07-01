@@ -75,20 +75,20 @@ class BasePolicyLoss(BaseLoss):
         return self
 
     @abstractmethod
-    def __call__(self, A, Z, sample_weight):
+    def __call__(self, P, Z, sample_weight):
         """
         Compute the policy-gradient surrogate loss.
 
         Parameters
         ----------
-        A : 2d Tensor, dtype: int, shape: [batch_size, 1]
+        P : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
 
-            This is a batch of actions that were actually taken. This argument
-            of the loss function is usually reserved for ``y_true``, i.e. a
-            prediction target. In this case, ``A`` doesn't act as a prediction
-            target but rather as a mask. We use this mask to project our
-            predicted values down to those for which we actually received a
-            feedback signal.
+            A batch of action propensities, a.k.a. ``y_true``. In a typical
+            application, :term:`P` is just an indicator for which action was
+            chosen by the behavior policy. In this sense, :term:`P` acts as a
+            projector more than a prediction target. That is, :term:`P` is used
+            to project our predicted values down to those for which we actually
+            received the feedback signal: :term:`Adv`.
 
         Z : 2d Tensor, shape: [batch_size, num_actions]
 
