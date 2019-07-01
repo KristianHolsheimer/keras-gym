@@ -3,6 +3,7 @@ import logging
 import gym
 import numpy as np
 
+from ..utils import one_hot, check_numpy_array
 from .errors import NonDiscreteActionSpace
 
 
@@ -37,6 +38,37 @@ class NumActionsMixin:
                     "num_actions property is inaccesible")
             self._num_actions = self.env.action_space.n
         return self._num_actions
+
+    def check_pi(self, pi):
+        """
+        Check if input ``pi`` is either a valid vector of action propensities.
+        If ``pi`` is an integer, this will return a one-hot encoded version.
+
+        Parameters
+        ----------
+        pi : int or 1d array, shape: [num_actions]
+
+            Vector of action propensities under the behavior policy. This may
+            be just an indicator if the action propensities are inferred
+            through sampling. For instance, let's say our action space is
+            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
+            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+            :math:`a=2` was drawn from the behavior policy.
+
+        Returns
+        -------
+        pi : 1d array, shape: [num_actions]
+
+            Vector of action propensities under the behavior policy. If the
+            input ``pi`` is an integer, the output will be a one-hot encoded
+            vector.
+
+        """
+        if isinstance(pi, (int, np.integer)):
+            assert self.env.action_space.contains(pi)
+            pi = one_hot(pi, self.num_actions)
+        check_numpy_array(pi, ndim=1, axis_size=self.num_actions, axis=0)
+        return pi
 
 
 class AddOrigStateToInfoDictMixin:
