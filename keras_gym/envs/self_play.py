@@ -58,7 +58,7 @@ class ConnectFourEnv(Env):
     action_space = Discrete(num_cols)
     observation_space = MultiDiscrete(
         nvec=np.full((num_rows + 1, num_cols, num_players), 2, dtype='uint8'))
-    max_time_steps = int(np.ceil(num_rows * num_cols / 2))
+    max_time_steps = int(num_rows * num_cols)
     filters = np.array([
         [[0, 0, 0, 0],
          [0, 0, 0, 0],
