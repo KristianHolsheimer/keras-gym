@@ -174,23 +174,26 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
     """
     def __init__(
             self,
-            state_id,
             actor_critic,
+            state_id=None,
             tau=1.0,
-            v_resign=-1.0,
-            c_puct=1.414,
+            v_resign=0.999,
+            c_puct=1.0,
             random_seed=None):
 
-        self.state_id = state_id
         self.actor_critic = actor_critic
         self.tau = tau
         self.v_resign = v_resign
         self.c_puct = c_puct
         self.random_seed = random_seed  # also sets self.random
 
-        # these are here for convenience
+        # set/reset env
         self.env = deepcopy(self.actor_critic.env)
-        self.env.set_state(self.state_id)
+        if state_id is None:
+            self.env.reset()
+        else:
+            self.env.set_state(state_id)
+        self.state_id = self.env.state_id
         self.state = self.env.state
         self.is_terminal = self.env.done
 
@@ -209,9 +212,14 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
             self._str(self.is_terminal, suffix=')', length=5))
         return s
 
-    @property
-    def is_root(self):
-        return self.parent_node is None
+    def reset(self):
+        self.__init__(
+            actor_critic=self.actor_critic,
+            state_id=None,
+            tau=self.tau,
+            v_resign=self.v_resign,
+            c_puct=self.c_puct,
+            random_seed=self.random_seed)
 
     def search(self, n=512):
         """
@@ -281,7 +289,7 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
         if tau is None:
             tau = self.tau
 
-        # construct pi(a|s) = N(s,a)^1/tau / N(s)
+        # construct pi(a|s) ~ N(s,a)^1/tau
         if tau < 0.1:
             # no need to compute pi if tau is very small
             a = argmax(self.N, random_state=self.random)
@@ -295,6 +303,7 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
         child = self.children[a]
 
         # update env
+        s = self.state
         s_next, r, done, info = self.env.step(a)
         assert child.state_id == info['state_id']
 
@@ -303,7 +312,7 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
         child.parent_action = None
         self.__dict__.update(child.__dict__)
 
-        return self.state, a, pi, r, done #or self.v_abs_max < self.v_resign
+        return s, pi, r, done  # or self.v_abs_max < self.v_resign
 
     def select(self):
         """
@@ -349,7 +358,14 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
 
         for a in self.env.available_actions:
             s_next, r, done, info = self.env.step(a)
-            child = MCTSNode(info['state_id'], self.actor_critic)
+            child = MCTSNode(
+                self.actor_critic,
+                state_id=info['state_id'],
+                tau=self.tau,
+                v_resign=self.v_resign,
+                c_puct=self.c_puct,
+                random_seed=self.random_seed)
+            child.random = self.random
             child.parent_node = self
             child.parent_action = a
             if done:
@@ -424,6 +440,10 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
         if not hasattr(self, '_D'):
             self._D = np.zeros(self.num_actions, dtype='bool')
         return self._D
+
+    @property
+    def is_root(self):
+        return self.parent_node is None
 
     def show(self, max_depth=None):
         """
