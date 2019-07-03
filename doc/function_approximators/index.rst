@@ -147,8 +147,8 @@ In **keras-gym** we define a softmax policy as follows:
     pi = km.SoftmaxPolicy(function_approximator, update_strategy='vanilla')
 
 Similar to Q-functions, we can pick different update strategies. Available
-options for policies are ``'vanilla'`` and ``'ppo'``. These specify the
-objective function used in our policy updates.
+options for policies are ``'vanilla'``, ``'ppo'`` and ``'cross_entropy'``.
+These specify the objective function used in our policy updates.
 
 
 Actor-Critics

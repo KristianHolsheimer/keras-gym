@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ..base.errors import MissingModelError
@@ -857,6 +858,19 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
 
+            'cross_entropy'
+                Straightforward categorical cross-entropy (from logits). This
+                loss function does *not* make use of the advantages
+                :term:`Adv`. Instead, it minimizes the cross entropy between
+                the behavior policy :math:`\\pi_b(a|s)` and the learned policy
+                :math:`\\pi_\\theta(a|s)`:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
+                        -\\sum_a \\pi_b(a|S_t)\\, \\log \\pi_\\theta(a|S_t)
+                    \\right\\}
+
     ppo_clipping : float, optional
 
         The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
@@ -871,7 +885,7 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
         Sets the random state to get reproducible results.
 
     """
-    UPDATE_STRATEGIES = ('vanilla', 'ppo')
+    UPDATE_STRATEGIES = ('vanilla', 'ppo', 'cross_entropy')
 
     def __init__(
             self, env, train_model, predict_model, target_model,
@@ -1083,6 +1097,9 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
             return ClippedSurrogateLoss(
                 Adv, Z_target, entropy_bonus=self.entropy_bonus,
                 epsilon=self.ppo_clipping)
+
+        if self.update_strategy == 'cross_entropy':
+            return keras.losses.CategoricalCrossentropy(from_logits=True)
 
         raise ValueError(
             "unknown update_strategy '{}'".format(self.update_strategy))

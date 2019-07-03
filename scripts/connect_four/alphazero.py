@@ -4,7 +4,7 @@ import numpy as np
 
 env = km.envs.ConnectFourEnv()
 func = km.predefined.ConnectFourFunctionApproximator(env, lr=0.001)
-ac = km.ConjointActorCritic(func)
+ac = km.ConjointActorCritic(func, update_strategy='cross_entropy')
 cache = km.caching.MonteCarloCache(env, gamma=1)
 
 

@@ -605,6 +605,19 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
 
+            'cross_entropy'
+                Straightforward categorical cross-entropy (from logits). This
+                loss function does *not* make use of the advantages
+                :term:`Adv`. Instead, it minimizes the cross entropy between
+                the behavior policy :math:`\\pi_b(a|s)` and the learned policy
+                :math:`\\pi_\\theta(a|s)`:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
+                        -\\sum_a \\pi_b(a|S_t)\\, \\log \\pi_\\theta(a|S_t)
+                    \\right\\}
+
     ppo_clipping : float, optional
 
         The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
@@ -731,6 +744,19 @@ class ConjointActorCritic(ActorCritic):
                     r(\\theta)\\ =\\ \\frac
                         {\\pi(a|s,\\theta)}
                         {\\pi(a|s,\\theta_\\text{old})}
+
+            'cross_entropy'
+                Straightforward categorical cross-entropy (from logits). This
+                loss function does *not* make use of the advantages
+                :term:`Adv`. Instead, it minimizes the cross entropy between
+                the behavior policy :math:`\\pi_b(a|s)` and the learned policy
+                :math:`\\pi_\\theta(a|s)`:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
+                        -\\sum_a \\pi_b(a|S_t)\\, \\log \\pi_\\theta(a|S_t)
+                    \\right\\}
 
     """
     def __init__(
