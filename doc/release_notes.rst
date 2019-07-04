@@ -2,6 +2,24 @@ Release Notes
 =============
 
 
+v0.2.13
+-------
+
+This version is another major overhaul. In particular, the
+:class:`FunctionApproximator <keras_gym.FunctionApproximator>` class is
+introduced, which offers a unified interface for all function approximator
+types, i.e. state(-action) value functions and updateable policies. This makes
+it a lot easier to create your own custom function approximator, whereby you
+only ahve to define your own forward-pass by creating a subclass of
+:class:`FunctionApproximator <keras_gym.FunctionApproximator>` and providing a
+:func:`body <keras_gym.FunctionApproximator.body>` method. Further flexibility
+is provided by allowing the :term:`head` method(s) to be overridden.
+
+- added :class:`FunctionApproximator <keras_gym.FunctionApproximator>` class
+- refactored value functions and policies to just be a wrapper around a :class:`FunctionApproximator <keras_gym.FunctionApproximator>` object
+- MILESTONE: got AlphaZero to work on ConnectFour (although this game is likely too simple to see the real power of AlphaZero - MCTS on its own works fine)
+
+
 v0.2.12
 -------
 
