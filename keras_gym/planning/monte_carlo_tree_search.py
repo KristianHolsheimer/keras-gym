@@ -356,6 +356,10 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
         if self.v is None:
             self.v = float(v)
 
+        # make TrainMonitor quiet
+        if hasattr(self.env, 'quiet'):
+            quiet_orig, self.env.quiet = self.env.quiet, True
+
         for a in self.env.available_actions:
             s_next, r, done, info = self.env.step(a)
             child = MCTSNode(
@@ -374,6 +378,11 @@ class MCTSNode(NumActionsMixin, RandomStateMixin):
             self.children[a] = child
             self.env.set_state(self.state_id)  # reset state to root
 
+        # reinstate original 'quiet' flag in TrainMonitor
+        if hasattr(self.env, 'quiet'):
+            self.env.quiet = quiet_orig
+
+        # after expansion, this is no longer a leaf node
         self.is_leaf = False
 
         return self.v
