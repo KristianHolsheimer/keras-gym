@@ -665,7 +665,7 @@ def generate_gif(env, policy, filepath, resize_to=None, duration=50):
     # collect frames
     frames = []
     s = env.reset()
-    for t in range(env.spec.max_episode_steps):
+    for t in range(env.spec.max_episode_steps or 10000):
         a = policy(s)
         s_next, r, done, info = env.step(a)
 
