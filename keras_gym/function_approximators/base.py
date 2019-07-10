@@ -73,6 +73,9 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
             assert len(self.train_model.metrics_names) == 1
             losses = {self.train_model.metrics_names[0]: losses}
 
+        if hasattr(self.env, 'record_losses'):
+            self.env.record_losses(losses)
+
         return losses
 
     def sync_target_model(self, tau=1.0):

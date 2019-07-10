@@ -2,6 +2,7 @@ import time
 
 import gym
 import numpy as np
+import pandas as pd
 
 from ..base.mixins import LoggerMixin
 
@@ -55,6 +56,7 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
     """
     def __init__(self, env):
         super().__init__(env)
+        self.quiet = False
         self.reset_global()
 
     def reset_global(self):
@@ -95,11 +97,44 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
         self.t += 1
         self.T += 1
         self.G += r
-        if done:
+        if done and not self.quiet:
             self.logger.info(
                 "ep: {:d}, T: {:,d}, G: {:.3g}, avg(r): {:.3f}, t: {:d}, "
-                "dt: {:.3f}ms"
+                "dt: {:.3f}ms{:s}"
                 .format(
-                    self.ep, self.T, self.G, self.avg_r, self.t, self.dt_ms))
+                    self.ep, self.T, self.G, self.avg_r, self.t, self.dt_ms,
+                    self._losses_str()))
 
         return s_next, r, done, info
+
+    def record_losses(self, losses):
+        """
+        Record losses during the training process.
+
+        These are used to print more diagnostics.
+
+        Parameters
+        ----------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
+        """
+        if not hasattr(self, '_losses'):
+            self._losses = pd.DataFrame(
+                columns=list(losses.keys()),
+                data=np.zeros((1000, len(losses)), dtype='float'))
+            self._losses_i = 0
+            self._losses_n = 0
+        self._losses.iloc[self._losses_i] = pd.Series(losses)
+        self._losses_i += 1
+        self._losses_i %= 1000
+        if self._losses_n < 1000:
+            self._losses_n += 1
+
+    def _losses_str(self):
+        if hasattr(self, '_losses'):
+            losses = self._losses.iloc[:self._losses_n].mean()
+            return ", " + ", ".join(
+                '{:s}: {:.3g}'.format(k, v) for k, v in losses.items())
+        return ""
