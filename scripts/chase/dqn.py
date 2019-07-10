@@ -102,30 +102,53 @@ env = km.wrappers.TrainMonitor(env)
 
 # function approximator
 cnn = CNN(env, lr=0.00025)
-actor_critic = km.ConjointActorCritic(
-    cnn, update_strategy='ppo', gamma=0.99, bootstrap_n=1)
+
+q = km.QTypeII(
+    function_approximator=cnn,
+    gamma=0.99,
+    bootstrap_n=1,
+    bootstrap_with_target_model=True,
+    update_strategy='q_learning')
+
 buffer = km.caching.ExperienceReplayBuffer.from_value_function(
-    actor_critic.value_function, capacity=256, batch_size=16)
+    q, capacity=1000000, batch_size=32)
+
+policy = km.EpsilonGreedy(q)
 
 
-for ep in range(10000000):
+# exploration schedule
+def epsilon(T):
+    """ stepwise linear annealing """
+    M = 1000000
+    if T < M:
+        return 1 - 0.9 * T / M
+    if T < 2 * M:
+        return 0.1 - 0.09 * (T - M) / M
+    return 0.01
+
+
+# static parameters
+num_episodes = 10000000
+num_steps = env.spec.max_episode_steps or 1000
+buffer_warmup_period = 50000
+target_model_sync_period = 10000
+
+
+for _ in range(10000000):
     s = env.reset()
 
-    for t in range(1000):
-        a = actor_critic.policy(s, use_target_model=True)
+    for t in range(num_steps):
+        policy.epsilon = epsilon(env.T)
+        a = policy(s)
         s_next, r, done, info = env.step(a)
 
-        buffer.add(s, a, r, done, ep)
+        buffer.add(s, a, r, done, env.ep)
 
-        if len(buffer) >= buffer.capacity:
-            # use 4 epochs per round
-            num_batches = int(4 * buffer.capacity / buffer.batch_size)
-            for _ in range(num_batches):
-                actor_critic.batch_update(*buffer.sample())
-            buffer.clear()
+        if env.T > buffer_warmup_period:
+            q.batch_update(*buffer.sample())
 
-            # soft update (tau=1 would be a hard update)
-            actor_critic.sync_target_model(tau=0.1)
+        if env.T % target_model_sync_period == 0:
+            q.sync_target_model()
 
         if done:
             break
@@ -134,20 +157,17 @@ for ep in range(10000000):
 
     # generate an animated GIF to see what's going on
     if env.ep % 2500 == 0:
-        os.makedirs('data/ppo/gifs/', exist_ok=True)
+        os.makedirs('data/dqn/gifs/', exist_ok=True)
         km.utils.generate_gif(
             env=env,
-            policy=actor_critic.policy,
-            filepath='data/ppo/gifs/ep{:08d}.gif'.format(env.ep),
+            policy=policy.greedy,
+            filepath='data/dqn/gifs/ep{:08d}.gif'.format(env.ep),
             resize_to=(600, 600),
             duration=500)
 
     # store model weights
     if env.ep % 10000 == 0:
-        actor_critic.train_model.save_weights(
-            'data/ppo/weights/train_model_{:08d}.h5'.format(env.ep))
-        actor_critic.policy.predict_model.save_weights(
-            'data/ppo/weights/policy.predict_model_{:08d}.h5'.format(env.ep))
-        actor_critic.value_function.predict_model.save_weights(
-            'data/ppo/weights/value_function.predict_model_{:08d}.h5'
-            .format(env.ep))
+        q.train_model.save_weights(
+            'data/dqn/weights/train_model_{:08d}.h5'.format(env.ep))
+        q.predict_model.save_weights(
+            'data/dqn/weights/predict_model_{:08d}.h5'.format(env.ep))
