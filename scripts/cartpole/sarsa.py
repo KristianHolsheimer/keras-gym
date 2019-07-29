@@ -11,12 +11,13 @@ class MLP(km.FunctionApproximator):
     """ multi-layer perceptron with one hidden layer """
     def body(self, S, variable_scope):
         X = keras.layers.Flatten()(S)
-        X = keras.layers.Dense(units=4, name=(variable_scope + '/hidden'))(X)
+        X = keras.layers.Dense(
+            units=4, name=f'{variable_scope}/hidden', activation='tanh')(X)
         return X
 
 
 # value function and its derived policy
-func = MLP(env, lr=0.01)
+func = MLP(env, lr=0.05)
 q = km.QTypeI(func, update_strategy='sarsa')
 policy = km.EpsilonGreedy(q)
 
