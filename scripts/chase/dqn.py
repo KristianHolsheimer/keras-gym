@@ -52,7 +52,7 @@ class ChasePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
         return s
 
     def step(self, action):
-        s_next, r, done = self.env.step(str(int(action)))
+        s_next, r, done = self.env.step(int(action))
         info = {}
         s_next = self._preprocess(s_next)
         self._s_next_orig = self._image(s_next)
@@ -134,7 +134,7 @@ buffer_warmup_period = 50000
 target_model_sync_period = 10000
 
 
-for _ in range(10000000):
+for _ in range(num_episodes):
     s = env.reset()
 
     for t in range(num_steps):
@@ -167,6 +167,7 @@ for _ in range(10000000):
 
     # store model weights
     if env.ep % 10000 == 0:
+        os.makedirs('data/dqn/weights/', exist_ok=True)
         q.train_model.save_weights(
             'data/dqn/weights/train_model_{:08d}.h5'.format(env.ep))
         q.predict_model.save_weights(
