@@ -7,17 +7,15 @@ from tensorflow import keras
 env = gym.make('CartPole-v0')
 
 
-class MLP(km.FunctionApproximator):
-    """ multi-layer perceptron with one hidden layer """
-    def body(self, S, variable_scope):
-        X = keras.layers.Flatten()(S)
-        X = keras.layers.Dense(
-            units=4, name=f'{variable_scope}/hidden', activation='tanh')(X)
-        return X
+class Linear(km.FunctionApproximator):
+    """ linear function approximator """
+    def body(self, X, variable_scope):
+        # body is trivial, only flatten and then pass to head (one dense layer)
+        return keras.layers.Flatten()(X)
 
 
 # value function and its derived policy
-func = MLP(env, lr=0.05)
+func = Linear(env, lr=0.001)
 q = km.QTypeI(func, update_strategy='sarsa')
 policy = km.EpsilonGreedy(q)
 
@@ -57,17 +55,4 @@ for ep in range(num_episodes):
 
 
 # run env one more time to render
-s = env.reset()
-env.render()
-policy.epsilon = 0
-
-for t in range(num_steps):
-
-    a = policy(s)
-    s, r, done, info = env.step(a)
-    env.render()
-
-    if done:
-        break
-
-env.close()
+km.render_episode(env, policy, step_delay_ms=25)

@@ -51,11 +51,20 @@ Example
 -------
 
 To get started, check out the :doc:`notebooks/index` for examples.
+Alternatively, check out this short tutorial video:
+
+.. raw:: html
+
+    <div style="position: relative; padding-bottom: 56.25%; overflow: hidden; max-width: 100%; height: auto;">
+        <iframe src="https://www.youtube.com/embed/MYPchUxPdyQ?rel=0" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+    </div>
+
+|
+
 
 Here's one of the examples from the notebooks, in which we solve the
 ``CartPole-v0`` environment with the SARSA algorithm, using a simple
-multi-layer perceptron (MLP) with one hidden layer as our Q-function
-approximator:
+linear function approximator for our Q-function:
 
 
 .. code:: python
@@ -64,41 +73,44 @@ approximator:
     import keras_gym as km
     from tensorflow import keras
 
+
     # the cart-pole MDP
     env = gym.make('CartPole-v0')
 
 
-    class MLP(km.FunctionApproximator):
-        """ multi-layer perceptron with one hidden layer """
-        def body(self, S, variable_scope):
-            X = keras.layers.Flatten()(S)
-            X = keras.layers.Dense(units=4, name=(variable_scope + '/hidden'))(X)
-            return X
+    class Linear(km.FunctionApproximator):
+        """ linear function approximator """
+        def body(self, X, variable_scope):
+            # body is trivial, only flatten and then pass to head (one dense layer)
+            return keras.layers.Flatten()(X)
 
 
-    # value function and its derived policy pi(a|s)
-    func = MLP(env, lr=0.01)
+    # value function and its derived policy
+    func = Linear(env, lr=0.001)
     q = km.QTypeI(func, update_strategy='sarsa')
-    pi = km.EpsilonGreedy(q)
+    policy = km.EpsilonGreedy(q)
 
+    # static parameters
+    num_episodes = 200
+    num_steps = env.spec.max_episode_steps
 
     # used for early stopping
     num_consecutive_successes = 0
 
 
     # train
-    for episode in range(200):
+    for ep in range(num_episodes):
         s = env.reset()
-        pi.epsilon = 0.1 if episode < 10 else 0.01
+        policy.epsilon = 0.1 if ep < 10 else 0.01
 
-        for t in range(env.spec.max_episode_steps):
-            a = pi(s)
+        for t in range(num_steps):
+            a = policy(s)
             s_next, r, done, info = env.step(a)
 
             q.update(s, a, r, done)
 
             if done:
-                if t == env.spec.max_episode_steps - 1:
+                if t == num_steps - 1:
                     num_consecutive_successes += 1
                     print("num_consecutive_successes: {}"
                           .format(num_consecutive_successes))
@@ -114,17 +126,4 @@ approximator:
 
 
     # run env one more time to render
-    s = env.reset()
-    env.render()
-    pi.epsilon = 0
-
-    for t in range(env.spec.max_episode_steps):
-
-        a = pi(s)
-        s, r, done, info = env.step(a)
-        env.render()
-
-        if done:
-            break
-
-    env.close()
+    km.render_episode(env, policy, step_delay_ms=25)
