@@ -205,7 +205,7 @@ class FunctionApproximator(NumActionsMixin):
     def body(self, S, variable_scope):
         """
         This is the part of the computation graph that may be shared between
-        e.g. policy (actor) and value function (critic). It is typlically the
+        e.g. policy (actor) and value function (critic). It is typically the
         part of a neural net that does most of the heavy lifting. One may think
         of the :func:`body` as an elaborate automatic feature extractor.
 

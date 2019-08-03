@@ -1,3 +1,4 @@
+import time
 import logging
 
 import gym
@@ -30,6 +31,7 @@ __all__ = (
     'one_hot',
     'project_onto_actions_np',
     'project_onto_actions_tf',
+    'render_episode',
     'softmax',
 )
 
@@ -138,6 +140,45 @@ def get_transition(env):
         return s, a, r, s_next, a_next, done, info
     finally:
         env.close()
+
+
+def render_episode(env, policy, step_delay_ms=0):
+    """
+    Run a single episode with env.render() calls with each time step.
+
+    Parameters
+    ----------
+    env : gym environment
+
+        A gym environment.
+
+    policy : callable
+
+        A policy objects that is used to pick actions: ``a = policy(s)``.
+
+    step_delay_ms : non-negative float
+
+        The number of milliseconds to wait between consecutive timesteps. This
+        can be used to slow down the rendering.
+
+    """
+    s = env.reset()
+    env.render()
+
+    for t in range(int(1e9)):
+        a = policy(s)
+        s_next, r, done, info = env.step(a)
+
+        env.render()
+        time.sleep(step_delay_ms / 1e3)
+
+        if done:
+            break
+
+        s = s_next
+
+    time.sleep(5 * step_delay_ms / 1e3)
+    env.close()
 
 
 def idx(arr, axis=0):
