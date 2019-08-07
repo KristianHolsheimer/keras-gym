@@ -10,6 +10,30 @@ __all__ = (
 
 
 class ConnectFourFunctionApproximator(FunctionApproximator):
+    """
+
+    A :term:`function approximator` specifically designed for the
+    :class:`ConnectFour <keras_gym.envs.ConnectFourEnv>` environment.
+
+    Parameters
+    ----------
+    env : environment
+
+        An Atari 2600 gym environment.
+
+    optimizer : keras.optimizers.Optimizer, optional
+
+        If left unspecified (``optimizer=None``), the function approximator's
+        DEFAULT_OPTIMIZER is used. See `keras documentation
+        <https://keras.io/optimizers/>`_ for more details.
+
+    **optimizer_kwargs : keyword arguments
+
+        Keyword arguments for the optimizer. This is useful when you want to
+        use the default optimizer with a different setting, e.g. changing the
+        learning rate.
+
+    """
     def body(self, S, variable_scope):
         assert variable_scope in ('primary', 'target')
 

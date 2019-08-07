@@ -21,9 +21,6 @@ perceptron:
     import keras_gym as km
     from tensorflow import keras
 
-    # the cart-pole MDP
-    env = gym.make('CartPole-v0')
-
 
     class MLP(km.FunctionApproximator):
         """ multi-layer perceptron with one hidden layer """
@@ -32,6 +29,9 @@ perceptron:
             X = keras.layers.Dense(units=4, name=(variable_scope + '/hidden'))(X)
             return X
 
+
+    # environment
+    env = gym.make(...)
 
     # value function and its derived policy
     function_approximator = MLP(env, lr=0.01)

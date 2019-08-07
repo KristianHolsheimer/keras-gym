@@ -40,9 +40,6 @@ class FunctionApproximator(NumActionsMixin):
         import keras_gym as km
         from tensorflow.keras.layers import Flatten, Dense
 
-        # the cart-pole MDP
-        env = gym.make('CartPole-v0')
-
         class MLP(km.FunctionApproximator):
             \"\"\" multi-layer perceptron with one hidden layer \"\"\"
             def body(self, S, variable_scope):
