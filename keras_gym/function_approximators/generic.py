@@ -50,14 +50,14 @@ class FunctionApproximator(NumActionsMixin):
                 X = Dense(units=4, name=(variable_scope + '/hidden'))(X)
                 return X
 
-            # environment
-            env = gym.make('CartPole-v0')
+        # environment
+        env = gym.make(...)
 
-            # generic function approximator
-            mlp = MLP(env)
+        # generic function approximator
+        mlp = MLP(env, lr=0.001)
 
-            # policy and value function
-            pi, v = km.SoftmaxPolicy(mlp), km.V(mlp)
+        # policy and value function
+        pi, v = km.SoftmaxPolicy(mlp), km.V(mlp)
 
     The default :term:`heads <head>` are simple (multi) linear regression
     layers, which can be overridden by your own implementation.
