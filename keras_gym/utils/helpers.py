@@ -756,6 +756,7 @@ def generate_gif(env, policy, filepath, resize_to=None, duration=50):
     frames.append(frame)
 
     # generate gif
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     frames[0].save(
         fp=filepath, format='GIF', append_images=frames[1:], save_all=True,
         duration=duration, loop=0)
