@@ -13089,7 +13089,7 @@ div#notebook {
 
 <!-- Loading mathjax macro -->
 <!-- Load mathjax -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS_HTML"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
     <!-- MathJax configuration -->
     <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
@@ -13120,12 +13120,8 @@ div#notebook {
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># %load ../../scripts/atari/ppo_conjoint.py</span>
 <span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">gym</span>
 <span class="kn">import</span> <span class="nn">keras_gym</span> <span class="k">as</span> <span class="nn">km</span>
-
-
-<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 
 
 <span class="c1"># env with preprocessing</span>
@@ -13133,6 +13129,9 @@ div#notebook {
 <span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">ImagePreprocessor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">105</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">grayscale</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">FrameStacker</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 <span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">TrainMonitor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+<span class="c1"># show logs from TrainMonitor</span>
+<span class="n">km</span><span class="o">.</span><span class="n">enable_logging</span><span class="p">()</span>
 
 
 <span class="c1"># actor-critic with shared weights between pi(a|s) and v(s)</span>
@@ -13181,7 +13180,6 @@ div#notebook {
 
     <span class="c1"># generate an animated GIF to see what&#39;s going on</span>
     <span class="k">if</span> <span class="n">env</span><span class="o">.</span><span class="n">ep</span> <span class="o">%</span> <span class="mi">50</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;./data/ppo2/gifs/&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">km</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">generate_gif</span><span class="p">(</span>
             <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
             <span class="n">policy</span><span class="o">=</span><span class="n">pi</span><span class="p">,</span>

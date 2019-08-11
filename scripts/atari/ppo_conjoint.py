@@ -1,10 +1,6 @@
 import os
-import logging
 import gym
 import keras_gym as km
-
-
-logging.basicConfig(level=logging.INFO)
 
 
 # env with preprocessing
@@ -12,6 +8,9 @@ env = gym.make('PongDeterministic-v4')
 env = km.wrappers.ImagePreprocessor(env, height=105, width=80, grayscale=True)
 env = km.wrappers.FrameStacker(env, num_frames=3)
 env = km.wrappers.TrainMonitor(env)
+
+# show logs from TrainMonitor
+km.enable_logging()
 
 
 # actor-critic with shared weights between pi(a|s) and v(s)
@@ -60,7 +59,6 @@ while env.T < 3000000:
 
     # generate an animated GIF to see what's going on
     if env.ep % 50 == 0:
-        os.makedirs('./data/ppo2/gifs/', exist_ok=True)
         km.utils.generate_gif(
             env=env,
             policy=pi,

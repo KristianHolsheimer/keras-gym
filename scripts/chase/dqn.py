@@ -1,5 +1,4 @@
 import os
-import logging
 
 import gym_chase  # noqa: F401
 import keras_gym as km
@@ -9,7 +8,6 @@ import tensorflow as tf
 from keras_gym.base.mixins import AddOrigStateToInfoDictMixin
 from matplotlib import pyplot as plt
 
-logging.basicConfig(level=logging.INFO)
 keras = tf.keras
 K = keras.backend
 K.clear_session()
@@ -98,6 +96,9 @@ class CNN(km.FunctionApproximator):
 env = gym.make('Chase-v0')
 env = ChasePreprocessor(env)
 env = km.wrappers.TrainMonitor(env)
+
+# show logs from TrainMonitor
+km.enable_logging()
 
 
 # function approximator

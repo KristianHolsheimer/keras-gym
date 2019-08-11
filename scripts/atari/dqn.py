@@ -1,10 +1,6 @@
 import os
-import logging
 import gym
 import keras_gym as km
-
-
-logging.basicConfig(level=logging.INFO)
 
 
 # env with preprocessing
@@ -12,6 +8,9 @@ env = gym.make('PongDeterministic-v4')
 env = km.wrappers.ImagePreprocessor(env, height=105, width=80, grayscale=True)
 env = km.wrappers.FrameStacker(env, num_frames=3)
 env = km.wrappers.TrainMonitor(env)
+
+# show logs from TrainMonitor
+km.enable_logging()
 
 
 # value function
@@ -43,7 +42,6 @@ target_model_sync_period = 10000
 
 for _ in range(num_episodes):
     if env.ep % 10 == 0 and env.T > buffer_warmup_period:
-        os.makedirs('./data/dqn/gifs/', exist_ok=True)
         km.utils.generate_gif(
             env=env,
             policy=policy.set_epsilon(0.01),

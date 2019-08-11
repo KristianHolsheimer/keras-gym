@@ -1,14 +1,13 @@
-import logging
-
 import keras_gym as km
 import numpy as np
 
 
-logging.basicConfig(level=logging.INFO)
-
-
 env = km.envs.ConnectFourEnv()
 env = km.wrappers.TrainMonitor(env)
+
+# show logs from TrainMonitor
+km.enable_logging()
+
 
 func = km.predefined.ConnectFourFunctionApproximator(env, lr=0.001)
 ac = km.ConjointActorCritic(func, update_strategy='cross_entropy')
