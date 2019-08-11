@@ -6,7 +6,7 @@ import gym
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
-from scipy.special import binom
+from scipy.linalg import pascal
 from PIL import Image
 
 from ..base.errors import NumpyArrayCheckError, TensorCheckError
@@ -573,16 +573,16 @@ def diff_transform_matrix(num_frames, dtype='float32'):
     Let's say we have a feature vector :math:`X` consisting of four stacked
     frames, i.e. the shape would be: ``[batch_size, height, width, 4]``.
 
-    For instance, diff-transform matrix with ``num_frames=4`` is a
+    The corresponding diff-transform matrix with ``num_frames=4`` is a
     :math:`4\\times 4` matrix given by:
 
     .. math::
 
         M_\\text{diff}^{(4)}\\ =\\ \\begin{pmatrix}
-            0&  0&  0& -1\\\\
-            0&  0&  1&  3\\\\
-            0& -1& -2& -3\\\\
-            1&  1&  1&  1
+            -1 &  0 &  0 & 0 \\\\
+             3 &  1 &  0 & 0 \\\\
+            -3 & -2 & -1 & 0 \\\\
+             1 &  1 &  1 & 1
         \\end{pmatrix}
 
     such that the diff-transformed feature vector is readily computed as:
@@ -594,8 +594,9 @@ def diff_transform_matrix(num_frames, dtype='float32'):
     The diff-transformation preserves the shape, but it reorganizes the frames
     in such a way that they look more like canonical variables. You can think
     of :math:`X_\\text{diff}` as the stacked variables :math:`x`,
-    :math:`\\dot{x}`, :math:`\\ddot{x}`, etc. These represent the position,
-    velocity, acceleration, etc. of pixels in a single frame.
+    :math:`\\dot{x}`, :math:`\\ddot{x}`, etc. (in reverse order). These
+    represent the position, velocity, acceleration, etc. of pixels in a single
+    frame.
 
     Parameters
     ----------
@@ -616,13 +617,10 @@ def diff_transform_matrix(num_frames, dtype='float32'):
         stacked in ``axis=-1`` of ``X_orig``, in chronological order.
 
     """
-    assert isinstance(num_frames, int) and num_frames >= 2
-    M = np.zeros((num_frames, num_frames))
-    for i in range(num_frames):
-        for j in range(i + 1):
-            k = num_frames - j - 1
-            M[k, i] = pow(-1, j) * binom(i, j)
-    return K.constant(M, dtype=dtype)
+    assert isinstance(num_frames, int) and num_frames >= 1
+    s = np.diag(np.power(-1, np.arange(num_frames)))  # alternating sign
+    m = s.dot(pascal(num_frames, kind='upper'))[::-1, ::-1]
+    return K.constant(m, dtype=dtype)
 
 
 def has_env_attr(env, attr, max_depth=100):

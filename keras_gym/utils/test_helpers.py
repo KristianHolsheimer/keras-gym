@@ -6,7 +6,7 @@ from tensorflow.keras import backend as K
 from ..base.errors import NumpyArrayCheckError
 from .helpers import (
     idx, check_numpy_array, project_onto_actions_np, project_onto_actions_tf,
-    softmax, log_softmax, log_softmax_tf)
+    softmax, log_softmax, log_softmax_tf, diff_transform_matrix)
 
 
 def test_check_numpy_array_ndim_min():
@@ -128,3 +128,32 @@ def test_log_softmax_tf_expected():
     np.testing.assert_array_almost_equal(logx_tf, logx_np)
     np.testing.assert_array_almost_equal(logy_tf, logy_np)
     np.testing.assert_array_almost_equal(logz_tf, logz_np)
+
+
+def test_diff_transform_matrix():
+    m1 = np.array([[1.0]])
+    m2 = np.array([
+        [-1, 0],
+        [1, 1],
+    ])
+    m3 = np.array([
+        [1, 0, 0],
+        [-2, -1, 0],
+        [1, 1, 1],
+    ])
+    m4 = np.array([
+        [-1, 0, 0, 0],
+        [3, 1, 0, 0],
+        [-3, -2, -1, 0],
+        [1, 1, 1, 1],
+    ])
+
+    # tests
+    np.testing.assert_array_equal(
+        m1, K.get_session().run(diff_transform_matrix(1)))
+    np.testing.assert_array_equal(
+        m2, K.get_session().run(diff_transform_matrix(2)))
+    np.testing.assert_array_equal(
+        m3, K.get_session().run(diff_transform_matrix(3)))
+    np.testing.assert_array_equal(
+        m4, K.get_session().run(diff_transform_matrix(4)))
