@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-v0.2.14
+v0.2.15
 -------
 
 This is a relatively minor update. Just a couple of small bug fixes.
