@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 
@@ -17,6 +18,7 @@ __all__ = (
     'check_numpy_array',
     'check_tensor',
     'diff_transform_matrix',
+    'enable_logging',
     'feature_vector',
     'generate_gif',
     'get_env_attr',
@@ -32,8 +34,27 @@ __all__ = (
     'project_onto_actions_np',
     'project_onto_actions_tf',
     'render_episode',
+    'set_tf_loglevel',
     'softmax',
 )
+
+
+def enable_logging(silence_tf_logging=True):
+    logging.basicConfig(level=logging.INFO)
+    if silence_tf_logging:
+        set_tf_loglevel(logging.ERROR)
+
+
+def set_tf_loglevel(level):
+    if level >= logging.FATAL:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+    if level >= logging.ERROR:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    if level >= logging.WARNING:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+    else:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+    logging.getLogger('tensorflow').setLevel(level)
 
 
 def one_hot(i, n, dtype='float'):

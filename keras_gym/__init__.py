@@ -12,4 +12,4 @@ from .function_approximators.generic import (
     ConjointActorCritic)
 from .function_approximators.actor_critic import ActorCritic
 from .policies import EpsilonGreedy, RandomPolicy, UserInputPolicy
-from .utils import render_episode
+from .utils import render_episode, enable_logging
