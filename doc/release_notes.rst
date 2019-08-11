@@ -1,6 +1,15 @@
 Release Notes
 =============
 
+v0.2.14
+-------
+
+This is a relatively minor update. Just a couple of small bug fixes.
+
+- fixed logging, which was broken by abseil (dependence of tensorflow>=1.14)
+- added enable_logging helper
+- updated some docs
+
 
 v0.2.13
 -------
