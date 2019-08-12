@@ -120,7 +120,7 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
         self.num_frames = int(num_frames)
 
         s = self.env.observation_space.sample()
-        check_numpy_array(s, dtype='uint8')
+        check_numpy_array(s, dtype=('uint8', 'int'))
         if s.ndim == 2:
             self._perm = (1, 2, 0)
         elif s.ndim == 3:
