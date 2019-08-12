@@ -50,7 +50,7 @@ class ChasePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
         return s
 
     def step(self, action):
-        s_next, r, done = self.env.step(str(int(action)))
+        s_next, r, done = self.env.step(action)
         info = {}
         s_next = self._preprocess(s_next)
         self._s_next_orig = self._image(s_next)
@@ -72,8 +72,23 @@ class CNN(km.FunctionApproximator):
         def v(name):
             return '{}/{}'.format(variable_scope, name)
 
+        def diff_transform(S):
+            X = K.cast(S, 'float32')
+
+            # apply diff-transform
+            num_frames = km.utils.get_env_attr(self.env, 'num_frames')
+            M = km.utils.diff_transform_matrix(num_frames)
+            X = K.dot(X, M)
+
+            # flatten last two axes
+            km.utils.check_tensor(X, ndim=5)
+            h, w, c, f = K.int_shape(X)[1:]
+            X = K.reshape(X, (-1, h, w, c * f))
+
+            return X
+
         layers = [
-            keras.layers.Lambda(lambda X: K.cast(X, 'float32')),
+            keras.layers.Lambda(diff_transform),
             keras.layers.Conv2D(
                 name=v('conv1'), filters=16, kernel_size=6, strides=3,
                 activation='relu'),
@@ -95,6 +110,7 @@ class CNN(km.FunctionApproximator):
 # environment [https://github.com/axb2035/gym-chase]
 env = gym.make('Chase-v0')
 env = ChasePreprocessor(env)
+env = km.wrappers.FrameStacker(env, num_frames=3)
 env = km.wrappers.TrainMonitor(env)
 
 # show logs from TrainMonitor
@@ -134,21 +150,21 @@ for ep in range(10000000):
         s = s_next
 
     # generate an animated GIF to see what's going on
-    if env.ep % 2500 == 0:
-        os.makedirs('data/ppo/gifs/', exist_ok=True)
+    if ep % 2500 == 0:
         km.utils.generate_gif(
             env=env,
             policy=actor_critic.policy,
-            filepath='data/ppo/gifs/ep{:08d}.gif'.format(env.ep),
+            filepath='data/ppo/gifs/ep{:08d}.gif'.format(ep),
             resize_to=(600, 600),
             duration=500)
 
     # store model weights
-    if env.ep % 10000 == 0:
+    if ep % 10000 == 0:
+        os.makedirs('data/ppo/weights/', exist_ok=True)
         actor_critic.train_model.save_weights(
-            'data/ppo/weights/train_model_{:08d}.h5'.format(env.ep))
+            'data/ppo/weights/train_model_{:08d}.h5'.format(ep))
         actor_critic.policy.predict_model.save_weights(
-            'data/ppo/weights/policy.predict_model_{:08d}.h5'.format(env.ep))
+            'data/ppo/weights/policy.predict_model_{:08d}.h5'.format(ep))
         actor_critic.value_function.predict_model.save_weights(
             'data/ppo/weights/value_function.predict_model_{:08d}.h5'
-            .format(env.ep))
+            .format(ep))
