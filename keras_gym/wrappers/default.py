@@ -3,7 +3,7 @@ import numpy as np
 
 
 from ..base.mixins import AddOrigStateToInfoDictMixin
-from ..utils import one_hot, feature_vector
+from ..utils import feature_vector
 
 
 __all__ = (

@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-from ..utils import project_onto_actions_tf, check_tensor
+from ..utils import check_tensor
 from .base import BaseLoss
 
 __all__ = (

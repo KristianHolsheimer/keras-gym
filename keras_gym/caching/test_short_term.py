@@ -4,9 +4,8 @@ import pytest
 import gym
 import numpy as np
 
-from ..utils import one_hot, check_numpy_array
-from ..base.errors import (
-    InsufficientCacheError, EpisodeDoneError, InconsistentCacheInputError)
+from ..utils import check_numpy_array
+from ..base.errors import InsufficientCacheError, EpisodeDoneError
 from .short_term import NStepCache, MonteCarloCache
 
 

@@ -1,4 +1,3 @@
-import os
 import gym
 import keras_gym as km
 

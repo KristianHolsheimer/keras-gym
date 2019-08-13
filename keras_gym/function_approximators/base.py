@@ -1075,9 +1075,9 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, R
 
         Adv : 1d array, dtype: float, shape: [batch_size]
 
-            A value for the :term:`advantage <Adv>` :math:`\\mathcal{A}(s,a) = q(s,a) -
-            v(s)`. This might be sampled and/or estimated version of the true
-            advantage.
+            A value for the :term:`advantage <Adv>` :math:`\\mathcal{A}(s,a) =
+            q(s,a) - v(s)`. This might be sampled and/or estimated version of
+            the true advantage.
 
         Returns
         -------
