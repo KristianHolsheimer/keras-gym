@@ -207,14 +207,14 @@ class ExperienceReplayBuffer(RandomStateMixin, NumActionsMixin):
 
             # check if S indices are all from the same episode
             ep = self._e[js[-1]]
-            if any(self._e[j] not in (ep, ep - 1) for j in js[:-1]):
+            if any(self._e[j] > ep for j in js[:-1]):
                 # Check if all js are from the current episode or from the
-                # immediately preceding episode. Otherwise, we would generate
+                # immediately preceding episodes. Otherwise, we would generate
                 # spurious data because it would probably mean that 'js' spans
                 # the overwrite-boundary.
                 continue
             for i, j in reversed(list(enumerate(js[:-1]))):
-                # if j is from previous episode, replace it by its successor
+                # if j is from a previous episode, replace it by its successor
                 if self._e[j] < ep:
                     js[i] = js[i + 1]
 
