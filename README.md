@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/KristianHolsheimer/keras-gym.svg?branch=master)](https://travis-ci.org/KristianHolsheimer/keras-gym)
+[![Docs Status](https://readthedocs.org/projects/keras-gym/badge/?version=latest)](https://keras-gym.readthedocs.io/en/latest/)
 
 # keras-gym
 *Plug-n-Play Reinforcement Learning in Python*
