@@ -7,24 +7,17 @@ critic algorithm with PPO policy updates. We'll use a linear function
 approximator for our :term:`policy <updateable policy>` and our :term:`state
 value function`.
 
+To view the notebook in a new tab, click |here|. To interact with the notebook
+in Google Colab, hit the "Open in Colab" button below.
 
-GitHub version
---------------
-
-.. raw:: html
-
-    <p>
-    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/keras-gym/blob/master/notebooks/frozen_lake/actor_critic.ipynb" target="_blank" style="font-weight:bold">here</a>.
-    </p>
-
-
-Notebook
---------
+.. image:: https://colab.research.google.com/assets/colab-badge.svg
+    :target: https://colab.research.google.com/github/KristianHolsheimer/keras-gym/blob/master/notebooks/frozen_lake/actor_critic.ipynb
+    :alt: Open in Colab
 
 .. raw:: html
-
-    <p>
-    To view the below notebook in a new tab, click <a href="../../_static/notebooks/frozen_lake/actor_critic.html" target="_blank" style="font-weight:bold">here</a>.
-    </p>
 
     <iframe width="100%" height="600px" src="../../_static/notebooks/frozen_lake/actor_critic.html"></iframe>
+
+.. |here| raw:: html
+
+    <a href="../../_static/notebooks/frozen_lake/actor_critic.html" target="_blank" style="font-weight:bold">here</a>

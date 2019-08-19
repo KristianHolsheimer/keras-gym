@@ -33,13 +33,11 @@ def epsilon(T):
 
 
 # static parameters
-num_episodes = 3000000
-num_steps = env.spec.max_episode_steps
 buffer_warmup_period = 50000
 target_model_sync_period = 10000
 
 
-for _ in range(num_episodes):
+while env.T < 3000000:
     if env.ep % 10 == 0 and env.T > buffer_warmup_period:
         km.utils.generate_gif(
             env=env,
@@ -49,7 +47,7 @@ for _ in range(num_episodes):
 
     s = env.reset()
 
-    for t in range(num_steps):
+    for t in range(env.spec.max_episode_steps):
         policy.epsilon = epsilon(env.T)
         a = policy(s)
         s_next, r, done, info = env.step(a)

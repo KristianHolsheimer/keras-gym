@@ -22,23 +22,17 @@ After a few hundred episodes, this is what you can expect:
   :align: center
 
 
-GitHub version
---------------
+To view the notebook in a new tab, click |here|. To interact with the notebook
+in Google Colab, hit the "Open in Colab" button below.
+
+.. image:: https://colab.research.google.com/assets/colab-badge.svg
+    :target: https://colab.research.google.com/github/KristianHolsheimer/keras-gym/blob/master/notebooks/atari/ppo.ipynb
+    :alt: Open in Colab
 
 .. raw:: html
-
-    <p>
-    For an up-to-date version of this notebook, see the GitHub version <a href="https://github.com/KristianHolsheimer/keras-gym/blob/master/notebooks/atari/ppo.ipynb" target="_blank" style="font-weight:bold">here</a>.
-    </p>
-
-
-Notebook
---------
-
-.. raw:: html
-
-    <p>
-    To view the below notebook in a new tab, click <a href="../../_static/notebooks/atari/ppo.html" target="_blank" style="font-weight:bold">here</a>.
-    </p>
 
     <iframe width="100%" height="600px" src="../../_static/notebooks/atari/ppo.html"></iframe>
+
+.. |here| raw:: html
+
+    <a href="../../_static/notebooks/atari/ppo.html" target="_blank" style="font-weight:bold">here</a>
