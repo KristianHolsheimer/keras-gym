@@ -42,11 +42,12 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
 
     G : float
 
-        The amount of reward accumulated from the start of the current episode.
+        The return, i.e. amount of reward accumulated from the start of the
+        current episode.
 
-    avg_r : float
+    avg_G : float
 
-        The average reward received from the start of the episode.
+        The average return G, averaged over the past 100 episodes.
 
     dt_ms : float
 
@@ -64,6 +65,8 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
         self.ep = 0
         self.t = 0
         self.G = 0.0
+        self.avg_G = 0.0
+        self._n_avg_G = 0.0
         self._ep_starttime = time.time()
 
     def reset(self):
@@ -96,13 +99,17 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
         self.t += 1
         self.T += 1
         self.G += r
-        if done and not self.quiet:
-            self.logger.info(
-                "ep: {:d}, T: {:,d}, G: {:.3g}, avg(r): {:.3f}, t: {:d}, "
-                "dt: {:.3f}ms{:s}"
-                .format(
-                    self.ep, self.T, self.G, self.avg_r, self.t, self.dt_ms,
-                    self._losses_str()))
+        if done:
+            if self._n_avg_G < 100:
+                self._n_avg_G += 1.
+            self.avg_G += (self.G - self.avg_G) / self._n_avg_G
+            if not self.quiet:
+                self.logger.info(
+                    "ep: {:d}, T: {:,d}, G: {:.3g}, avg_G: {:.3g}, t: {:d}, "
+                    "dt: {:.3f}ms{:s}"
+                    .format(
+                        self.ep, self.T, self.G, self.avg_G, self.t, self.dt_ms,
+                        self._losses_str()))
 
         return s_next, r, done, info
 
