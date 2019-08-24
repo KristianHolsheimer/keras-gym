@@ -2,7 +2,6 @@ import time
 
 import gym
 import numpy as np
-import pandas as pd
 
 from ..base.mixins import LoggerMixin
 
@@ -120,21 +119,18 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        if not hasattr(self, '_losses'):
-            self._losses = pd.DataFrame(
-                columns=list(losses.keys()),
-                data=np.zeros((1000, len(losses)), dtype='float'))
-            self._losses_i = 0
-            self._losses_n = 0
-        self._losses.iloc[self._losses_i] = pd.Series(losses)
-        self._losses_i += 1
-        self._losses_i %= 1000
-        if self._losses_n < 1000:
-            self._losses_n += 1
+        if not hasattr(self, '_losses') or set(self._losses) != set(losses):
+            self._losses = dict(losses)
+            self._n_losses = 1.0
+        else:
+            if self._n_losses < 100:
+                self._n_losses += 1.0
+            self._losses = {
+                k: v + (losses[k] - v) / self._n_losses
+                for k, v in self._losses.items()}
 
     def _losses_str(self):
         if hasattr(self, '_losses'):
-            losses = self._losses.iloc[:self._losses_n].mean()
             return ", " + ", ".join(
-                '{:s}: {:.3g}'.format(k, v) for k, v in losses.items())
+                '{:s}: {:.3g}'.format(k, v) for k, v in self._losses.items())
         return ""
