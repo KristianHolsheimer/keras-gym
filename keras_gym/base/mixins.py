@@ -4,7 +4,7 @@ import gym
 import numpy as np
 
 from ..utils import one_hot, check_numpy_array
-from .errors import NonDiscreteActionSpace
+from .errors import ActionSpaceError
 
 
 class LoggerMixin:
@@ -58,13 +58,32 @@ class RandomStateMixin:
         self.random = np.random.RandomState(self._random_seed)
 
 
-class NumActionsMixin:
+class ActionSpaceMixin:
+    @property
+    def action_space_is_continuous(self):
+        return isinstance(self.env.action_space, gym.spaces.Box)
+
+    @property
+    def action_space_is_discrete(self):
+        return isinstance(self.env.action_space, gym.spaces.Discrete)
+
+    @property
+    def action_shape(self):
+        if not hasattr(self, '_action_shape'):
+            if not self.action_space_is_continuous:
+                raise ActionSpaceError(
+                    "action_shape attribute is inaccesible; does the env "
+                    "have a continuous action space?")
+            self._action_shape = self.env.action_space.shape
+        return self._action_shape
+
     @property
     def num_actions(self):
         if not hasattr(self, '_num_actions'):
-            if not isinstance(self.env.action_space, gym.spaces.Discrete):
-                raise NonDiscreteActionSpace(
-                    "num_actions property is inaccesible")
+            if not self.action_space_is_discrete:
+                raise ActionSpaceError(
+                    "num_actions attribute is inaccesible; does the env have "
+                    "a discrete action space?")
             self._num_actions = self.env.action_space.n
         return self._num_actions
 

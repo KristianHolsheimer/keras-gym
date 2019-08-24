@@ -5,7 +5,7 @@ from itertools import islice
 import numpy as np
 
 from ..base.errors import InsufficientCacheError, EpisodeDoneError
-from ..base.mixins import NumActionsMixin
+from ..base.mixins import ActionSpaceMixin
 
 
 __all__ = (
@@ -14,7 +14,7 @@ __all__ = (
 )
 
 
-class BaseShortTermCache(ABC, NumActionsMixin):
+class BaseShortTermCache(ABC, ActionSpaceMixin):
     def __init__(self, env):
         self.env = env
 

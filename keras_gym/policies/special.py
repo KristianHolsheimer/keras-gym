@@ -1,5 +1,5 @@
 from ..base.errors import UnavailableActionError
-from ..base.mixins import RandomStateMixin, NumActionsMixin
+from ..base.mixins import RandomStateMixin, ActionSpaceMixin
 from ..policies.base import BasePolicy
 
 __all__ = (
@@ -8,7 +8,7 @@ __all__ = (
 )
 
 
-class RandomPolicy(BasePolicy, RandomStateMixin, NumActionsMixin):
+class RandomPolicy(BasePolicy, RandomStateMixin, ActionSpaceMixin):
     """
     Value-based policy to select actions using epsilon-greedy strategy.
 
@@ -37,7 +37,7 @@ class RandomPolicy(BasePolicy, RandomStateMixin, NumActionsMixin):
         return 1.0 / self.num_actions
 
 
-class UserInputPolicy(BasePolicy, NumActionsMixin):
+class UserInputPolicy(BasePolicy, ActionSpaceMixin):
     """
     A policy that prompts the user to take an action.
 

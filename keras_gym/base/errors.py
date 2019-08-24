@@ -12,7 +12,7 @@ class EpisodeDoneError(KerasGymError):
     pass
 
 
-class NonDiscreteActionSpace(KerasGymError):
+class ActionSpaceError(KerasGymError):
     pass
 
 

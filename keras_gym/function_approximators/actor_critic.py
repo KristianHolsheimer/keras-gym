@@ -1,7 +1,7 @@
 from tensorflow import keras
 
 from .. import utils
-from ..base.mixins import NumActionsMixin
+from ..base.mixins import ActionSpaceMixin
 from ..policies.base import BasePolicy
 from .base import BaseFunctionApproximator
 
@@ -11,7 +11,7 @@ __all__ = (
 )
 
 
-class ActorCritic(BasePolicy, BaseFunctionApproximator, NumActionsMixin):
+class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
     """
     A generic actor-critic, combining an :term:`updateable policy` with a
     :term:`value function <state value function>`.

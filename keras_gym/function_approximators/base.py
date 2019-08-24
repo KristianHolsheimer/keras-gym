@@ -6,7 +6,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ..base.errors import MissingModelError
-from ..base.mixins import RandomStateMixin, NumActionsMixin, LoggerMixin
+from ..base.mixins import RandomStateMixin, ActionSpaceMixin, LoggerMixin
 from ..policies.base import BasePolicy
 from ..caching import NStepCache
 from ..losses import SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss
@@ -331,7 +331,7 @@ class BaseV(BaseFunctionApproximator):
         return V
 
 
-class BaseGenericQ(BaseFunctionApproximator, NumActionsMixin):
+class BaseGenericQ(BaseFunctionApproximator, ActionSpaceMixin):
     UPDATE_STRATEGIES = ('sarsa', 'q_learning', 'double_q_learning')
 
     def __init__(
@@ -800,7 +800,7 @@ class BaseQTypeII(BaseGenericQ):
             return Q  # shape: [batch_size, num_actions]
 
 
-class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, NumActionsMixin, RandomStateMixin):  # noqa: E501
+class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
     """
     Base class for modeling :term:`updateable policies <updateable policy>` for
     discrete action spaces.

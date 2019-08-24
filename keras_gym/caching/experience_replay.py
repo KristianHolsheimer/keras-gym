@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..base.mixins import RandomStateMixin, NumActionsMixin
+from ..base.mixins import RandomStateMixin, ActionSpaceMixin
 from ..base.errors import NumpyArrayCheckError, InsufficientCacheError
 from ..utils import check_numpy_array, get_env_attr
 
@@ -10,7 +10,7 @@ __all__ = (
 )
 
 
-class ExperienceReplayBuffer(RandomStateMixin, NumActionsMixin):
+class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
     """
     A simple numpy implementation of an experience replay buffer. This is
     written primarily with computer game environments (Atari) in mind.

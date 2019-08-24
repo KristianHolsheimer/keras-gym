@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from ..base.mixins import NumActionsMixin, RandomStateMixin
+from ..base.mixins import ActionSpaceMixin, RandomStateMixin
 from ..base.errors import LeafNodeError, NotLeafNodeError, EpisodeDoneError
 from ..utils import argmax, one_hot
 
@@ -11,7 +11,7 @@ __all__ = (
 )
 
 
-class MCTSNode(NumActionsMixin, RandomStateMixin):
+class MCTSNode(ActionSpaceMixin, RandomStateMixin):
     """
     Implementation of Monte Carlo tree search used in AlphaZero.
 

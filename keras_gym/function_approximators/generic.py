@@ -5,7 +5,8 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ..utils import check_tensor
-from ..base.mixins import NumActionsMixin
+from ..base.mixins import ActionSpaceMixin
+from ..base.errors import ActionSpaceError
 from ..losses import Huber, ProjectedSemiGradientLoss
 from .base import BaseV, BaseQTypeI, BaseQTypeII, BaseSoftmaxPolicy
 from .actor_critic import ActorCritic
@@ -21,7 +22,7 @@ __all__ = (
 )
 
 
-class FunctionApproximator(NumActionsMixin):
+class FunctionApproximator(ActionSpaceMixin):
     """
     A generic function approximator.
 
@@ -520,6 +521,11 @@ class QTypeII(BaseQTypeII):
             predict_model=None,
             target_model=None)
 
+        if not self.action_space_is_discrete:
+            raise ActionSpaceError(
+                "QTypeII is incompatible with non-discrete action spaces; "
+                "please use QTypeI instead")
+
         self.function_approximator = function_approximator
         self._init_models()
         self._check_attrs()
@@ -640,6 +646,11 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
             predict_model=None,
             target_model=None)
 
+        if not self.action_space_is_discrete:
+            raise ActionSpaceError(
+                "SoftmaxPolicy is incompatible with non-discrete action "
+                "spaces; please use GaussianPolicy instead")
+
         self.function_approximator = function_approximator
         self._init_models()
         self._check_attrs()
@@ -681,6 +692,10 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
             loss=loss, optimizer=self.function_approximator.optimizer)
         self.predict_model = keras.Model(inputs=S, outputs=Z)
         self.target_model = keras.Model(inputs=S, outputs=Z_target)
+
+
+class GaussianPolicy(BaseSoftmaxPolicy):
+    pass
 
 
 class ConjointActorCritic(ActorCritic):
