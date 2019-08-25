@@ -1,3 +1,4 @@
+# flake8: noqa
 import os
 import glob
 import numpy as np

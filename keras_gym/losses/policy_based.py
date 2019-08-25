@@ -137,20 +137,23 @@ class BetaPolicyCrossEntropy(BaseLoss):
     Cross-entropy for a :class:`BetaPolicy <keras_gym.BetaPolicy>`, which is
     used on bounded continuous action spaces.
 
-    Let :math:`(\\alpha, \\beta)` and :math:`(\\alpha', \\beta')` be the
-    distribution parameters associated with the primary policy
+    Let :math:`(\\alpha_\\theta, \\beta_\\theta)` and :math:`(\\alpha, \\beta)`
+    be the distribution parameters associated with the primary policy
     :math:`\\pi_\\theta(a|s)` and the behavior/target policy :math:`b(a|s)`,
-    respectively. The cross-entropy between these two policies is given by:
+    respectively. Each of these parameters depends on the input state
+    :math:`s`. The cross-entropy between the primary and behavior policy is
+    given by:
 
     .. math::
 
-        CE[b(.|s),\\pi_\\theta(.|s)]
-            \\ =\\
-                \\int da\\,b(a|s)\\,\\log\\pi_\\theta(a|s)
-            \\ =\\ \\log B(\\alpha, \\beta)
-                - (\\alpha - 1)\\,\\psi(\\alpha')
-                - (\\beta - 1)\\,\\psi(\\beta')
-                + (\\alpha + \\beta - 2)\\,\\psi(\\alpha' + \\beta')
+        \\text{cross-entropy}
+            \\ &=\\
+                -\\int da\\,b(a|s)\\,\\log\\pi_\\theta(a|s) \\\\
+            \\ &=\\ \\log B(\\alpha_\\theta, \\beta_\\theta)
+                - (\\alpha_\\theta - 1)\\,\\psi(\\alpha)
+                - (\\beta_\\theta - 1)\\,\\psi(\\beta) \\\\
+               &\\qquad + (\\alpha_\\theta + \\beta_\\theta - 2)\\,
+                    \\psi(\\alpha + \\beta)
 
     where :math:`B(\\alpha,\\beta)` is the `Euler beta function
     <https://en.wikipedia.org/wiki/Beta_function>`_ and :math:`\\psi(x)` is the

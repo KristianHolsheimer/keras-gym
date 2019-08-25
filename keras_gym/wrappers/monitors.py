@@ -108,8 +108,8 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
                     "ep: {:d}, T: {:,d}, G: {:.3g}, avg_G: {:.3g}, t: {:d}, "
                     "dt: {:.3f}ms{:s}"
                     .format(
-                        self.ep, self.T, self.G, self.avg_G, self.t, self.dt_ms,
-                        self._losses_str()))
+                        self.ep, self.T, self.G, self.avg_G, self.t,
+                        self.dt_ms, self._losses_str()))
 
         return s_next, r, done, info
 
