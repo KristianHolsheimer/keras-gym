@@ -27,9 +27,10 @@ class BasePolicy(ABC):
         pass
 
     @abstractmethod
-    def proba(self, s):
+    def dist_params(self, s):
         """
-        Get the probabilities over all actions :math:`\\pi(a|s)`.
+        Get the parameters of the (conditional) probability distribution
+        :math:`\\pi(a|s)`.
 
         Parameters
         ----------
@@ -39,12 +40,9 @@ class BasePolicy(ABC):
 
         Returns
         -------
-        pi : 1d array, shape: [num_actions]
+        params : nd array
 
-            Probabilities over all actions.
-
-            **Note.** This hasn't yet been implemented for non-discrete action
-            spaces.
+            An array containing the distribution parameters.
 
         """
         pass

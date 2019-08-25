@@ -175,8 +175,15 @@ inputs/outputs to our keras models.
 
     P
 
-        A batch of action propensities according to the policy
-        :math:`\pi(a|s)`.
+        A batch of distribution parameters that allow us to construct action
+        propensities according to the behavior/target policy :math:`b(a|s)`.
+        For instance, the parameters of a :class:`keras_gym.SoftmaxPolicy` (for
+        discrete actions spaces) are those of a `categorical distribution
+        <https://en.wikipedia.org/wiki/Categorical_distribution>`_. On the
+        other hand, for bounded continuous action spaces we use a
+        :class:`keras_gym.BetaPolicy`, whose parameters are the parameters of
+        the underlying `Beta distribution
+        <https://en.wikipedia.org/wiki/Beta_distribution>`_.
 
     G
 

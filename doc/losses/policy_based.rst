@@ -4,12 +4,16 @@ Policy Losses
 .. autosummary::
     :nosignatures:
 
+    keras_gym.losses.BetaPolicyCrossEntropy
+    keras_gym.losses.BetaPolicyLoss
     keras_gym.losses.ClippedSurrogateLoss
     keras_gym.losses.PolicyEntropy
     keras_gym.losses.PolicyKLDivergence
     keras_gym.losses.SoftmaxPolicyLossWithLogits
 
 
+.. autoclass:: keras_gym.losses.BetaPolicyCrossEntropy
+.. autoclass:: keras_gym.losses.BetaPolicyLoss
 .. autoclass:: keras_gym.losses.ClippedSurrogateLoss
 .. autoclass:: keras_gym.losses.PolicyEntropy
 .. autoclass:: keras_gym.losses.PolicyKLDivergence

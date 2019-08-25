@@ -6,10 +6,12 @@ from ..utils import check_tensor, log_softmax_tf
 
 
 __all__ = (
-    'SoftmaxPolicyLossWithLogits',
+    'BetaPolicyCrossEntropy',
+    'BetaPolicyLoss',
     'ClippedSurrogateLoss',
     'PolicyEntropy',
     'PolicyKLDivergence',
+    'SoftmaxPolicyLossWithLogits',
 )
 
 
@@ -118,6 +120,47 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
         L_entropy = -self.entropy_bonus * PolicyEntropy()(P, Z)
 
         return surrogate_loss + L_entropy
+
+
+class BetaPolicyLoss(BasePolicyLoss):
+    """
+
+    #TODO: implement!!
+
+    """
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError('BetaPolicyLoss')
+
+
+class BetaPolicyCrossEntropy(BaseLoss):
+    """
+    Cross-entropy for a :class:`BetaPolicy <keras_gym.BetaPolicy>`, which is
+    used on bounded continuous action spaces.
+
+    Let :math:`(\\alpha, \\beta)` and :math:`(\\alpha', \\beta')` be the
+    distribution parameters associated with the primary policy
+    :math:`\\pi_\\theta(a|s)` and the behavior/target policy :math:`b(a|s)`,
+    respectively. The cross-entropy between these two policies is given by:
+
+    .. math::
+
+        CE[b(.|s),\\pi_\\theta(.|s)]
+            \\ =\\
+                \\int da\\,b(a|s)\\,\\log\\pi_\\theta(a|s)
+            \\ =\\ \\log B(\\alpha, \\beta)
+                - (\\alpha - 1)\\,\\psi(\\alpha')
+                - (\\beta - 1)\\,\\psi(\\beta')
+                + (\\alpha + \\beta - 2)\\,\\psi(\\alpha' + \\beta')
+
+    where :math:`B(\\alpha,\\beta)` is the `Euler beta function
+    <https://en.wikipedia.org/wiki/Beta_function>`_ and :math:`\\psi(x)` is the
+    `digamma function <https://en.wikipedia.org/wiki/Digamma_function>`_.
+
+    #TODO: implement!!
+
+    """
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError('BetaPolicyCrossEntropy')
 
 
 class ClippedSurrogateLoss(BasePolicyLoss):

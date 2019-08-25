@@ -1,15 +1,20 @@
 from abc import ABC, abstractmethod
+import warnings
 
 import numpy as np
 import tensorflow as tf
+import gym
+import scipy.stats
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..base.errors import MissingModelError
+from ..base.errors import MissingModelError, ActionSpaceError
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin, LoggerMixin
 from ..policies.base import BasePolicy
 from ..caching import NStepCache
-from ..losses import SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss
+from ..losses import (
+    SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss, BetaPolicyCrossEntropy,
+    BetaPolicyLoss)
 from ..utils import (
     project_onto_actions_np, softmax, argmax, check_numpy_array)
 
@@ -425,7 +430,7 @@ class BaseGenericQ(BaseFunctionApproximator, ActionSpaceMixin):
 
         """
         assert self.env.observation_space.contains(s)
-        pi = self.check_pi(pi)
+        pi = self.check_a_or_params(pi)
         self._cache.add(s, pi, r, done)
 
         # eager updates
@@ -906,9 +911,6 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
         self.entropy_bonus = float(entropy_bonus)
         self.random_seed = random_seed  # sets self.random in RandomStateMixin
 
-        # TODO: allow for non-discrete action spaces
-        self._actions = np.arange(self.num_actions)
-
     def __call__(self, s, use_target_model=False):
         """
         Draw an action from the current policy :math:`\\pi(a|s)`.
@@ -931,13 +933,18 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
             A single action proposed under the current policy.
 
         """
-        proba = self.proba(s, use_target_model=use_target_model)
-        a = self.random.choice(self._actions, p=proba)
+        p = self.dist_params(s, use_target_model=use_target_model)
+        a = self.random.choice(self.num_actions, p=p)
         return a
 
-    def proba(self, s, use_target_model=False):
+    def dist_params(self, s, use_target_model=False):
         """
-        Get the probabilities over all actions :math:`\\pi(a|s)`.
+
+        Get the parameters of the (conditional) probability distribution
+        :math:`\\pi(a|s)`. For a softmax policy, which is defined over a
+        discrete action space, the probability distribution is the `categorical
+        distribution
+        <https://en.wikipedia.org/wiki/Categorical_distribution>`_.
 
         Parameters
         ----------
@@ -952,20 +959,20 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
         Returns
         -------
-        pi : 1d array, shape: [num_actions]
+        params : 1d array, shape: [num_actions]
 
-            Probabilities over all actions.
-
-            **Note.** This hasn't yet been implemented for non-discrete action
-            spaces.
+            The parameters of the categorical distribution that describes the
+            policy :math:`\\pi(a|s)`. The parameters consist of a vector of
+            action propensities :math:`\\pi(.|s)\\in\\mathbb{R}^n`, where
+            :math:`n` is the number of actions.
 
         """
         assert self.env.observation_space.contains(s)
         S = np.expand_dims(s, axis=0)
         P = self.batch_eval(S, use_target_model=use_target_model)
         check_numpy_array(P, shape=(1, self.num_actions))
-        pi = np.squeeze(P, axis=0)
-        return pi
+        params = np.squeeze(P, axis=0)
+        return params
 
     def greedy(self, s, use_target_model=False):
         """
@@ -1064,10 +1071,11 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
             A batch of state observations.
 
-        P : 2d Tensor, dtype: int, shape: [batch_size]
+        P : 2d Tensor, shape: [batch_size, num_actions]
 
-            A batch of action propensities. :term:`P` is typically just an
-            indicator for which action was chosen by the behavior policy. In
+            A batch of distribution parameters :term:`P` of the behavior
+            policy. For discrete action spaces, this is typically just a
+            one-hot encoded version of a batch of taken actions :term:`A`. In
             this sense, :term:`P` acts as a projector more than a prediction
             target. That is, :term:`P` is used to project our predicted values
             down to those for which we actually received the feedback signal:
@@ -1103,6 +1111,252 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
         if self.update_strategy == 'cross_entropy':
             return keras.losses.CategoricalCrossentropy(from_logits=True)
+
+        raise ValueError(
+            "unknown update_strategy '{}'".format(self.update_strategy))
+
+
+class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
+    UPDATE_STRATEGIES = ('vanilla', 'ppo', 'cross_entropy')
+
+    def __init__(
+            self, env, train_model, predict_model, target_model,
+            update_strategy='vanilla',
+            ppo_clipping=0.2,
+            entropy_bonus=0.01,
+            random_seed=None):
+
+        if not isinstance(env.action_space, gym.spaces.Box):
+            raise ActionSpaceError(
+                "Beta policy is only implemented for Box action spaces")
+
+        self.env = env
+        self.train_model = train_model
+        self.predict_model = predict_model
+        self.target_model = target_model
+        self.update_strategy = update_strategy
+        self.ppo_clipping = float(ppo_clipping)
+        self.entropy_bonus = float(entropy_bonus)
+        self.random_seed = random_seed  # sets self.random in RandomStateMixin
+
+        # get Box dimensions
+        high, low = self.env.action_space.high, self.env.action_space.low
+        self._box_slope = (high - low) / 2.
+        self._box_intercept = (high + low) / 2.
+        if np.any(self._box_slope > 1e5):
+            msg = "The action space box seems to have very large dimension(s)"
+            warnings.warn(msg)
+            self.logger.warn(msg)
+
+    def __call__(self, s, use_target_model=False):
+        """
+        Draw an action from the current policy :math:`\\pi(a|s)`.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        a : action, shape: [actions_ndim]
+
+            A single action proposed under the current policy.
+
+        """
+        # apologies for overloading: beta (param) and scipy.stats.beta (dist)
+        alpha, beta = self.dist_params(s, use_target_model=use_target_model)
+        a_unit_interval = scipy.stats.beta(a=alpha, b=beta).rvs()
+
+        # scale from unit interval(s) to actual box size
+        high, low = self.env.action_space.high, self.env.action_space.low
+        a = (high - low) * a_unit_interval + low
+        return a
+
+    def dist_params(self, s, use_target_model=False):
+        """
+
+        Get the parameters of the (conditional) probability distribution
+        :math:`\\pi(a|s)`. For a Beta policy, which is defined over a bounded
+        continuous action space, the probability distribution is the `Beta
+        distribution <https://en.wikipedia.org/wiki/Beta_distribution>`_.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        alpha, beta : tuple of 1d arrays, each of shape: [actions_ndim]
+
+            The parameters of the Beta distribution(s). The Beta distribution
+            is defined over the unit interval :math:`[0,1]`. Thus, in order to
+            use these parameters to sample actions, we do need to rescale our
+            samples to the appropriate size of the action-space Box.
+
+        """
+        assert self.env.observation_space.contains(s)
+        S = np.expand_dims(s, axis=0)
+        P = self.batch_eval(S, use_target_model=use_target_model)
+        check_numpy_array(P, ndim=3, axis_size=1, axis=0)
+        check_numpy_array(P, axis_size=2, axis=1)
+        check_numpy_array(P, axis_size=self.actions_ndim, axis=2)
+        params = np.squeeze(P, axis=0)
+        return params
+
+    def greedy(self, s, use_target_model=False):
+        """
+        Draw the greedy action, i.e. :math:`\\arg\\max_a\\pi(a|s)`.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        a : action
+
+            A single action proposed under the current policy.
+
+        """
+        alpha, beta = self.dist_params(s, use_target_model=use_target_model)
+        if alpha < 1 or beta < 1:
+            mode = 0.5
+        else:
+            mode = (alpha - 1) / (alpha + beta - 2)
+        return mode
+
+    def update(self, s, a_or_params, advantage):
+        """
+        Update the policy.
+
+        Parameters
+        ----------
+        s : state observation
+
+            A single state observation.
+
+        a_or_params : action or distribution parameters
+
+            Either a single action taken under the behavior policy or a single
+            set of Beta-distribution parameters ``params = [alpha, beta]``.
+
+        advantage : float
+
+            A value for the advantage :math:`\\mathcal{A}(s,a) = q(s,a) -
+            v(s)`. This might be a sampled or otherwise estimated version of
+            the true advantage.
+
+        """
+        assert self.env.observation_space.contains(s)
+        params = self.check_a_or_params(a_or_params)
+
+        S = np.expand_dims(s, axis=0)
+        P = np.expand_dims(params, axis=0)
+        Adv = np.expand_dims(advantage, axis=0)
+        self.batch_update(S, P, Adv)
+
+    def batch_eval(self, S, use_target_model=False):
+        """
+        Evaluate the policy on a batch of state observations.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        use_target_model : bool, optional
+
+            Whether to use the :term:`target_model` internally. If False
+            (default), the :term:`predict_model` is used.
+
+        Returns
+        -------
+        P : 3d arrays, dtype: float, shape: [batch_size, 2, actions_ndim]
+
+            A batch of predicted distribution parameters :term:`P` of the
+            underlying `Beta distribution
+            <https://en.wikipedia.org/wiki/Beta_distribution>`_.
+
+        """
+        model = self.target_model if use_target_model else self.predict_model
+        P = model.predict_on_batch(S)
+        check_numpy_array(P, ndim=3, axis_size=2, axis=1)
+        check_numpy_array(P, axis_size=self.actions_ndim, axis=2)
+        return P
+
+    def batch_update(self, S, P, Adv):
+        """
+        Update the policy on a batch of transitions.
+
+        Parameters
+        ----------
+        S : nd array, shape: [batch_size, ...]
+
+            A batch of state observations.
+
+        P : 2d Tensor, shape: [batch_size, actions_ndim]
+
+            A batch of distribution parameters :term:`P` of the behavior
+            policy. For Box action spaces, this is essentially a batch of
+            parameters :math:`(\\alpha_t, \\beta_t)`, one for each state
+            :math:`S_t`. Similar to the case of discrete action spaces,
+            :term:`P` acts more as a projector than a prediction target.
+
+        Adv : 1d array, dtype: float, shape: [batch_size]
+
+            A value for the :term:`advantage <Adv>` :math:`\\mathcal{A}(s,a) =
+            q(s,a) - v(s)`. This might be sampled and/or estimated version of
+            the true advantage.
+
+        Returns
+        -------
+        losses : dict
+
+            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
+
+        """
+        check_numpy_array(P, ndim=3, axis_size=2, axis=1)
+        check_numpy_array(P, axis_size=self.actions_ndim, axis=2)
+        losses = self._train_on_batch([S, Adv], P)
+        return losses
+
+    def _policy_loss(self, Adv, Z_target=None):
+        if self.update_strategy == 'vanilla':
+            return BetaPolicyLoss(
+                Adv, entropy_bonus=self.entropy_bonus,
+                use_alternative_representation=True)
+
+        if self.update_strategy == 'ppo':
+            assert Z_target is not None
+            return ClippedSurrogateLoss(
+                Adv, Z_target, entropy_bonus=self.entropy_bonus,
+                epsilon=self.ppo_clipping, policy_type='beta',
+                use_alternative_representation=True)
+
+        if self.update_strategy == 'cross_entropy':
+            return BetaPolicyCrossEntropy(use_alternative_representation=True)
 
         raise ValueError(
             "unknown update_strategy '{}'".format(self.update_strategy))

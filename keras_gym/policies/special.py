@@ -1,4 +1,6 @@
-from ..base.errors import UnavailableActionError
+import numpy as np
+
+from ..base.errors import UnavailableActionError, ActionSpaceError
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin
 from ..policies.base import BasePolicy
 
@@ -33,8 +35,18 @@ class RandomPolicy(BasePolicy, RandomStateMixin, ActionSpaceMixin):
     def greedy(self, s):
         return self(s)
 
-    def proba(self, s):
-        return 1.0 / self.num_actions
+    def dist_params(self, s):
+        if self.action_space_is_discrete:
+            return np.ones(self.num_actions) / self.num_actions
+
+        if self.action_space_is_box:
+            # use so-called Bayes' prior on the Beta dist (yields uniform dist)
+            return np.ones(self.actions_ndim), np.ones(self.actions_ndim)
+
+        raise ActionSpaceError(
+            "method RandomPolicy.dist_params() is not yet implemented for "
+            "action spaces of type: {}"
+            .format(self.env.action_space.__class__.__name__))
 
 
 class UserInputPolicy(BasePolicy, ActionSpaceMixin):
@@ -76,6 +88,6 @@ class UserInputPolicy(BasePolicy, ActionSpaceMixin):
     def greedy(self, s):
         return self(s)
 
-    def proba(self, s):
-        raise NotImplementedError('UserInputPolicy.proba')
-    proba.__doc__ = ""
+    def dist_params(self, s):
+        raise NotImplementedError('UserInputPolicy.dist_params')
+    dist_params.__doc__ = ""

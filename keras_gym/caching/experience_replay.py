@@ -108,7 +108,7 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             bootstrap_n=value_function.bootstrap_n)
         return self
 
-    def add(self, s, pi, r, done, episode_id):
+    def add(self, s, a_or_params, r, done, episode_id):
         """
         Add a transition to the experience replay buffer.
 
@@ -118,13 +118,15 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
 
             A single state observation.
 
-        pi : int or 1d array, shape: [num_actions]
+        a_or_params : action or distribution parameters
 
-            Vector of action propensities under the behavior policy. This may
-            be just an indicator if the action propensities are inferred
-            through sampling. For instance, let's say our action space is
-            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
-            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+            Either a single action taken under the behavior policy or a single
+            set of distribution parameters describing the behavior policy
+            :math:`b(a|s)`. See also the glossary entry for :term:`P`.
+
+            For instance, let's say our action space is :class:`Discrete(4)`,
+            then passing ``a_or_params = 2`` is equivalent to passing
+            ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
             :math:`a=2` was drawn from the behavior policy.
 
         r : float
@@ -142,7 +144,7 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
 
         """
         s = self._extract_last_frame(s)
-        pi = self.check_pi(pi)
+        params = self.check_a_or_params(a_or_params)
 
         if not self._initialized:
             self._s_shape = s.shape
@@ -150,7 +152,7 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             self._init_cache()
 
         self._s[self._i] = s
-        self._p[self._i] = pi
+        self._p[self._i] = params
         self._r[self._i] = r
         self._d[self._i] = done
         self._e[self._i] = episode_id

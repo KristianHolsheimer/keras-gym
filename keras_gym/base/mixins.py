@@ -60,7 +60,7 @@ class RandomStateMixin:
 
 class ActionSpaceMixin:
     @property
-    def action_space_is_continuous(self):
+    def action_space_is_box(self):
         return isinstance(self.env.action_space, gym.spaces.Box)
 
     @property
@@ -68,14 +68,18 @@ class ActionSpaceMixin:
         return isinstance(self.env.action_space, gym.spaces.Discrete)
 
     @property
-    def action_shape(self):
-        if not hasattr(self, '_action_shape'):
-            if not self.action_space_is_continuous:
+    def actions_shape(self):
+        if not hasattr(self, '_actions_shape'):
+            if not self.action_space_is_box:
                 raise ActionSpaceError(
-                    "action_shape attribute is inaccesible; does the env "
-                    "have a continuous action space?")
-            self._action_shape = self.env.action_space.shape
-        return self._action_shape
+                    "actions_shape attribute is inaccesible; does the env "
+                    "have a Box action space?")
+            self._actions_shape = self.env.action_space.shape
+        return self._actions_shape
+
+    @property
+    def actions_ndim(self):
+        return len(self.actions_shape) or 1
 
     @property
     def num_actions(self):
@@ -83,40 +87,68 @@ class ActionSpaceMixin:
             if not self.action_space_is_discrete:
                 raise ActionSpaceError(
                     "num_actions attribute is inaccesible; does the env have "
-                    "a discrete action space?")
+                    "a Discrete action space?")
             self._num_actions = self.env.action_space.n
         return self._num_actions
 
-    def check_pi(self, pi):
+    def check_a_or_params(self, a_or_params):
         """
         Check if input ``pi`` is either a valid vector of action propensities.
         If ``pi`` is an integer, this will return a one-hot encoded version.
 
         Parameters
         ----------
-        pi : int or 1d array, shape: [num_actions]
+        a_or_params : action or distribution parameters
 
-            Vector of action propensities under the behavior policy. This may
-            be just an indicator if the action propensities are inferred
-            through sampling. For instance, let's say our action space is
-            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
-            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+            Either a single action taken under the behavior policy or a single
+            set of distribution parameters describing the behavior policy
+            :math:`b(a|s)`. See also the glossary entry for :term:`P`.
+
+            For instance, let's say our action space is :class:`Discrete(4)`,
+            then passing ``a_or_params = 2`` is equivalent to passing
+            ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
             :math:`a=2` was drawn from the behavior policy.
 
         Returns
         -------
-        pi : 1d array, shape: [num_actions]
+        params : nd array
 
-            Vector of action propensities under the behavior policy. If the
-            input ``pi`` is an integer, the output will be a one-hot encoded
-            vector.
+            A single set of distribution parameters describing the behavior
+            policy :math:`b(a|s)`. This is either same or derived from the
+            input.
 
         """
-        if isinstance(pi, (int, np.integer)):
-            assert self.env.action_space.contains(pi)
-            pi = one_hot(pi, self.num_actions)
-        check_numpy_array(pi, ndim=1, axis_size=self.num_actions, axis=0)
-        return pi
+        if self.action_space_is_discrete:
+
+            if self.env.action_space.contains(a_or_params):
+                assert self.env.action_space.contains(a_or_params)
+                # assume Categorical distribution
+                params = one_hot(a_or_params, self.num_actions)
+            else:
+                check_numpy_array(
+                    a_or_params, ndim=1, axis_size=self.num_actions, axis=0)
+                params = a_or_params
+
+        elif self.action_space_is_box:
+
+            if self.env.action_space.contains(a_or_params):
+                assert self.env.action_space.contains(a_or_params)
+                # assume Beta distribution
+                p = a_or_params  # p == alpha / (alpha + beta)
+                n = 1e4          # n == alpha + beta
+                params = p * n, (1 - p) * n
+            else:
+                check_numpy_array(
+                    a_or_params, ndim=1, axis_size=self.actions_ndim, axis=0)
+                params = a_or_params
+
+        else:
+            raise ActionSpaceError(
+                "check_a_or_params() hasn't yet been implemented for action "
+                "spaces of type: {}"
+                .format(self.env.action_space.__class__.__name__))
+
+        return params
 
 
 class AddOrigStateToInfoDictMixin:

@@ -19,7 +19,7 @@ class BaseShortTermCache(ABC, ActionSpaceMixin):
         self.env = env
 
     @abstractmethod
-    def add(self, s, pi, r, done):
+    def add(self, s, a_or_params, r, done):
         """
         Add a transition to the experience cache.
 
@@ -29,13 +29,15 @@ class BaseShortTermCache(ABC, ActionSpaceMixin):
 
             A single state observation.
 
-        pi : int or 1d array, shape: [num_actions]
+        a_or_params : action or distribution parameters
 
-            Vector of action propensities under the behavior policy. This may
-            be just an indicator if the action propensities are inferred
-            through sampling. For instance, let's say our action space is
-            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
-            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+            Either a single action taken under the behavior policy or a single
+            set of distribution parameters describing the behavior policy
+            :math:`b(a|s)`. See also the glossary entry for :term:`P`.
+
+            For instance, let's say our action space is :class:`Discrete(4)`,
+            then passing ``a_or_params = 2`` is equivalent to passing
+            ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
             :math:`a=2` was drawn from the behavior policy.
 
         r : float
@@ -114,13 +116,13 @@ class NStepCache(BaseShortTermCache):
         self._gammas = np.power(self.gamma, np.arange(self.n))
         self._gamman = np.power(self.gamma, self.n)
 
-    def add(self, s, pi, r, done):
+    def add(self, s, a_or_params, r, done):
         if self._done and len(self):
             raise EpisodeDoneError(
                 "please flush cache (or repeatedly call popleft) before "
                 "appending new transitions")
-        pi = self.check_pi(pi)
-        self._deque_sa.append((s, pi))
+        params = self.check_a_or_params(a_or_params)
+        self._deque_sa.append((s, params))
         self._deque_r.append(r)
         self._done = bool(done)
 
@@ -247,14 +249,14 @@ class MonteCarloCache(BaseShortTermCache):
         self._done = False
         self._g = 0  # accumulator for return
 
-    def add(self, s, pi, r, done):
+    def add(self, s, a_or_params, r, done):
         if self._done and len(self):
             raise EpisodeDoneError(
                 "please flush cache (or repeatedly pop) before appending new "
                 "transitions")
 
-        pi = self.check_pi(pi)
-        self._list.append((s, pi, r))
+        params = self.check_a_or_params(a_or_params)
+        self._list.append((s, params, r))
         self._done = bool(done)
         if done:
             self._g = 0.  # init return

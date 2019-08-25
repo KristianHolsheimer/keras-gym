@@ -51,7 +51,7 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
     def _cache(self):
         return self.value_function._cache
 
-    def update(self, s, pi, r, done):
+    def update(self, s, a_or_params, r, done):
         """
         Update both actor and critic.
 
@@ -61,13 +61,16 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
             A single state observation.
 
-        pi : int or 1d array, shape: [num_actions]
 
-            Vector of action propensities under the behavior policy. This may
-            be just an indicator if the action propensities are inferred
-            through sampling. For instance, let's say our action space is
-            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
-            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
+        a_or_params : action or distribution parameters
+
+            Either a single action taken under the behavior policy or a single
+            set of distribution parameters describing the behavior policy
+            :math:`b(a|s)`. See also the glossary entry for :term:`P`.
+
+            For instance, let's say our action space is :class:`Discrete(4)`,
+            then passing ``a_or_params = 2`` is equivalent to passing
+            ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
             :math:`a=2` was drawn from the behavior policy.
 
         r : float
@@ -80,8 +83,8 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
         """
         assert self.env.observation_space.contains(s)
-        pi = self.check_pi(pi)
-        self._cache.add(s, pi, r, done)
+        params = self.check_a_or_params(a_or_params)
+        self._cache.add(s, params, r, done)
 
         # eager updates
         while self._cache:
