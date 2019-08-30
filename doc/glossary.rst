@@ -185,6 +185,13 @@ inputs/outputs to our keras models.
         the underlying `Beta distribution
         <https://en.wikipedia.org/wiki/Beta_distribution>`_.
 
+    Z
+
+        Similar to :term:`P`, this is a batch of distribution parameters. In
+        contrast to :term:`P`, however, :term:`Z` represents the primary
+        updateable policy :math:`\pi(a|s)` instead of the behavior/target
+        policy :math:`b(a|s)`.
+
     G
 
         A batch of (:math:`\gamma`-discounted) returns, shape:
@@ -250,8 +257,3 @@ inputs/outputs to our keras models.
 
         A batch of advantages :math:`\mathcal{A}(s,a) = q(s,a) - v(s)`, which
         has shape: ``[batch_size]``.
-
-    Z
-
-        A batch of logits, typically used in softmax policies. The expected
-        shape is: ``[batch_size, num_actions]``.
