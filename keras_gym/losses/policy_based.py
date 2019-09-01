@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from .base import BaseLoss, BasePolicyLoss
-from ..utils import check_tensor, log_softmax_tf, cross_entropy, entropy
+from ..utils import check_tensor, proba_ratio, log_pi, entropy
 
 
 __all__ = (
@@ -59,15 +59,19 @@ class VanillaPolicyLoss(BasePolicyLoss):
         check_tensor(Z, axis_size=batch_size, axis=0)
         check_tensor(P, ndim=K.ndim(Z))
 
-        # get unaggregated cross-entropy: H_cross = -b(a|s) * log pi(a|s)
-        H_cross = cross_entropy(P, Z, self.dist_id)
-        check_tensor(H_cross, ndim=2, axis_size=batch_size, axis=0)
+        # log(pi(a|s))
+        logpi = K.sum(log_pi(P, Z, self.dist_id), axis=1)
+        check_tensor(logpi, ndim=1, axis_size=batch_size, axis=0)
 
-        # aggregate over actions
-        loss = K.mean(H_cross * self.Adv, axis=1)
+        # vanilla policy loss
+        loss = -self.Adv * logpi
 
-        # add entropy to loss
-        loss += self.entropy_bonus * entropy(Z, self.dist_id)
+        # entropy H[pi]
+        H = K.sum(entropy(Z, self.dist_id), axis=1)
+        check_tensor(H, ndim=1, axis_size=batch_size, axis=0)
+
+        # add entropy bonus (notice minus sign)
+        loss = loss - self.entropy_bonus * H
 
         return K.mean(loss)  # aggregate of samples in batch
 
@@ -133,37 +137,30 @@ class ClippedSurrogateLoss(BasePolicyLoss):
             epsilon=0.2):
 
         super().__init__(dist_id, Adv, entropy_bonus=entropy_bonus)
-        self.epsilon = float(epsilon)
 
-        check_tensor(Z_target, ndim=2)
-        self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
+        self.epsilon = float(epsilon)
+        self.Z_target = K.stop_gradient(Z_target)
 
     def __call__(self, P, Z, sample_weight=None):
         batch_size = K.int_shape(self.Adv)[0]
 
-        if self.dist_id == 'categorical':
+        # construct probability ratio, r = pi / pi_old
+        r = K.sum(proba_ratio(P, Z, self.Z_target, self.dist_id), axis=1)
+        r_clipped = K.clip(r, 1 - self.epsilon, 1 + self.epsilon)
+        check_tensor(r, ndim=1, axis_size=batch_size, axis=0)
+        check_tensor(r_clipped, ndim=1, axis_size=batch_size, axis=0)
 
-            # check shapes
-            check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
-            check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
+        # construct the final clipped surrogate loss (notice minus sign)
+        loss = -K.minimum(r * self.Adv, r_clipped * self.Adv)
 
-            # construct probability ratio, r = pi / pi_old
-            logpi = log_softmax_tf(Z)
-            r = K.exp(logpi - self.logpi_old)  # shape: [batch_size, num_actions]
-            r = tf.einsum('ij,ij->i', r, P)    # shape: [batch_size]
+        # entropy H[pi]
+        H = K.sum(entropy(Z, self.dist_id), axis=1)
+        check_tensor(H, ndim=1, axis_size=batch_size, axis=0)
 
-            # construct the final clipped surrogate loss (notice minus sign)
-            L_clip = -K.mean(K.minimum(
-                r * self.Adv,
-                K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
+        # add entropy bonus (notice minus sign)
+        loss = loss - self.entropy_bonus * H
 
-            # entropy bonus term (notice minus sign)
-            L_entropy = -self.entropy_bonus * PolicyEntropy()(None, Z)
-
-            return L_clip + L_entropy
-
-        raise NotImplementedError(
-            "ClippedSurrogateLoss(dist_id='{}', ...)".format(self.dist_id))
+        return K.mean(loss)
 
 
 class PolicyKLDivergence(BaseLoss):
