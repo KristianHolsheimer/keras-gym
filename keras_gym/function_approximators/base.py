@@ -24,6 +24,7 @@ __all__ = (
     'BaseQTypeI',
     'BaseQTypeII',
     'BaseSoftmaxPolicy',
+    'BaseBetaPolicy',
 )
 
 
@@ -894,6 +895,7 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
     """
     UPDATE_STRATEGIES = ('vanilla', 'ppo', 'cross_entropy')
+    DIST = 'categorical'
 
     def __init__(
             self, env, train_model, predict_model, target_model,
@@ -1118,6 +1120,7 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
 class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
     UPDATE_STRATEGIES = ('vanilla', 'ppo', 'cross_entropy')
+    DIST = 'beta'
 
     def __init__(
             self, env, train_model, predict_model, target_model,
@@ -1212,10 +1215,10 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         S = np.expand_dims(s, axis=0)
         P = self.batch_eval(S, use_target_model=use_target_model)
         check_numpy_array(P, ndim=3, axis_size=1, axis=0)
-        check_numpy_array(P, axis_size=2, axis=1)
-        check_numpy_array(P, axis_size=self.actions_ndim, axis=2)
+        check_numpy_array(P, axis_size=2, axis=2)
+        check_numpy_array(P, axis_size=self.actions_ndim, axis=1)
         params = np.squeeze(P, axis=0)
-        return params
+        return params[:, 0], params[:, 1]  # alpha, beta
 
     def greedy(self, s, use_target_model=False):
         """
@@ -1302,8 +1305,8 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         """
         model = self.target_model if use_target_model else self.predict_model
         P = model.predict_on_batch(S)
-        check_numpy_array(P, ndim=3, axis_size=2, axis=1)
-        check_numpy_array(P, axis_size=self.actions_ndim, axis=2)
+        check_numpy_array(P, ndim=3, axis_size=2, axis=2)
+        check_numpy_array(P, axis_size=self.actions_ndim, axis=1)
         return P
 
     def batch_update(self, S, P, Adv):

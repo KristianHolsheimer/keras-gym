@@ -196,6 +196,12 @@ class ClippedSurrogateLoss(BasePolicyLoss):
 
     Parameters
     ----------
+    policy_distribution : string
+
+        The distribution that is used to model the policy. These should be
+        provided as the ``DIST`` class attributes of updateable policy objects.
+        For example, ``SoftmaxPolicy.DIST == 'categorical'`` and
+        ``BetaPolicy.DIST == 'beta'``.
 
     Adv : 1d Tensor, dtype: float, shape: [batch_size]
 
@@ -217,7 +223,11 @@ class ClippedSurrogateLoss(BasePolicyLoss):
         Hyperparameter that determines how we clip the surrogate loss.
 
     """
-    def __init__(self, Adv, Z_target, entropy_bonus=0.01, epsilon=0.2):
+    def __init__(
+            self, policy_distribution, Adv, Z_target,
+            entropy_bonus=0.01,
+            epsilon=0.2):
+
         super().__init__(Adv, entropy_bonus=entropy_bonus)
         self.epsilon = float(epsilon)
 

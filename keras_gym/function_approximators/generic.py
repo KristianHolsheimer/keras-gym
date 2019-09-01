@@ -3,12 +3,14 @@ from abc import abstractmethod
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
+from tensorflow.math import lbeta, digamma
 
-from ..utils import check_tensor
+from ..utils import check_tensor, log_softmax_tf
 from ..base.mixins import ActionSpaceMixin
 from ..base.errors import ActionSpaceError
 from ..losses import Huber, ProjectedSemiGradientLoss
-from .base import BaseV, BaseQTypeI, BaseQTypeII, BaseSoftmaxPolicy
+from .base import (
+    BaseV, BaseQTypeI, BaseQTypeII, BaseSoftmaxPolicy, BaseBetaPolicy)
 from .actor_critic import ActorCritic
 
 
@@ -18,6 +20,7 @@ __all__ = (
     'QTypeI',
     'QTypeII',
     'SoftmaxPolicy',
+    'BetaPolicy',
     'ConjointActorCritic',
 )
 
@@ -565,6 +568,10 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
     """
 
     An :term:`updateable policy` for environments with a discrete action space.
+    It models the policy :math:`\\pi_\\theta(a|s)` as a `Categorical
+    distribution <https://en.wikipedia.org/wiki/Categorical_distribution>`_
+    with parameters :math:`\\textbf{p}_\\theta\\in\\mathbb{R}^n`, where
+    :math:`n` is the number of actions.
 
     Parameters
     ----------
@@ -694,8 +701,155 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
         self.target_model = keras.Model(inputs=S, outputs=Z_target)
 
 
-class GaussianPolicy(BaseSoftmaxPolicy):
-    pass
+class BetaPolicy(BaseBetaPolicy):
+    """
+
+    An :term:`updateable policy` for environments with a bounded continuous
+    action space, i.e. a :class:`Box <gym.spaces.Box>`. It models the policy
+    :math:`\\pi_\\theta(a|s)` as a Beta distribution with parameters
+    :math:`(\\alpha_\\theta, \\beta_\\theta)`.
+
+    Parameters
+    ----------
+    function_approximator : FunctionApproximator object
+
+        The main :term:`function approximator`.
+
+    update_strategy : str, optional
+
+        The strategy for updating our policy. This typically determines the
+        loss function that we use for our policy function approximator.
+
+        Options are:
+
+            'vanilla'
+                Plain vanilla policy gradient. The corresponding (surrogate)
+                loss function that we use is:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ \\hat{\\mathbb{E}}_t
+                        \\left\\{
+                            -\\mathcal{A}_t\\,\\log\\pi_\\theta(A_t|S_t)
+                        \\right\\}
+
+                where :math:`\\mathcal{A}_t=\\mathcal{A}(S_t,A_t)` is the
+                advantage at time step :math:`t`.
+
+            'ppo'
+                `Proximal policy optimization
+                <https://arxiv.org/abs/1707.06347>`_ uses a clipped proximal
+                loss:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ \\hat{\\mathbb{E}}_t
+                        \\left\\{
+                            \\min\\Big(
+                                \\rho_t(\\theta)\\,\\mathcal{A}_t\\,,\\
+                                \\tilde{\\rho}_t(\\theta)\\,\\mathcal{A}_t
+                            \\Big)
+                        \\right\\}
+
+                where :math:`\\rho_t(\\theta)` is the probability ratio:
+
+                .. math::
+
+                    \\rho_t(\\theta)\\ =\\ \\frac
+                        {\\pi_\\theta(A_t|S_t)}
+                        {\\pi_{\\theta_\\text{old}}(A_t|S_t)}
+
+                and :math:`\\tilde{\\rho}_t(\\theta)` is its clipped version:
+
+                .. math::
+
+                    \\tilde{\\rho}_t(\\theta)\\ =\\ \\text{clip}\\big(
+                            \\rho_t(\\theta), 1-\\epsilon, 1+\\epsilon\\big)
+
+            'cross_entropy'
+                Straightforward categorical cross-entropy (from logits). This
+                loss function does *not* make use of the advantages
+                :term:`Adv`. Instead, it minimizes the cross entropy between
+                the behavior policy :math:`\\pi_b(a|s)` and the learned policy
+                :math:`\\pi_\\theta(a|s)`:
+
+                .. math::
+
+                    J(\\theta)\\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
+                        -\\sum_a \\pi_b(a|S_t)\\, \\log \\pi_\\theta(a|S_t)
+                    \\right\\}
+
+    ppo_clipping : float, optional
+
+        The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
+        loss. This option is only applicable if ``update_strategy='ppo'``.
+
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
+    """
+    def __init__(
+            self, function_approximator,
+            update_strategy='ppo',
+            ppo_clipping=0.2,
+            entropy_bonus=0.01):
+
+        super().__init__(
+            env=function_approximator.env,
+            update_strategy=update_strategy,
+            ppo_clipping=ppo_clipping,
+            entropy_bonus=entropy_bonus,
+            train_model=None,  # set models later
+            predict_model=None,
+            target_model=None)
+
+        if not self.action_space_is_discrete:
+            raise ActionSpaceError(
+                "SoftmaxPolicy is incompatible with non-discrete action "
+                "spaces; please use GaussianPolicy instead")
+
+        self.function_approximator = function_approximator
+        self._init_models()
+        self._check_attrs()
+
+    def forward_pass(self, S, variable_scope):
+        assert variable_scope in ('primary', 'target')
+        X = self.function_approximator.body(S, variable_scope)
+        Z = self.function_approximator.head_pi(X, variable_scope)
+
+        if hasattr(self, 'available_actions_mask'):
+            check_tensor(self.available_actions_mask, ndim=2, dtype='bool')
+            # set logits to large negative values for unavailable actions
+            Z = keras.layers.Lambda(
+                lambda Z: K.switch(
+                    self._available_actions, Z, -1e3 * K.ones_like(Z)),
+                name=(variable_scope + '/policy/masked'))(Z)
+
+        return Z
+
+    def _init_models(self):
+        shape = self.env.observation_space.shape
+        dtype = self.env.observation_space.dtype
+
+        S = keras.Input(name='policy/S', shape=shape, dtype=dtype)
+        Adv = keras.Input(name='policy/Adv', shape=(), dtype='float')
+
+        # computation graph
+        Z = self.forward_pass(S, variable_scope='primary')
+        Z_target = self.forward_pass(S, variable_scope='target')
+        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        check_tensor(Z_target, ndim=2, axis_size=self.num_actions, axis=1)
+
+        # loss and target tensor (depends on self.update_strategy)
+        loss = self._policy_loss(Adv, Z_target)
+
+        # models
+        self.train_model = keras.Model(inputs=[S, Adv], outputs=Z)
+        self.train_model.compile(
+            loss=loss, optimizer=self.function_approximator.optimizer)
+        self.predict_model = keras.Model(inputs=S, outputs=Z)
+        self.target_model = keras.Model(inputs=S, outputs=Z_target)
 
 
 class ConjointActorCritic(ActorCritic):
