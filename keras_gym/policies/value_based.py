@@ -67,7 +67,7 @@ class EpsilonGreedy(BasePolicy, RandomStateMixin):
         a = argmax(Q)
         return a
 
-    def proba(self, s):
+    def dist_params(self, s):
         Q = self.q_function(s)  # shape: [num_actions]
         a = argmax(Q)
         n = self.q_function.num_actions

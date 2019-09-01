@@ -352,7 +352,7 @@ class MCTSNode(ActionSpaceMixin, RandomStateMixin):
         if self.is_terminal:
             raise EpisodeDoneError("cannot expand further; episode is done")
 
-        self.P, v = self.actor_critic.proba(self.state)
+        self.P, v = self.actor_critic.dist_params(self.state)
         if self.v is None:
             self.v = float(v)
 

@@ -9,7 +9,6 @@ __all__ = (
     'ClippedSurrogateLoss',
     'PolicyEntropy',
     'PolicyKLDivergence',
-    'SoftmaxPolicyLossWithLogits',
     'VanillaPolicyLoss',
 )
 
@@ -40,6 +39,10 @@ class VanillaPolicyLoss(BasePolicyLoss):
 
     Parameters
     ----------
+    dist_id : str
+
+        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
+        a softmax policy or a Beta policy, respectively.
 
     Adv : 1d Tensor, dtype: float, shape: [batch_size]
 
@@ -60,123 +63,13 @@ class VanillaPolicyLoss(BasePolicyLoss):
         H_cross = cross_entropy(P, Z, self.dist_id)
         check_tensor(H_cross, ndim=2, axis_size=batch_size, axis=0)
 
-        # aggregate over actions (is proper cross-entropy now)
-        H_cross = K.mean(H_cross, axis=1)
+        # aggregate over actions
+        loss = K.mean(H_cross * self.Adv, axis=1)
 
-        # get policy entropy
-        H = entropy(Z, self.dist_id)
+        # add entropy to loss
+        loss += self.entropy_bonus * entropy(Z, self.dist_id)
 
-        # combined loss
-        loss = self.Adv * H_cross + self.entropy_bonus * H
-
-        return K.mean(loss)
-
-
-class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
-    """
-    Softmax-policy loss (with logits).
-
-    This class provides a stateful implementation of a keras-compatible loss
-    function that requires more input than just ``y_true`` and ``y_pred``. The
-    required state that this loss function depends on is a batch of so-called
-    *advantages* :math:`\\mathcal{A}(s, a)`, which are essentially shifted
-    returns, cf. Chapter 13 of `Sutton & Barto
-    <http://incompleteideas.net/book/the-book-2nd.html>`_. The advantage
-    function is often defined as :math:`\\mathcal{A}(s, a) = q(s, a) - v(s)`.
-    The baseline function :math:`v(s)` can be anything you like; a common
-    choice is :math:`v(s) = \\sum_a\\pi(a|s)\\,q(s,a)`, in which case
-    :math:`\\mathcal{A}(s, a)` is a proper advantage function with vanishing
-    expectation value.
-
-    This loss function is actually a surrogate loss function defined in such a
-    way that its gradient is the same as what one would get by taking a true
-    policy gradient.
-
-    Parameters
-    ----------
-
-    Adv : 1d Tensor, dtype: float, shape: [batch_size]
-
-        The advantages, one for each time step.
-
-    entropy_bonus : float, optional
-
-        The coefficient of the entropy bonus term in the policy objective.
-
-    """
-    @staticmethod
-    def logpi_surrogate(Z):
-        """
-        Construct a surrogate for :math:`\\log\\pi(a|s)` that has the property
-        that when we take its gradient it returns the true gradients
-        :math:`\\nabla\\log\\pi(a|s)`. In a softmax policy we predict the input
-        (or logit) :math:`h(s, a, \\theta)` of the softmax function, such that:
-
-        .. math::
-
-            \\pi_\\theta(a|s)\\ =\\ \\frac
-                {\\text{e}^{h_\\theta(s,a)}}
-                {\\sum_{a'}\\text{e}^{h_\\theta(s,a')}}
-
-        This means that gradient of the log-policy with respect to the model
-        weights :math:`\\theta` is:
-
-        .. math::
-
-            \\nabla\\log\\pi_\\theta(a|s)\\ =\\ \\nabla h_\\theta(s,a)
-            - \\sum_{a'}\\pi_\\theta(a'|s)\\,\\nabla h_\\theta(s,a')
-
-        Now this function will actually return the following surrogate for
-        :math:`\\log\\pi_\\theta(a|s)`:
-
-        .. math::
-
-            \\texttt{logpi_surrogate}\\ =\\ h_\\theta(s,a) -
-            \\sum_{a'}\\texttt{stop_gradient}(\\pi_\\theta(a'|s))\\,
-            h_\\theta(s,a')
-
-        This surrogate has the property that its gradient is the same as the
-        gradient of :math:`\\log\\pi_\\theta(a|s)`.
-
-
-        Parameters
-        ----------
-        Z : 2d Tensor, shape: [batch_size, num_actions]
-
-            The predicted logits of the softmax policy, a.k.a. ``y_pred``.
-
-        Returns
-        -------
-        logpi_surrogate : Tensor, same shape as input
-
-            The surrogate for :math:`\\log\\pi_\\theta(a|s)`.
-
-        """
-        check_tensor(Z, ndim=2)
-        pi = K.stop_gradient(K.softmax(Z, axis=1))
-        Z_mean = K.expand_dims(tf.einsum('ij,ij->i', pi, Z), axis=1)
-        return Z - Z_mean
-
-    def __call__(self, P, Z, sample_weight=None):
-        batch_size = K.int_shape(self.Adv)[0]
-
-        # check shapes
-        check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
-        check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
-
-        # construct the surrogate for logpi(.|s)
-        logpi_all = self.logpi_surrogate(Z)  # [batch_size, num_actions]
-
-        # project onto actions taken: logpi(.|s) --> logpi(a|s)
-        logpi = tf.einsum('ij,ij->i', logpi_all, P)  # shape: [batch_size]
-
-        # construct the final surrogate loss
-        surrogate_loss = -K.mean(self.Adv * logpi)
-
-        # entropy bonus term (notice minus sign)
-        L_entropy = -self.entropy_bonus * PolicyEntropy()(P, Z)
-
-        return surrogate_loss + L_entropy
+        return K.mean(loss)  # aggregate of samples in batch
 
 
 class ClippedSurrogateLoss(BasePolicyLoss):
@@ -209,12 +102,10 @@ class ClippedSurrogateLoss(BasePolicyLoss):
 
     Parameters
     ----------
-    policy_distribution : string
+    dist_id : str
 
-        The distribution that is used to model the policy. These should be
-        provided as the ``DIST`` class attributes of updateable policy objects.
-        For example, ``SoftmaxPolicy.DIST == 'categorical'`` and
-        ``BetaPolicy.DIST == 'beta'``.
+        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
+        a softmax policy or a Beta policy, respectively.
 
     Adv : 1d Tensor, dtype: float, shape: [batch_size]
 
@@ -237,11 +128,11 @@ class ClippedSurrogateLoss(BasePolicyLoss):
 
     """
     def __init__(
-            self, policy_distribution, Adv, Z_target,
+            self, dist_id, Adv, Z_target,
             entropy_bonus=0.01,
             epsilon=0.2):
 
-        super().__init__(Adv, entropy_bonus=entropy_bonus)
+        super().__init__(dist_id, Adv, entropy_bonus=entropy_bonus)
         self.epsilon = float(epsilon)
 
         check_tensor(Z_target, ndim=2)
@@ -250,24 +141,29 @@ class ClippedSurrogateLoss(BasePolicyLoss):
     def __call__(self, P, Z, sample_weight=None):
         batch_size = K.int_shape(self.Adv)[0]
 
-        # check shapes
-        check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
-        check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
+        if self.dist_id == 'categorical':
 
-        # construct probability ratio, r = pi / pi_old
-        logpi = log_softmax_tf(Z)
-        r = K.exp(logpi - self.logpi_old)  # shape: [batch_size, num_actions]
-        r = tf.einsum('ij,ij->i', r, P)    # shape: [batch_size]
+            # check shapes
+            check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
+            check_tensor(Z, ndim=2, axis_size=batch_size, axis=0)
 
-        # construct the final clipped surrogate loss (notice minus sign)
-        L_clip = -K.mean(K.minimum(
-            r * self.Adv,
-            K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
+            # construct probability ratio, r = pi / pi_old
+            logpi = log_softmax_tf(Z)
+            r = K.exp(logpi - self.logpi_old)  # shape: [batch_size, num_actions]
+            r = tf.einsum('ij,ij->i', r, P)    # shape: [batch_size]
 
-        # entropy bonus term (notice minus sign)
-        L_entropy = -self.entropy_bonus * PolicyEntropy()(None, Z)
+            # construct the final clipped surrogate loss (notice minus sign)
+            L_clip = -K.mean(K.minimum(
+                r * self.Adv,
+                K.clip(r, 1 - self.epsilon, 1 + self.epsilon) * self.Adv))
 
-        return L_clip + L_entropy
+            # entropy bonus term (notice minus sign)
+            L_entropy = -self.entropy_bonus * PolicyEntropy()(None, Z)
+
+            return L_clip + L_entropy
+
+        raise NotImplementedError(
+            "ClippedSurrogateLoss(dist_id='{}', ...)".format(self.dist_id))
 
 
 class PolicyKLDivergence(BaseLoss):

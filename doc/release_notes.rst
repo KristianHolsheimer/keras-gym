@@ -1,6 +1,14 @@
 Release Notes
 =============
 
+v0.2.16
+-------
+
+Major update: support Box action spaces.
+
+- replaced :class:`SoftmaxPolicyLossWithLogits` by the more general :class:`VanillaPolicyLoss <keras_gym.losses.VanillaPolicyLoss>`
+
+
 v0.2.15
 -------
 

@@ -68,7 +68,7 @@ for t in range(num_steps):
 
     # print individual action probabilities
     print("  v(s) = {:.3f}".format(v(s)))
-    for i, p in enumerate(pi.proba(s)):
+    for i, p in enumerate(pi.dist_params(s)):
         print("  π({:s}|s) = {:.3f}".format(actions[i], p))
 
     a = pi.greedy(s)

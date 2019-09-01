@@ -28,7 +28,7 @@ cache = km.caching.MonteCarloCache(env, gamma=0.99)
 
 
 # static parameters
-num_episodes = 1000
+num_episodes = 250
 num_steps = 30
 
 
@@ -63,7 +63,7 @@ env.render()
 for t in range(num_steps):
 
     # print individual action probabilities
-    for i, p in enumerate(pi.proba(s)):
+    for i, p in enumerate(pi.dist_params(s)):
         print("  π({:s}|s) = {:.3f}".format(actions[i], p))
 
     a = pi.greedy(s)

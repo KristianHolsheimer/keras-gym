@@ -13202,7 +13202,7 @@ div#notebook {
 
     <span class="c1"># print individual action probabilities</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  v(s) = </span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pi</span><span class="o">.</span><span class="n">proba</span><span class="p">(</span><span class="n">s</span><span class="p">)):</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pi</span><span class="o">.</span><span class="n">dist_params</span><span class="p">(</span><span class="n">s</span><span class="p">)):</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  π(</span><span class="si">{:s}</span><span class="s2">|s) = </span><span class="si">{:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">actions</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">p</span><span class="p">))</span>
 
     <span class="n">a</span> <span class="o">=</span> <span class="n">pi</span><span class="o">.</span><span class="n">greedy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>

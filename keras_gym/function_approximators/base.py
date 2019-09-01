@@ -12,8 +12,7 @@ from ..base.errors import MissingModelError, ActionSpaceError
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin, LoggerMixin
 from ..policies.base import BasePolicy
 from ..caching import NStepCache
-from ..losses import (
-    SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss, VanillaPolicyLoss)
+from ..losses import ClippedSurrogateLoss, VanillaPolicyLoss
 from ..utils import (
     project_onto_actions_np, softmax, argmax, check_numpy_array)
 
@@ -997,7 +996,8 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
             A single action proposed under the current policy.
 
         """
-        a = argmax(self.proba(s, use_target_model=use_target_model))
+        p = self.dist_params(s, use_target_model=use_target_model)
+        a = argmax(p)
         return a
 
     def update(self, s, pi, advantage):
@@ -1101,14 +1101,14 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
     def _policy_loss(self, Adv, Z_target=None):
         if self.update_strategy == 'vanilla':
-            return SoftmaxPolicyLossWithLogits(
-                Adv, entropy_bonus=self.entropy_bonus)
+            return VanillaPolicyLoss(
+                dist_id=self.DIST, Adv=Adv, entropy_bonus=self.entropy_bonus)
 
         if self.update_strategy == 'ppo':
             assert Z_target is not None
             return ClippedSurrogateLoss(
-                Adv, Z_target, entropy_bonus=self.entropy_bonus,
-                epsilon=self.ppo_clipping)
+                dist_id=self.DIST, Adv=Adv, Z_target=Z_target,
+                entropy_bonus=self.entropy_bonus, epsilon=self.ppo_clipping)
 
         if self.update_strategy == 'cross_entropy':
             return keras.losses.CategoricalCrossentropy(from_logits=True)
@@ -1217,7 +1217,13 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         check_numpy_array(P, axis_size=2, axis=2)
         check_numpy_array(P, axis_size=self.actions_ndim, axis=1)
         params = np.squeeze(P, axis=0)
-        return params[:, 0], params[:, 1]  # alpha, beta
+
+        # switch to canonical parametrization
+        p, n = params[:, 0], params[:, 1]
+        alpha = n * p
+        beta = n * (1 - p)
+
+        return alpha, beta
 
     def greedy(self, s, use_target_model=False):
         """

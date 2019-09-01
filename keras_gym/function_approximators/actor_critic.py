@@ -174,10 +174,11 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         """
         return self.policy(s), self.value_function(s)
 
-    def proba(self, s):
+    def dist_params(self, s):
         """
-        Get the action probabilities under the current policy :math:`\\pi(a|s)`
-        and get the expected value :math:`v(s)`.
+
+        Get the distribution parameters under the current policy
+        :math:`\\pi(a|s)` and get the expected value :math:`v(s)`.
 
         Parameters
         ----------
@@ -187,12 +188,13 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
         Returns
         -------
-        proba, v : tuple (1d array of floats, float)
+        dist_params, v : tuple (1d array of floats, float)
 
-            Returns a pair representing :math:`(\\pi(.|s), v(s))`.
+            Returns a pair representing the distribution parameters of
+            :math:`\\pi(a|s)` and the estimated state value :math:`v(s)`.
 
         """
-        return self.policy.proba(s), self.value_function(s)
+        return self.policy.dist_params(s), self.value_function(s)
 
     def greedy(self, s):
         """
