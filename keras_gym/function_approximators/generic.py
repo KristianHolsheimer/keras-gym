@@ -3,9 +3,8 @@ from abc import abstractmethod
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from tensorflow.math import lbeta, digamma
 
-from ..utils import check_tensor, log_softmax_tf
+from ..utils import check_tensor
 from ..base.mixins import ActionSpaceMixin
 from ..base.errors import ActionSpaceError
 from ..losses import Huber, ProjectedSemiGradientLoss

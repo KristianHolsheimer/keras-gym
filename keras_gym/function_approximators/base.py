@@ -13,8 +13,7 @@ from ..base.mixins import RandomStateMixin, ActionSpaceMixin, LoggerMixin
 from ..policies.base import BasePolicy
 from ..caching import NStepCache
 from ..losses import (
-    SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss, BetaPolicyCrossEntropy,
-    BetaPolicyLoss)
+    SoftmaxPolicyLossWithLogits, ClippedSurrogateLoss, VanillaPolicyLoss)
 from ..utils import (
     project_onto_actions_np, softmax, argmax, check_numpy_array)
 

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.losses import Loss
-from ..utils import check_tensor
+from ..utils import check_tensor, check_dist_id
 
 
 class BaseLoss(ABC, Loss):
@@ -32,6 +32,11 @@ class BasePolicyLoss(BaseLoss):
     Parameters
     ----------
 
+    dist_id : str
+
+        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
+        a softmax policy or a Beta policy, respectively.
+
     Adv : 1d Tensor, dtype: float, shape: [batch_size]
 
         The advantages, one for each time step.
@@ -41,7 +46,8 @@ class BasePolicyLoss(BaseLoss):
         The coefficient of the entropy bonus term in the policy objective.
 
     """
-    def __init__(self, Adv, entropy_bonus=0.01):
+    def __init__(self, dist_id, Adv, entropy_bonus=0.01):
+        self.dist_id = check_dist_id(dist_id)
         self.entropy_bonus = float(entropy_bonus)
         self.set_advantage(Adv)
 

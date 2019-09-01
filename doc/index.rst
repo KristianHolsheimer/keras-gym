@@ -30,7 +30,7 @@ Documentation
     wrappers/index
     envs/index
     losses/index
-    utils
+    utils/index
     glossary
     release_notes
 

@@ -4,9 +4,10 @@ import pytest
 from tensorflow.keras import backend as K
 
 from ..base.errors import NumpyArrayCheckError
-from .helpers import (
-    idx, check_numpy_array, project_onto_actions_np, project_onto_actions_tf,
-    softmax, log_softmax, log_softmax_tf, diff_transform_matrix)
+from .array import (
+    idx, check_numpy_array, project_onto_actions_np, softmax, log_softmax)
+from .tensor import (
+    project_onto_actions_tf, log_softmax_tf, diff_transform_matrix)
 
 
 def test_check_numpy_array_ndim_min():

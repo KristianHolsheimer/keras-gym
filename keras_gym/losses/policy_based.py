@@ -2,17 +2,61 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from .base import BaseLoss, BasePolicyLoss
-from ..utils import check_tensor, log_softmax_tf
+from ..utils import check_tensor, log_softmax_tf, cross_entropy
 
 
 __all__ = (
-    'BetaPolicyCrossEntropy',
-    'BetaPolicyLoss',
     'ClippedSurrogateLoss',
     'PolicyEntropy',
     'PolicyKLDivergence',
     'SoftmaxPolicyLossWithLogits',
+    'VanillaPolicyLoss',
 )
+
+
+class VanillaPolicyLoss(BasePolicyLoss):
+    """
+    Plain-vanilla policy loss.
+
+    .. math::
+
+        L(\\theta)\\ &=\\ \\mathbb{E}_t\\left\\{
+                -\\sum_ab(a|S_t)\\log\\pi_\\theta(a|S_t)\\,\\mathcal{A}(S_t, a)
+            \\right\\} \\\\
+            &=\\ \\mathbb{E}_t\\left\\{
+                -\\log\\pi_\\theta(A_t|S_t)\\,\\mathcal{A}_t
+            \\right\\}
+
+    where :math:`\\pi_\\theta(a|s)` is the policy we're trying to learn,
+    :math:`b(a|s)` is the behavior policy, and :math:`\\mathcal{A}(s, a)` is
+    the advantage function, cf. Chapter 13 of `Sutton & Barto
+    <http://incompleteideas.net/book/the-book-2nd.html>`_.
+
+    This class provides a stateful implementation of a keras-compatible loss
+    function that requires more input than just ``y_true`` and ``y_pred``. The
+    required state that this loss function depends on is a tensor that contains
+    a batch of observed advantages :math:`\\mathcal{A}_t=\\mathcal{A}(S_t,
+    A_t)`.
+
+    Parameters
+    ----------
+
+    Adv : 1d Tensor, dtype: float, shape: [batch_size]
+
+        The advantages, one for each time step.
+
+    entropy_bonus : float, optional
+
+        The coefficient of the entropy bonus term in the policy objective.
+
+    """
+    def __call__(self, P, Z, sample_weight=None):
+        batch_size = K.int_shape(self.Adv)[0]
+
+        # get unaggregated cross-entropy, h = b(a|s) log pi(a|s)
+        h = cross_entropy(P, Z, self.dist_id)  #FIMXE: finish
+
+        return surrogate_loss + L_entropy
 
 
 class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
@@ -120,50 +164,6 @@ class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
         L_entropy = -self.entropy_bonus * PolicyEntropy()(P, Z)
 
         return surrogate_loss + L_entropy
-
-
-class BetaPolicyLoss(BasePolicyLoss):
-    """
-
-    #TODO: implement!!
-
-    """
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError('BetaPolicyLoss')
-
-
-class BetaPolicyCrossEntropy(BaseLoss):
-    """
-    Cross-entropy for a :class:`BetaPolicy <keras_gym.BetaPolicy>`, which is
-    used on bounded continuous action spaces.
-
-    Let :math:`(\\alpha_\\theta, \\beta_\\theta)` and :math:`(\\alpha, \\beta)`
-    be the distribution parameters associated with the primary policy
-    :math:`\\pi_\\theta(a|s)` and the behavior/target policy :math:`b(a|s)`,
-    respectively. Each of these parameters depends on the input state
-    :math:`s`. The cross-entropy between the primary and behavior policy is
-    given by:
-
-    .. math::
-
-        \\text{cross-entropy}
-            \\ &=\\
-                -\\int da\\,b(a|s)\\,\\log\\pi_\\theta(a|s) \\\\
-            \\ &=\\ \\log B(\\alpha_\\theta, \\beta_\\theta)
-                - (\\alpha_\\theta - 1)\\,\\psi(\\alpha)
-                - (\\beta_\\theta - 1)\\,\\psi(\\beta) \\\\
-               &\\qquad + (\\alpha_\\theta + \\beta_\\theta - 2)\\,
-                    \\psi(\\alpha + \\beta)
-
-    where :math:`B(\\alpha,\\beta)` is the `Euler beta function
-    <https://en.wikipedia.org/wiki/Beta_function>`_ and :math:`\\psi(x)` is the
-    `digamma function <https://en.wikipedia.org/wiki/Digamma_function>`_.
-
-    #TODO: implement!!
-
-    """
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError('BetaPolicyCrossEntropy')
 
 
 class ClippedSurrogateLoss(BasePolicyLoss):

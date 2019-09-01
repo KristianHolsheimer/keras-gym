@@ -39,26 +39,23 @@ outputs that our keras models expect.
         **head_v**
 
             This is the :term:`state value <state value function>` head. It
-            returns a scalar V-value :math:`v(s)\in\mathbb{R}`.
+            returns a batch of scalar values :term:`V`.
 
         **head_q1**
 
             This is the :term:`type-I Q-value <type-I state-action value
-            function>` head. It returns a scalar Q-value
-            :math:`q(s,a)\in\mathbb{R}`.
+            function>` head. It returns a batch of scalar values :term:`Q_sa`.
 
         **head_q2**
 
             This is the :term:`type-II Q-value <type-II state-action value
-            function>` head. It returns a vector of Q-values
-            :math:`q(s,.)\in\mathbb{R}^n`.
+            function>` head. It returns a batch of vectors :term:`Q_s`.
 
 
         **head_pi**
 
-            This is the policy head. It returns :term:`logits <Z>`
-            :math:`z\in\mathbb{R}^n`, i.e. not probabilities. Use a softmax to
-            turn the output into probabilities.
+            This is the policy head. It returns a batch of distribution
+            parameters :term:`Z`.
 
     forward_pass
 
@@ -189,8 +186,8 @@ inputs/outputs to our keras models.
 
         Similar to :term:`P`, this is a batch of distribution parameters. In
         contrast to :term:`P`, however, :term:`Z` represents the primary
-        updateable policy :math:`\pi(a|s)` instead of the behavior/target
-        policy :math:`b(a|s)`.
+        updateable policy :math:`\pi_\theta(a|s)` instead of the
+        behavior/target policy :math:`b(a|s)`.
 
     G
 

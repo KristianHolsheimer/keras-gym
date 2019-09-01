@@ -22,8 +22,7 @@ Policy Losses
 These loss functions are used to implement policy-gradient (PG) methods. The
 two main policy-gradient strategies provided by **keras-gym** are vanilla PG
 and PPO-clipping, which are implemented using the loss functions:
-:class:`SoftmaxPolicyLossWithLogits
-<keras_gym.losses.SoftmaxPolicyLossWithLogits>` and
+:class:`VanillaPolicyLoss <keras_gym.losses.VanillaPolicyLoss>` and
 :class:`ClippedSurrogateLoss <keras_gym.losses.ClippedSurrogateLoss>`,
 respectively.
 
