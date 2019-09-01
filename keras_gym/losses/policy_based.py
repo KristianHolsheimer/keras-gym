@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from .base import BaseLoss, BasePolicyLoss
-from ..utils import check_tensor, log_softmax_tf, cross_entropy
+from ..utils import check_tensor, log_softmax_tf, cross_entropy, entropy
 
 
 __all__ = (
@@ -52,11 +52,24 @@ class VanillaPolicyLoss(BasePolicyLoss):
     """
     def __call__(self, P, Z, sample_weight=None):
         batch_size = K.int_shape(self.Adv)[0]
+        check_tensor(P, axis_size=batch_size, axis=0)
+        check_tensor(Z, axis_size=batch_size, axis=0)
+        check_tensor(P, ndim=K.ndim(Z))
 
-        # get unaggregated cross-entropy, h = b(a|s) log pi(a|s)
-        h = cross_entropy(P, Z, self.dist_id)  #FIMXE: finish
+        # get unaggregated cross-entropy: H_cross = -b(a|s) * log pi(a|s)
+        H_cross = cross_entropy(P, Z, self.dist_id)
+        check_tensor(H_cross, ndim=2, axis_size=batch_size, axis=0)
 
-        return surrogate_loss + L_entropy
+        # aggregate over actions (is proper cross-entropy now)
+        H_cross = K.mean(H_cross, axis=1)
+
+        # get policy entropy
+        H = entropy(Z, self.dist_id)
+
+        # combined loss
+        loss = self.Adv * H_cross + self.entropy_bonus * H
+
+        return K.mean(loss)
 
 
 class SoftmaxPolicyLossWithLogits(BasePolicyLoss):
