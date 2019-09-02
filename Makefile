@@ -10,7 +10,7 @@ docs: clean_docs
 	$(PYTHON_EXEC) setup.py build_sphinx
 
 clean_docs:
-	rm -rf build/sphinx doc/build
+	rm -rf build/sphinx doc/build .hypothesis
 
 src:
 	$(PYTHON_EXEC) setup.py sdist

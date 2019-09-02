@@ -5,6 +5,7 @@
 			"folder_exclude_patterns":
 			[
 				"__pycache__",
+				".hypothesis",
 				".pytest_cache",
 				"*.egg-info",
 				".ipynb_checkpoints",
