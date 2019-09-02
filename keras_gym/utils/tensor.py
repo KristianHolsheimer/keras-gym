@@ -20,11 +20,60 @@ __all__ = (
 )
 
 
-def check_tensor(tensor, ndim=None, ndim_min=None, dtype=None, int_shape=None, axis_size=None, axis=None):  # noqa: E501
+def check_tensor(
+        tensor,
+        ndim=None,
+        ndim_min=None,
+        dtype=None,
+        same_dtype_as=None,
+        same_shape_as=None,
+        same_as=None,
+        int_shape=None,
+        axis_size=None,
+        axis=None):  # noqa: E501
+
     """
 
     This helper function is mostly for internal use. It is used to check a few
     common properties of a Tensor.
+
+    Parameters
+    ----------
+    ndim : int
+
+        Check ``K.ndim(tensor)``.
+
+    ndim_min : int
+
+        Check if ``K.ndim(tensor)`` is at least ``ndim_min``.
+
+    dtype : Tensor dtype
+
+        Check ``tensor.dtype``.
+
+    same_dtype_as : Tensor
+
+        Check if dtypes match.
+
+    same_shape_as : Tensor
+
+        Check if shapes match.
+
+    same_as : Tensor
+
+        Check if both dtypes and shapes match.
+
+    int_shape : tuple of ints
+
+        Check ``K.int_shape(tensor)``.
+
+    axis_size : int
+
+        Check size along axis, where axis is specified by ``axis=...`` kwarg.
+
+    axis : int
+
+        The axis the check for size.
 
     Raises
     ------
@@ -33,11 +82,23 @@ def check_tensor(tensor, ndim=None, ndim_min=None, dtype=None, int_shape=None, a
         If one of the checks fails, it raises a :class:`TensorCheckError`.
 
     """
-
-    if not isinstance(tensor, tf.Tensor):
+    if not tf.is_tensor(tensor):
         raise TensorCheckError(
             "expected input to be a Tensor, got type: {}"
             .format(type(tensor)))
+
+    if same_as is not None:
+        assert tf.is_tensor(same_as), "not a tensor"
+        same_dtype_as = same_as
+        same_shape_as = same_as
+
+    if same_dtype_as is not None:
+        assert tf.is_tensor(same_dtype_as), "not a tensor"
+        dtype = K.dtype(same_dtype_as)
+
+    if same_shape_as is not None:
+        assert tf.is_tensor(same_shape_as), "not a tensor"
+        int_shape = K.int_shape(same_shape_as)
 
     check = ndim is not None
     if check and K.ndim(tensor) != ndim:
@@ -52,10 +113,10 @@ def check_tensor(tensor, ndim=None, ndim_min=None, dtype=None, int_shape=None, a
             .format(ndim_min, K.ndim(tensor)))
 
     check = dtype is not None
-    if check and tensor.dtype != dtype:
+    if check and K.dtype(tensor) != dtype:
         raise TensorCheckError(
             "expected input with dtype {}, got dtype: {}"
-            .format(dtype, tensor.dtype))
+            .format(dtype, K.dtype(tensor)))
 
     check = int_shape is not None
     if check and K.int_shape(tensor) != int_shape:
