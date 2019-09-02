@@ -286,7 +286,7 @@ def generate_gif(env, policy, filepath, resize_to=None, duration=50):
         s = s_next
 
     # store last frame
-    frame = info.get('s_next_orig', [s])[0]
+    frame = info.get('s_next_orig', [s_next])[0]
     frame = Image.fromarray(frame)
     frame = frame.convert('P', palette=Image.ADAPTIVE)
     if resize_to is not None:
