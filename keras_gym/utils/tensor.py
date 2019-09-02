@@ -307,7 +307,7 @@ def diff_transform_matrix(num_frames, dtype='float32'):
     return K.constant(m, dtype=dtype)
 
 
-def entropy(Z, dist_id, allow_surrogate=True):
+def entropy(Z, dist_id):
     """
 
     This utility function computes the *unaggregated* entropy of an
@@ -321,15 +321,6 @@ def entropy(Z, dist_id, allow_surrogate=True):
     usual) as well as aggregate/contract over axis=1 (i.e. over the actions
     :math:`a`)
 
-    This is intended to be used as part of a loss/objective function. As such,
-    this may actually return a surrogate :math:`\\tilde{H}` instead. Such a
-    surrogate is constructed in such a way that it satisfies:
-
-    .. math::
-
-        \\nabla_\\theta \\tilde{H}[b,\\pi_\\theta]
-            \\ =\\ \\nabla_\\theta H[b,\\pi_\\theta]
-
     Parameters
     ----------
     Z : 2d Tensor, shape: [batch_size, {num_actions,actions_ndim}]
@@ -341,15 +332,6 @@ def entropy(Z, dist_id, allow_surrogate=True):
 
         The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
         a softmax policy or a Beta policy, respectively.
-
-    allow_surrogate : bool, optional
-
-        Whether to allow the function to return a surrogate function instead of
-        the true function. The surrogate is generally more numerically stable,
-        but if your loss/objective :math:`J(\\theta)` isn't linear in the
-        surrogate it breaks the surrogate condition, i.e.
-        :math:`\\nabla_\\theta \\tilde{J}(\\theta) \\neq \\nabla_\\theta
-        J(\\theta)`. In this case, you need to set ``allow_surrogate=False``.
 
     Returns
     -------
@@ -366,17 +348,7 @@ def entropy(Z, dist_id, allow_surrogate=True):
 
         # action propensities
         pi = K.softmax(Z, axis=1)
-
-        if allow_surrogate:
-            # Construct surrogate:
-            # Let pi(a|s) = softmax(z(s,a)), then the surrogate for log(pi) is
-            # logpi_surrogate = z(s,a) - sum_a' stop_gradient(pi(a'|s)) z(s,a')
-            Z_mean = K.expand_dims(
-                tf.einsum('ij,ij->i', K.stop_gradient(pi), Z), axis=1)
-            logpi = Z - Z_mean  # surrogate, i.e. not truly log(pi)
-
-        else:
-            logpi = log_softmax_tf(Z, axis=1)
+        logpi = log_softmax_tf(Z, axis=1)
 
         return -pi * logpi  # unaggregated, shape: [batch_size, num_actions]
 
@@ -404,7 +376,7 @@ def entropy(Z, dist_id, allow_surrogate=True):
     raise NotImplementedError("entropy(dist_id='{}', ...)".format(dist_id))
 
 
-def log_softmax_tf(Z, axis=-1, allow_surrogate=True):
+def log_softmax_tf(Z, axis=-1):
     """
     Compute the log-softmax.
 
@@ -437,9 +409,9 @@ def log_softmax_tf(Z, axis=-1, allow_surrogate=True):
 def log_pi(P, Z, dist_id, allow_surrogate=True):
     """
 
-    This utility function computes the *unaggregated* log probability mass
-    function of an updateable policy :math:`\\pi_\\theta(a|s)` evaluated on
-    action(s) sampled from a behavior policy :math:`A\\sim b(.|s)`:
+    This utility function computes the *unaggregated* log-pdf of an updateable
+    policy :math:`\\log\\pi_\\theta(a|s)` evaluated on action(s) sampled from a
+    behavior policy :math:`a\\sim b(.|s)`:
 
     Parameters
     ----------
@@ -455,6 +427,27 @@ def log_pi(P, Z, dist_id, allow_surrogate=True):
         contrast to :term:`P`, however, :term:`Z` represents the primary
         updateable policy :math:`\\pi_\\theta(a|s)` instead of the
         behavior/target policy :math:`b(a|s)`.
+
+    dist_id : str
+
+        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
+        a softmax policy or a Beta policy, respectively.
+
+
+    allow_surrogate : bool, optional
+
+        Whether to allow the function to return a surrogate function instead of
+        the true function. The surrogate is generally more numerically stable,
+        but if your loss/objective is of the form :math:`J(\\theta) =
+        H[b,\\pi_\\theta]\\,f(\\theta)` it breaks the surrogate condition, i.e.
+        :math:`\\nabla_\\theta \\tilde{J}(\\theta) \\neq \\nabla_\\theta
+        J(\\theta)`.
+
+    Returns
+    -------
+    log_pi : Tensor, shape: [batch_size, {num_actions,action_ndims}]
+
+        A batch of *unaggregated* log-pdf :math:`\\log\\pi_\\thet(a|s)`.
 
     """
     dist_id = check_dist_id(dist_id)
