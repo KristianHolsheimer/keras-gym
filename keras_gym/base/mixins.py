@@ -68,18 +68,14 @@ class ActionSpaceMixin:
         return isinstance(self.env.action_space, gym.spaces.Discrete)
 
     @property
-    def actions_shape(self):
-        if not hasattr(self, '_actions_shape'):
+    def actions_ndim(self):
+        if not hasattr(self, '_actions_ndim'):
             if not self.action_space_is_box:
                 raise ActionSpaceError(
-                    "actions_shape attribute is inaccesible; does the env "
+                    "actions_ndim attribute is inaccesible; does the env "
                     "have a Box action space?")
-            self._actions_shape = self.env.action_space.shape
-        return self._actions_shape
-
-    @property
-    def actions_ndim(self):
-        return len(self.actions_shape) or 1
+            self._actions_ndim = len(self.env.action_space.shape) or 1
+        return self._actions_ndim
 
     @property
     def num_actions(self):

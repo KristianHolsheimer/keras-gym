@@ -70,7 +70,7 @@ class BasePolicyLoss(BaseLoss):
             The updated instance.
 
         """
-        check_tensor(Adv, dtype='float')
+        check_tensor(Adv, dtype='float32')
 
         if K.ndim(Adv) == 2:
             check_tensor(Adv, axis_size=1, axis=1)

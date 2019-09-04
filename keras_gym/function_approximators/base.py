@@ -1352,19 +1352,18 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
 
     def _policy_loss(self, Adv, Z_target=None):
         if self.update_strategy == 'vanilla':
-            return BetaPolicyLoss(
-                Adv, entropy_bonus=self.entropy_bonus,
-                use_alternative_representation=True)
+            return VanillaPolicyLoss(
+                dist_id=self.DIST, Adv=Adv, entropy_bonus=self.entropy_bonus)
 
         if self.update_strategy == 'ppo':
             assert Z_target is not None
             return ClippedSurrogateLoss(
-                Adv, Z_target, entropy_bonus=self.entropy_bonus,
-                epsilon=self.ppo_clipping, policy_type='beta',
-                use_alternative_representation=True)
+                dist_id=self.DIST, Adv=Adv, Z_target=Z_target,
+                entropy_bonus=self.entropy_bonus, epsilon=self.ppo_clipping)
 
         if self.update_strategy == 'cross_entropy':
-            return BetaPolicyCrossEntropy(use_alternative_representation=True)
+            return VanillaPolicyLoss(
+                dist_id=self.DIST, Adv=Adv, entropy_bonus=self.entropy_bonus)
 
         raise ValueError(
             "unknown update_strategy '{}'".format(self.update_strategy))

@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from math import log
 
 import tensorflow as tf
 from tensorflow import keras
@@ -195,11 +196,38 @@ class FunctionApproximator(ActionSpaceMixin):
                 \\pi(.|s)\\ =\\ \\text{softmax}(z)
 
         """
-        multilinear_regression_layer = keras.layers.Dense(
-            units=self.num_actions,
-            kernel_initializer='zeros',
-            name=(variable_scope + '/policy'))
-        return multilinear_regression_layer(X)
+        if self.action_space_is_discrete:
+            multilinear_regression_layer = keras.layers.Dense(
+                units=self.num_actions,
+                kernel_initializer='zeros',
+                name=(variable_scope + '/policy/Z'))
+            Z = multilinear_regression_layer(X)  # logits
+            return Z
+
+        if self.action_space_is_box:
+            # p = alpha / (alpha + beta), 0 < p < 1
+            p = keras.layers.Dense(
+                units=self.actions_ndim,
+                kernel_initializer='zeros',
+                activation='sigmoid',
+                name=(variable_scope + '/policy/p'))(X)
+
+            # n = alpha + beta, n > 0
+            n = keras.layers.Dense(
+                units=self.actions_ndim,
+                kernel_initializer='zeros',
+                bias_initializer=keras.initializers.constant(log(3)),
+                activation=K.exp,
+                name=(variable_scope + '/policy/n'))(X)
+
+            Z = keras.layers.Lambda(
+                lambda tensors: K.stack(tensors, axis=-1),
+                name=(variable_scope + '/policy/Z'))([p, n])
+
+            return Z
+
+        raise ActionSpaceError.feature_request(self.env)
+
 
     @abstractmethod
     def body(self, S, variable_scope):
@@ -932,7 +960,14 @@ class ConjointActorCritic(ActorCritic):
             ppo_clipping=0.2,
             entropy_bonus=0.01):
 
-        self.policy = BaseSoftmaxPolicy(
+        if function_approximator.action_space_is_discrete:
+            policy_class = BaseSoftmaxPolicy
+        elif function_approximator.action_space_is_box:
+            policy_class = BaseBetaPolicy
+        else:
+            raise ActionSpaceError.feature_request(function_approximator.env)
+
+        self.policy = policy_class(
             env=function_approximator.env,
             update_strategy=update_strategy,
             ppo_clipping=ppo_clipping,
@@ -978,8 +1013,15 @@ class ConjointActorCritic(ActorCritic):
         # consistency checks
         check_tensor(V, ndim=2, axis_size=1, axis=1)
         check_tensor(V_target, ndim=2, axis_size=1, axis=1)
-        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
-        check_tensor(Z_target, ndim=2, axis_size=self.num_actions, axis=1)
+
+        if self.action_space_is_discrete:
+            check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+            check_tensor(Z_target, same_as=Z)
+        elif self.action_space_is_box:
+            print(Z)
+            check_tensor(Z, ndim=3, axis_size=self.actions_ndim, axis=1)
+            check_tensor(Z, axis_size=2, axis=2)
+            check_tensor(Z_target, same_as=Z)
 
         # policy models
         self.policy.predict_model = keras.Model(inputs=S, outputs=Z)

@@ -195,8 +195,8 @@ class ProjectedSemiGradientLoss(BaseLoss):
         """
         # check shapes
         batch_size = K.int_shape(self.G)[0]
-        check_tensor(P, ndim=2, axis_size=batch_size, axis=0)
         check_tensor(Q_pred, ndim=2, axis_size=batch_size, axis=0)
+        P.set_shape(Q_pred.get_shape())
 
         # project onto actions taken: q(s,.) --> sum_a pi(a|s) q(s,a)
         Q_pred_projected = tf.einsum('ij,ij->i', Q_pred, P)

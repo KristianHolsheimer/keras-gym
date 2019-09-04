@@ -454,10 +454,8 @@ def log_pi(P, Z, dist_id, allow_surrogate=True):
 
     if dist_id == 'categorical':
         # expected input shapes: [batch_size, num_actions]
-        check_tensor(Z, ndim=2)  # pi(a|s)
-        check_tensor(P, ndim=2)  # b(a|s)
-        check_tensor(Z, axis_size=K.int_shape(P)[0], axis=0)
-        check_tensor(Z, axis_size=K.int_shape(P)[1], axis=1)
+        check_tensor(Z, ndim=2)     # Z = params of pi(a|s)
+        P.set_shape(Z.get_shape())  # P = params of b(a|s)
 
         if allow_surrogate:
             # Construct surrogate:
@@ -477,7 +475,7 @@ def log_pi(P, Z, dist_id, allow_surrogate=True):
 
         # expected input shapes: [batch_size, actions_ndim, 2]
         check_tensor(Z, ndim=3, axis_size=2, axis=2)
-        check_tensor(P, ndim=3, axis_size=2, axis=2)
+        P.set_shape(Z.get_shape())
 
         # clip for numerical stability
         P = K.maximum(1e-16, P)
@@ -564,13 +562,9 @@ def proba_ratio(P, Z1, Z2, dist_id):
 
     if dist_id == 'categorical':
         # expected input shapes: [batch_size, num_actions]
-        check_tensor(P, ndim=2)   # b(a|s)
-        check_tensor(Z1, ndim=2)  # pi_theta1(a|s)
-        check_tensor(Z2, ndim=2)  # pi_theta2(a|s)
-        check_tensor(Z1, axis_size=K.int_shape(P)[0], axis=0)
-        check_tensor(Z1, axis_size=K.int_shape(P)[1], axis=1)
-        check_tensor(Z2, axis_size=K.int_shape(P)[0], axis=0)
-        check_tensor(Z2, axis_size=K.int_shape(P)[1], axis=1)
+        check_tensor(Z1, ndim=2)      # params of pi_theta1(a|s)
+        check_tensor(Z2, same_as=Z1)  # params of pi_theta2(a|s)
+        P.set_shape(Z1.get_shape())   # params of b(a|s)
 
         # ratio as difference of log probabilities
         logpi1 = log_softmax_tf(Z1, axis=1)
@@ -583,13 +577,9 @@ def proba_ratio(P, Z1, Z2, dist_id):
         # https://en.wikipedia.org/wiki/Beta_distribution
 
         # expected input shapes: [batch_size, actions_ndim, 2]
-        check_tensor(P, ndim=3, axis_size=2, axis=2)   # b(a|s)
         check_tensor(Z1, ndim=3, axis_size=2, axis=2)  # pi_theta1(a|s)
-        check_tensor(Z2, ndim=3, axis_size=2, axis=2)  # pi_theta2(a|s)
-        check_tensor(Z1, axis=0, axis_size=K.int_shape(P)[0])
-        check_tensor(Z2, axis=0, axis_size=K.int_shape(P)[0])
-        check_tensor(Z1, axis=1, axis_size=K.int_shape(P)[1])
-        check_tensor(Z2, axis=1, axis_size=K.int_shape(P)[1])
+        check_tensor(Z2, same_as=Z1)  # params of pi_theta2(a|s)
+        P.set_shape(Z1.get_shape())   # params of b(a|s)
 
         # clip for numerical stability
         P = K.maximum(1e-16, P)

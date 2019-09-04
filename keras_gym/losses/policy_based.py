@@ -55,9 +55,8 @@ class VanillaPolicyLoss(BasePolicyLoss):
     """
     def __call__(self, P, Z, sample_weight=None):
         batch_size = K.int_shape(self.Adv)[0]
-        check_tensor(P, axis_size=batch_size, axis=0)
         check_tensor(Z, axis_size=batch_size, axis=0)
-        check_tensor(P, ndim=K.ndim(Z))
+        P.set_shape(Z.get_shape())
 
         # log(pi(a|s))
         logpi = K.sum(log_pi(P, Z, self.dist_id), axis=1)
