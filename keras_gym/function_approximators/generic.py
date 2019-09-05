@@ -683,11 +683,11 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
         if not self.action_space_is_discrete:
             raise ActionSpaceError(
                 "SoftmaxPolicy is incompatible with non-discrete action "
-                "spaces; please use GaussianPolicy instead")
+                "spaces; please use other policy like BetaPolicy instead")
 
         self.function_approximator = function_approximator
         self._init_models()
-        self._check_attrs()
+        self._check_attrs(skip=['gamma', 'bootstrap_n', '_cache'])
 
     def forward_pass(self, S, variable_scope):
         assert variable_scope in ('primary', 'target')
@@ -831,28 +831,19 @@ class BetaPolicy(BaseBetaPolicy):
             predict_model=None,
             target_model=None)
 
-        if not self.action_space_is_discrete:
+        if not self.action_space_is_box:
             raise ActionSpaceError(
-                "SoftmaxPolicy is incompatible with non-discrete action "
-                "spaces; please use GaussianPolicy instead")
+                "BatePolicy is only compatible with Box action spaces; "
+                "please use other policy like SoftmaxPolicy instead")
 
         self.function_approximator = function_approximator
         self._init_models()
-        self._check_attrs()
+        self._check_attrs(skip=['gamma', 'bootstrap_n', '_cache'])
 
     def forward_pass(self, S, variable_scope):
         assert variable_scope in ('primary', 'target')
         X = self.function_approximator.body(S, variable_scope)
         Z = self.function_approximator.head_pi(X, variable_scope)
-
-        if hasattr(self, 'available_actions_mask'):
-            check_tensor(self.available_actions_mask, ndim=2, dtype='bool')
-            # set logits to large negative values for unavailable actions
-            Z = keras.layers.Lambda(
-                lambda Z: K.switch(
-                    self._available_actions, Z, -1e3 * K.ones_like(Z)),
-                name=(variable_scope + '/policy/masked'))(Z)
-
         return Z
 
     def _init_models(self):
@@ -865,8 +856,12 @@ class BetaPolicy(BaseBetaPolicy):
         # computation graph
         Z = self.forward_pass(S, variable_scope='primary')
         Z_target = self.forward_pass(S, variable_scope='target')
-        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
-        check_tensor(Z_target, ndim=2, axis_size=self.num_actions, axis=1)
+        if self.action_space_is_discrete:
+            check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        elif self.action_space_is_box:
+            check_tensor(Z, ndim=3, axis_size=self.actions_ndim, axis=1)
+            check_tensor(Z, axis_size=2, axis=2)
+        check_tensor(Z_target, same_as=Z)
 
         # loss and target tensor (depends on self.update_strategy)
         loss = self._policy_loss(Adv, Z_target)

@@ -128,16 +128,17 @@ class ActionSpaceMixin:
         elif self.action_space_is_box:
 
             if self.env.action_space.contains(a_or_params):
-                assert self.env.action_space.contains(a_or_params)
-                # assume Beta distribution
+                # assume Beta(alpha, beta) distribution
                 p = a_or_params  # p == alpha / (alpha + beta)
-                n = 1e4          # n == alpha + beta
-                params = p * n, (1 - p) * n
+                n = np.infty     # n = alpha + beta
+                params = p, n
             else:
                 check_numpy_array(
                     a_or_params, ndim=1, axis_size=self.actions_ndim, axis=0)
-                params = a_or_params
-
+                alpha, beta = a_or_params
+                n = alpha + beta
+                p = alpha / n
+                params = p, n
         else:
             raise ActionSpaceError(
                 "check_a_or_params() hasn't yet been implemented for action "

@@ -1,8 +1,7 @@
-import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from .base import BaseLoss, BasePolicyLoss
-from ..utils import check_tensor, proba_ratio, log_pi, entropy
+from ..utils import check_tensor, proba_ratio, cross_entropy, entropy
 
 
 __all__ = (
@@ -59,14 +58,14 @@ class VanillaPolicyLoss(BasePolicyLoss):
         P.set_shape(Z.get_shape())
 
         # log(pi(a|s))
-        logpi = K.sum(log_pi(P, Z, self.dist_id), axis=1)
+        logpi = -cross_entropy(P, Z, self.dist_id, Z1_is_logit=False)
         check_tensor(logpi, ndim=1, axis_size=batch_size, axis=0)
 
         # vanilla policy loss
         loss = -self.Adv * logpi
 
         # entropy H[pi]
-        H = K.sum(entropy(Z, self.dist_id), axis=1)
+        H = entropy(Z, self.dist_id)
         check_tensor(H, ndim=1, axis_size=batch_size, axis=0)
 
         # add entropy bonus (notice minus sign)
@@ -144,16 +143,16 @@ class ClippedSurrogateLoss(BasePolicyLoss):
         batch_size = K.int_shape(self.Adv)[0]
 
         # construct probability ratio, r = pi / pi_old
-        r = K.sum(proba_ratio(P, Z, self.Z_target, self.dist_id), axis=1)
+        r = proba_ratio(P, Z, self.Z_target, self.dist_id)
         r_clipped = K.clip(r, 1 - self.epsilon, 1 + self.epsilon)
         check_tensor(r, ndim=1, axis_size=batch_size, axis=0)
-        check_tensor(r_clipped, ndim=1, axis_size=batch_size, axis=0)
+        check_tensor(r_clipped, sames_as=r)
 
         # construct the final clipped surrogate loss (notice minus sign)
         loss = -K.minimum(r * self.Adv, r_clipped * self.Adv)
 
         # entropy H[pi]
-        H = K.sum(entropy(Z, self.dist_id), axis=1)
+        H = entropy(Z, self.dist_id)
         check_tensor(H, ndim=1, axis_size=batch_size, axis=0)
 
         # add entropy bonus (notice minus sign)
@@ -192,8 +191,7 @@ class PolicyKLDivergence(BaseLoss):
     """
     def __init__(self, Z_target):
         check_tensor(Z_target, ndim=2)
-        self.logpi_old = K.stop_gradient(log_softmax_tf(Z_target, axis=1))
-        self.pi_old = K.stop_gradient(K.softmax(Z_target, axis=1))
+        self.Z_target = K.stop_gradient(Z_target)
 
     def __call__(self, P, Z, sample_weight=None):
         """
@@ -224,9 +222,9 @@ class PolicyKLDivergence(BaseLoss):
 
         """
         check_tensor(Z, ndim=2)
-        logpi = log_softmax_tf(Z)
-        kl_div = tf.einsum('ij,ij->i', self.pi_old, self.logpi_old - logpi)
-        return K.mean(kl_div)
+        H_cross = cross_entropy(self.Z_target, Z, self.dist_id)
+        H = entropy(self.Z_target, self.dist_id)
+        return K.mean(H_cross - H)
 
 
 class PolicyEntropy(BaseLoss):
@@ -271,8 +269,5 @@ class PolicyEntropy(BaseLoss):
             The batch loss.
 
         """
-        check_tensor(Z, ndim=2)
-        logpi = log_softmax_tf(Z)
-        pi = K.exp(logpi)
-        entropy = -tf.einsum('ij,ij->i', pi, logpi)
-        return K.mean(entropy)
+        H = entropy(self.Z_target, self.dist_id)
+        return K.mean(H)

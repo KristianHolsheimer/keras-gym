@@ -1,7 +1,8 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin
-from ..base.errors import NumpyArrayCheckError, InsufficientCacheError
+from ..base.errors import (
+    NumpyArrayCheckError, InsufficientCacheError, ActionSpaceError)
 from ..utils import check_numpy_array, get_env_attr
 
 
@@ -128,6 +129,11 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             then passing ``a_or_params = 2`` is equivalent to passing
             ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
             :math:`a=2` was drawn from the behavior policy.
+
+            For Box action spaces, the parameters are to be passed in as a pair
+            (tuple) of :math:`(\\alpha, \\beta)`. Or alternatively, you could
+            simply pass the sampled action :math:`A_t` itself. The latter is
+            the more common situation.
 
         r : float
 
@@ -276,9 +282,17 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
         self._i = 0
         self._num_transitions = 0
 
+        # construct appropriate shapes
         n = (self.capacity + self.bootstrap_n,)
         s = self._s_shape
-        a = (self.num_actions,)
+        if self.action_space_is_discrete:
+            a = (self.num_actions,)     # params of Categorical(p) distr
+        elif self.action_space_is_box:
+            a = (self.actions_ndim, 2)  # params of Beta(alpha, beta) distr
+        else:
+            raise ActionSpaceError.feature_request(self.env)
+
+        # create cache attrs
         self._s = np.empty(n + s, self._s_dtype)  # frames
         self._p = np.zeros(n + a, 'float')        # action propensities
         self._r = np.zeros(n, 'float')            # rewards

@@ -2,6 +2,7 @@ from tensorflow import keras
 
 from .. import utils
 from ..base.mixins import ActionSpaceMixin
+from ..base.errors import ActionSpaceError
 from ..policies.base import BasePolicy
 from .base import BaseFunctionApproximator
 
@@ -148,9 +149,19 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         use_target_model = self.value_function.bootstrap_with_target_model
         V_next = self.value_function.batch_eval(S_next, use_target_model)
         G = Rn + In * V_next
+
+        # check shapes / dtypes
         utils.check_numpy_array(G, ndim=1, dtype='float')
-        utils.check_numpy_array(
-            P, ndim=2, dtype='float', axis_size=self.num_actions, axis=1)
+        if self.action_space_is_discrete:
+            utils.check_numpy_array(
+                P, ndim=2, dtype='float', axis_size=self.num_actions, axis=1)
+        elif self.action_space_is_box:
+            utils.check_numpy_array(
+                P, ndim=3, dtype='float', axis_size=self.actions_ndim, axis=1)
+            utils.check_numpy_array(P, axis_size=2, axis=2)
+        else:
+            raise ActionSpaceError.feature_request(self.env)
+
         losses = self._train_on_batch([S, G], [P, G])
         return losses
 
@@ -276,7 +287,11 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
             self.policy.target_model, name='Z_target')(S)
 
         # check if shapes are what we expect
-        utils.check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        if self.action_space_is_discrete:
+            utils.check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        elif self.action_space_is_box:
+            utils.check_tensor(Z, ndim=3, axis_size=self.actions_ndim, axis=1)
+            utils.check_tensor(Z, axis_size=2, axis=2)
         utils.check_tensor(V, ndim=2, axis_size=1, axis=1)
 
         # update loss with advantage coming directly from graph

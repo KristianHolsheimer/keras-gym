@@ -388,10 +388,11 @@ def is_policy(obj, check_updateable=False):
     """
     # import at runtime to avoid circular dependence
     from ..policies.base import BasePolicy
-    from ..function_approximators.base import BaseSoftmaxPolicy
+    from ..function_approximators.base import BaseSoftmaxPolicy, BaseBetaPolicy
 
     if isinstance(obj, BasePolicy):
-        return isinstance(obj, BaseSoftmaxPolicy) if check_updateable else True
+        updateable = (BaseSoftmaxPolicy, BaseBetaPolicy)
+        return isinstance(obj, updateable) if check_updateable else True
     return False
 
 

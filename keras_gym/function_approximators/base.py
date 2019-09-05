@@ -43,15 +43,14 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
     def batch_update(self, *args, **kwargs):
         pass
 
-    def _check_attrs(self):
+    def _check_attrs(self, skip=None):
         required_attrs = [
             'env', 'gamma', 'bootstrap_n', 'train_model', 'predict_model',
             'target_model', '_cache']
 
-        if isinstance(self, BaseSoftmaxPolicy):
-            required_attrs.remove('bootstrap_n')
-            required_attrs.remove('gamma')
-            required_attrs.remove('_cache')
+        if skip is not None:
+            for attr in skip:
+                required_attrs.remove(attr)
 
         missing_attrs = ", ".join(
             attr for attr in required_attrs if not hasattr(self, attr))
@@ -1174,7 +1173,11 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         """
         # apologies for overloading: beta (param) and scipy.stats.beta (dist)
         alpha, beta = self.dist_params(s, use_target_model=use_target_model)
-        a_unit_interval = scipy.stats.beta(a=alpha, b=beta).rvs()
+        try:
+            a_unit_interval = scipy.stats.beta(a=alpha, b=beta).rvs()
+        except Exception:
+            print(alpha, beta)
+            raise
 
         # scale from unit interval(s) to actual box size
         high, low = self.env.action_space.high, self.env.action_space.low
