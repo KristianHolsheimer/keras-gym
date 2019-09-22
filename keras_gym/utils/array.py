@@ -92,7 +92,7 @@ def argmin(arr, axis=None, random_state=None):
     return argmax(-arr, axis=axis, random_state=random_state)
 
 
-def check_numpy_array(arr, ndim=None, ndim_min=None, dtype=None, shape=None, axis_size=None, axis=None):  # nowqa: E501
+def check_numpy_array(arr, ndim=None, ndim_min=None, dtype=None, shape=None, axis_size=None, axis=None):  # noqa: E501
     """
 
     This helper function is mostly for internal use. It is used to check a few
