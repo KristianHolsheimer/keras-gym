@@ -14,5 +14,9 @@
 			],
 			"path": "."
 		}
-	]
+	],
+	"settings":
+	{
+		"SublimeLinter.linters.flake8.args": ["--ignore", "W503,W504"]
+	}
 }
