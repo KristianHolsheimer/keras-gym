@@ -146,7 +146,7 @@ class ClippedSurrogateLoss(BasePolicyLoss):
         r = proba_ratio(P, Z, self.Z_target, self.dist_id)
         r_clipped = K.clip(r, 1 - self.epsilon, 1 + self.epsilon)
         check_tensor(r, ndim=1, axis_size=batch_size, axis=0)
-        check_tensor(r_clipped, sames_as=r)
+        check_tensor(r_clipped, same_as=r)
 
         # construct the final clipped surrogate loss (notice minus sign)
         loss = -K.minimum(r * self.Adv, r_clipped * self.Adv)
