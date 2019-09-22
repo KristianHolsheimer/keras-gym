@@ -7,6 +7,7 @@ Numpy-Array Utilities
     keras_gym.utils.argmax
     keras_gym.utils.argmin
     keras_gym.utils.check_numpy_array
+    keras_gym.utils.clipped_logit
     keras_gym.utils.feature_vector
     keras_gym.utils.idx
     keras_gym.utils.log_softmax
@@ -18,6 +19,7 @@ Numpy-Array Utilities
 .. autofunction:: keras_gym.utils.argmax
 .. autofunction:: keras_gym.utils.argmin
 .. autofunction:: keras_gym.utils.check_numpy_array
+.. autofunction:: keras_gym.utils.clipped_logit
 .. autofunction:: keras_gym.utils.feature_vector
 .. autofunction:: keras_gym.utils.idx
 .. autofunction:: keras_gym.utils.log_softmax

@@ -8,6 +8,7 @@ __all__ = (
     'argmax',
     'argmin',
     'check_numpy_array',
+    'clipped_logit',
     'feature_vector',
     'idx',
     'log_softmax',
@@ -142,6 +143,37 @@ def check_numpy_array(arr, ndim=None, ndim_min=None, dtype=None, shape=None, axi
         raise NumpyArrayCheckError(
             "expected input with size(s) {} along axis {}, got shape: {}"
             .format(axis_size, axis, arr.shape))
+
+
+def clipped_logit(x, epsilon=1e-15):
+    """
+    A safe implementation of the logit function :math:`\\log(x) - \\log(1-x)`.
+    It clips the arguments of the log function from below so as to avoid
+    evaluating it at 0.
+
+    Parameters
+    ----------
+    x : nd array
+
+        Input numpy array whose entries lie on the unit interval,
+        :math:`x_i\\in [0, 1]`.
+
+    epsilon : float, optional
+
+        The small number with which to clip the arguments of the logarithm from
+        below.
+
+    Returns
+    -------
+    z : nd array, dtype: float, shape: same as input
+
+        The output logits whose entries lie on the real line,
+        :math:`z_i\\in\\mathbb{R}`.
+
+    """
+    if np.any(x < 0) or np.any(x > 1):
+        raise ValueError("values do not lie on the unit interval")
+    return np.log(np.maximum(epsilon, x)) - np.log(np.maximum(epsilon, 1 - x))
 
 
 def feature_vector(x, space):
