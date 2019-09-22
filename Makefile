@@ -44,10 +44,10 @@ upgrade_requirements:
 	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do $(PYTHON_EXEC) -m pur -r $$r; $(PYTHON_EXEC) -m pip install -r $$r; done
 
 tf_gpu:
-	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow && $(PYTHON_EXEC) -m pip install tensorflow-gpu
+	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow tensorflow-gpu && $(PYTHON_EXEC) -m pip install tensorflow-gpu
 
 tf_cpu:
-	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow-gpu && $(PYTHON_EXEC) -m pip install tensorflow
+	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow tensorflow-gpu && $(PYTHON_EXEC) -m pip install tensorflow
 
 rm_pycache:
 	find -regex '.*__pycache__[^/]*' -type d -exec rm -rf '{}' \;
