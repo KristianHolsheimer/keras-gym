@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # flake8: noqa
+import re
 import os
 import setuptools
 
@@ -8,9 +9,19 @@ pwd = os.path.dirname(__file__)
 
 install_requires = []
 with open(os.path.join(pwd, 'requirements.txt')) as f:
+    # check if tensorflow-gpu is installed
+    try:
+        from pip.commands.freeze import freeze
+        gpu = any(re.match(r'^tensorflow-gpu==\d+\.\d+\.\d+.*$', p) for p in freeze())
+    except ImportError:
+        gpu = False
+
     for line in f:
         line = line.strip()
         if line and not line.startswith('#'):
+            # don't install 'tensorflow' alongside 'tensorflow-gpu'
+            if gpu and re.match(r'^tensorflow(?:==|>=|<=|>|<)\d+\.\d+\.\d+.*$', line):
+                line = line.replace('tensorflow', 'tensorflow-gpu')
             install_requires.append(line)
 
 with open(os.path.join(pwd, 'version.txt')) as f:
