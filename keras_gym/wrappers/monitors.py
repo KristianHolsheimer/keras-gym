@@ -2,8 +2,11 @@ import time
 
 import gym
 import numpy as np
+import tensorflow as tf
+from tensorflow.keras import backend as K
 
-from ..base.mixins import LoggerMixin
+from ..base.mixins import ActionSpaceMixin, LoggerMixin
+from ..base.errors import ActionSpaceError
 
 
 __all__ = (
@@ -11,7 +14,45 @@ __all__ = (
 )
 
 
-class TrainMonitor(gym.Wrapper, LoggerMixin):
+def log_histogram(writer, tag, values, step, bins=1000):
+    """
+    This custom hostogram logger was taken from:
+
+        https://stackoverflow.com/a/48876774/2123555
+
+    """
+    # Convert to a numpy array
+    values = np.array(values)
+
+    # Create histogram using numpy
+    counts, bin_edges = np.histogram(values, bins=bins)
+
+    # Fill fields of histogram proto
+    hist = tf.HistogramProto()
+    hist.min = float(np.min(values))
+    hist.max = float(np.max(values))
+    hist.num = int(np.prod(values.shape))
+    hist.sum = float(np.sum(values))
+    hist.sum_squares = float(np.sum(values**2))
+
+    # Requires equal number as bins, where the first goes from -DBL_MAX to bin_edges[1]
+    # See https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/summary.proto#L30
+    # Thus, we drop the start of the first bin
+    bin_edges = bin_edges[1:]
+
+    # Add bin edges and counts
+    for edge in bin_edges:
+        hist.bucket_limit.append(edge)
+    for c in counts:
+        hist.bucket.append(c)
+
+    # Create and write Summary
+    summary = tf.Summary(value=[tf.Summary.Value(tag=tag, histo=hist)])
+    writer.add_summary(summary, step)
+    writer.flush()
+
+
+class TrainMonitor(gym.Wrapper, ActionSpaceMixin, LoggerMixin):
     """
     Environment wrapper for monitoring the training process.
 
@@ -23,6 +64,15 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
     env : gym environment
 
         A gym environment.
+
+    tensorboard_dir : str, optional
+
+        If provided, TrainMonitor will log all diagnostics to be viewed in
+        tensorboard. To view these, point tensorboard to the same dir:
+
+        .. code::
+
+            $ tensorboard --logdir {tensorboard_dir}
 
     Attributes
     ----------
@@ -54,10 +104,15 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
         The average wall time of a single step, in milliseconds.
 
     """
-    def __init__(self, env):
+    def __init__(self, env, tensorboard_dir=None):
         super().__init__(env)
         self.quiet = False
         self.reset_global()
+
+        self.tensorboard = None
+        if tensorboard_dir is not None:
+            self.tensorboard = tf.summary.FileWriter(
+                tensorboard_dir, graph=K.get_session().graph, flush_secs=10)
 
     def reset_global(self):
         """ Reset the global counters, not just the episodic ones. """
@@ -68,6 +123,9 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
         self.avg_G = 0.0
         self._n_avg_G = 0.0
         self._ep_starttime = time.time()
+        self._ep_losses = None
+        self._ep_actions = []
+        self._losses = None
 
     def reset(self):
         # increment global counters:
@@ -77,6 +135,8 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
         self.t = 0
         self.G = 0.0
         self._ep_starttime = time.time()
+        self._ep_losses = None
+        self._ep_actions = []
         return self.env.reset()
 
     @property
@@ -92,6 +152,7 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
         return self.G / self.t
 
     def step(self, a):
+        self._ep_actions.append(a)
         s_next, r, done, info = self.env.step(a)
         if info is None:
             info = {}
@@ -110,8 +171,63 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
                     .format(
                         self.ep, self.T, self.G, self.avg_G, self.t,
                         self.dt_ms, self._losses_str()))
+            if self.tensorboard is not None:
+                diagnostics = {
+                    'ep_return': self.G, 'ep_avg_reward': self.avg_r,
+                    'ep_steps': self.t, 'avg_step_duration_ms': self.dt_ms}
+                if self._ep_losses is not None:
+                    diagnostics.update(self._ep_losses)
+                self._write_scalars_to_tensorboard(diagnostics)
+                self._write_histogram_to_tensorboard(
+                    values=self._ep_actions, name='actions',
+                    is_discrete=self.action_space_is_discrete)
+                self.tensorboard.flush()
 
         return s_next, r, done, info
+
+    def _write_scalars_to_tensorboard(self, diagnostics):
+
+        for k, v in diagnostics.items():
+            summary = tf.Summary(
+                value=[tf.Summary.Value(
+                    tag=f'TrainMonitor/{k}', simple_value=v)])
+            self.tensorboard.add_summary(summary, global_step=self.T)
+
+    def _write_histogram_to_tensorboard(self, values, name, is_discrete, bins=50):
+        """
+        This custom histogram logger was taken from:
+
+            https://stackoverflow.com/a/48876774/2123555
+
+        """
+
+        if is_discrete:
+            values = np.array(values, dtype='int')
+            distinct_values, counts = np.unique(values, return_counts=True)
+            bin_edges = distinct_values + 1
+        else:
+            values = np.array(values, dtype='float')
+            counts, bin_edges = np.histogram(values, bins=bins)
+            bin_edges = bin_edges[1:]
+
+        # Fill fields of histogram proto
+        hist = tf.HistogramProto()
+        hist.min = float(np.min(values))
+        hist.max = float(np.max(values))
+        hist.num = int(np.prod(values.shape))
+        hist.sum = float(np.sum(values))
+        hist.sum_squares = float(np.sum(values**2))
+
+        # Add bin edges and counts
+        for edge in bin_edges:
+            hist.bucket_limit.append(edge)
+        for c in counts:
+            hist.bucket.append(c)
+
+        # Create and write Summary
+        summary = tf.Summary(
+            value=[tf.Summary.Value(tag=f'TrainMonitor/{name}', histo=hist)])
+        self.tensorboard.add_summary(summary, global_step=self.T)
 
     def record_losses(self, losses):
         """
@@ -126,7 +242,7 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        if not hasattr(self, '_losses') or set(self._losses) != set(losses):
+        if self._losses is None or set(self._losses) != set(losses):
             self._losses = dict(losses)
             self._n_losses = 1.0
         else:
@@ -136,8 +252,17 @@ class TrainMonitor(gym.Wrapper, LoggerMixin):
                 k: v + (losses[k] - v) / self._n_losses
                 for k, v in self._losses.items()}
 
+        if self._ep_losses is None or set(self._ep_losses) != set(losses):
+            self._ep_losses = dict(losses)
+            self._n_ep_losses = 1.0
+        else:
+            self._n_ep_losses += 1.0
+            self._ep_losses = {
+                k: v + (losses[k] - v) / self._n_ep_losses
+                for k, v in self._ep_losses.items()}
+
     def _losses_str(self):
-        if hasattr(self, '_losses'):
+        if self._losses is not None:
             return ", " + ", ".join(
                 '{:s}: {:.3g}'.format(k, v) for k, v in self._losses.items())
         return ""
