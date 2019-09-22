@@ -88,6 +88,8 @@ class RootMeanSquaredError(BaseLoss):
         Optional name for the op.
 
     """
+    name = 'rmse'
+
     def __init__(self, delta=1.0, name='root_mean_squared_error'):
         self._func = tf.keras.losses.MeanSquaredError(name=name)
 
