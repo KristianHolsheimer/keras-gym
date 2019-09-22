@@ -24,8 +24,10 @@ with open(os.path.join(pwd, 'requirements.txt')) as f:
                 line = line.replace('tensorflow', 'tensorflow-gpu')
             install_requires.append(line)
 
-with open(os.path.join(pwd, 'version.txt')) as f:
-    version = f.read().strip()
+with open(os.path.join(pwd, 'keras_gym', '__init__.py')) as f:
+    version = re.search('__version__ \= \'(\d+\.\d+\.\d+)\'', f.read())
+    assert version is not None, "can't parse __version__ from __init__.py"
+    version = version.groups()[0]
     assert len(version.split('.')) == 3, "bad version spec"
     majorminor = version.rsplit('.', 1)[0]
 

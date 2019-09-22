@@ -1,4 +1,5 @@
 # flake8: noqa
+__version__ = '0.2.15'
 
 # ensure that all submodules are visible
 from . import (
