@@ -3,3 +3,4 @@ pur>=5.2.2
 pytest>=4.4.2
 twine>=1.13.0
 gym[atari]>=0.12.1
+pytest-xdist>=1.29.0
