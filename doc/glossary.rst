@@ -177,10 +177,10 @@ inputs/outputs to our keras models.
         For instance, the parameters of a :class:`keras_gym.SoftmaxPolicy` (for
         discrete actions spaces) are those of a `categorical distribution
         <https://en.wikipedia.org/wiki/Categorical_distribution>`_. On the
-        other hand, for bounded continuous action spaces we use a
-        :class:`keras_gym.BetaPolicy`, whose parameters are the parameters of
-        the underlying `Beta distribution
-        <https://en.wikipedia.org/wiki/Beta_distribution>`_.
+        other hand, for continuous action spaces we use a
+        :class:`keras_gym.GaussianPolicy`, whose parameters are the parameters
+        of the underlying `normal distribution
+        <https://en.wikipedia.org/wiki/Normal_distribution>`_.
 
     Z
 

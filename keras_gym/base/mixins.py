@@ -3,7 +3,7 @@ import logging
 import gym
 import numpy as np
 
-from ..utils import one_hot, check_numpy_array
+from ..utils import one_hot, check_numpy_array, clipped_logit
 from .errors import ActionSpaceError
 
 
@@ -128,17 +128,17 @@ class ActionSpaceMixin:
         elif self.action_space_is_box:
 
             if self.env.action_space.contains(a_or_params):
-                # assume Beta(alpha, beta) distribution
-                p = a_or_params  # p == alpha / (alpha + beta)
-                n = np.infty     # n = alpha + beta
-                params = p, n
+                # assume squashed normal distribution
+                hi, lo = self.env.action_space.high, self.env.action_space.low
+                sigmoid_mu = (a_or_params - lo) / (hi - lo)  # to unit interval
+                mu = clipped_logit(sigmoid_mu, epsilon=1e-15)  # to real line
+                logvar = -30 * np.ones_like(mu)  # effectively sigma = 0
+                params = np.stack([mu, logvar], axis=1)
             else:
-                check_numpy_array(
-                    a_or_params, ndim=1, axis_size=self.actions_ndim, axis=0)
-                alpha, beta = a_or_params
-                n = alpha + beta
-                p = alpha / n
-                params = p, n
+                check_numpy_array(a_or_params, ndim=2)
+                check_numpy_array(axis_size=self.actions_ndim, axis=0)
+                check_numpy_array(axis_size=2, axis=1)
+                params = a_or_params
         else:
             raise ActionSpaceError(
                 "check_a_or_params() hasn't yet been implemented for action "

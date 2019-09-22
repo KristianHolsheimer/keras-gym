@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-import warnings
 
 import numpy as np
 import tensorflow as tf
 import gym
 import scipy.stats
+from scipy.special import expit as sigmoid
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
@@ -22,7 +22,7 @@ __all__ = (
     'BaseQTypeI',
     'BaseQTypeII',
     'BaseSoftmaxPolicy',
-    'BaseBetaPolicy',
+    'BaseGaussianPolicy',
 )
 
 
@@ -1116,9 +1116,9 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
             "unknown update_strategy '{}'".format(self.update_strategy))
 
 
-class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
+class BaseGaussianPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
     UPDATE_STRATEGIES = ('vanilla', 'ppo', 'cross_entropy')
-    DIST = 'beta'
+    DIST = 'normal'
 
     def __init__(
             self, env, train_model, predict_model, target_model,
@@ -1129,7 +1129,7 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
 
         if not isinstance(env.action_space, gym.spaces.Box):
             raise ActionSpaceError(
-                "Beta policy is only implemented for Box action spaces")
+                "Gaussian policy is only implemented for Box action spaces")
 
         self.env = env
         self.train_model = train_model
@@ -1139,15 +1139,6 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         self.ppo_clipping = float(ppo_clipping)
         self.entropy_bonus = float(entropy_bonus)
         self.random_seed = random_seed  # sets self.random in RandomStateMixin
-
-        # get Box dimensions
-        high, low = self.env.action_space.high, self.env.action_space.low
-        self._box_slope = (high - low) / 2.
-        self._box_intercept = (high + low) / 2.
-        if np.any(self._box_slope > 1e5):
-            msg = "The action space box seems to have very large dimension(s)"
-            warnings.warn(msg)
-            self.logger.warn(msg)
 
     def __call__(self, s, use_target_model=False):
         """
@@ -1171,26 +1162,25 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
             A single action proposed under the current policy.
 
         """
-        # apologies for overloading: beta (param) and scipy.stats.beta (dist)
-        alpha, beta = self.dist_params(s, use_target_model=use_target_model)
+        mu, logvar = self.dist_params(s, use_target_model=use_target_model)
+        sigma = np.exp(logvar / 2)
         try:
-            a_unit_interval = scipy.stats.beta(a=alpha, b=beta).rvs()
-        except Exception:
-            print(alpha, beta)
-            raise
+            z = scipy.stats.norm(mu, sigma).rvs()
+        except ValueError as e:
+            raise ValueError(f"{e.args[0]} params: mu={mu}, sigma={sigma}")
 
         # scale from unit interval(s) to actual box size
         high, low = self.env.action_space.high, self.env.action_space.low
-        a = (high - low) * a_unit_interval + low
+        a = low + (high - low) * sigmoid(z)
         return a
 
     def dist_params(self, s, use_target_model=False):
         """
 
         Get the parameters of the (conditional) probability distribution
-        :math:`\\pi(a|s)`. For a Beta policy, which is defined over a bounded
-        continuous action space, the probability distribution is the `Beta
-        distribution <https://en.wikipedia.org/wiki/Beta_distribution>`_.
+        :math:`\\pi(a|s)`. For a Gaussian policy, the probability distribution
+        is the `normal distribution
+        <https://en.wikipedia.org/wiki/Normal_distribution>`_.
 
         Parameters
         ----------
@@ -1205,12 +1195,26 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
 
         Returns
         -------
-        alpha, beta : tuple of 1d arrays, each of shape: [actions_ndim]
+        mu, logvar : tuple of 1d arrays, each of shape: [actions_ndim]
 
-            The parameters of the Beta distribution(s). The Beta distribution
-            is defined over the unit interval :math:`[0,1]`. Thus, in order to
-            use these parameters to sample actions, we do need to rescale our
-            samples to the appropriate size of the action-space Box.
+            The parameters of the underlying normal distribution(s). The normal
+            distribution is defined over the real line, while the Box action
+            space is bounded. We sample actions from the unconstrained
+            distribution and then squash it down:
+
+            .. math::
+
+                z \\sim \\mathcal{N}(\\mu(s), \\sigma^2(s))
+                a = a_\\text{min}
+                    + (a_\\text{max} - a_\\text{min})\\,\\text{sigmoid}(z)
+
+            Note that ``logvar`` is related to the standard deviation
+            :math:`\\sigma` as:
+
+            .. math::
+
+                \\text{logvar}\\ &=\\ \\log(\\sigma(s)^2) \\\\
+                \\sigma(s) \\ &=\\ \\exp(\\text{logvar} / 2)
 
         """
         assert self.env.observation_space.contains(s)
@@ -1219,14 +1223,12 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         check_numpy_array(P, ndim=3, axis_size=1, axis=0)
         check_numpy_array(P, axis_size=2, axis=2)
         check_numpy_array(P, axis_size=self.actions_ndim, axis=1)
+
+        # extract params
         params = np.squeeze(P, axis=0)
+        mu, logvar = params[:, 0], params[:, 1]
 
-        # switch to canonical parametrization
-        p, n = params[:, 0], params[:, 1]
-        alpha = n * p
-        beta = n * (1 - p)
-
-        return alpha, beta
+        return mu, logvar
 
     def greedy(self, s, use_target_model=False):
         """
@@ -1250,12 +1252,12 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
             A single action proposed under the current policy.
 
         """
-        alpha, beta = self.dist_params(s, use_target_model=use_target_model)
-        if alpha < 1 or beta < 1:
-            mode = 0.5
-        else:
-            mode = (alpha - 1) / (alpha + beta - 2)
-        return mode
+        mu, _ = self.dist_params(s, use_target_model=use_target_model)
+
+        # scale from unit interval(s) to actual box size
+        high, low = self.env.action_space.high, self.env.action_space.low
+        a = low + (high - low) * sigmoid(mu)  # mode == mu for normal dist
+        return a
 
     def update(self, s, a_or_params, advantage):
         """
@@ -1270,7 +1272,7 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         a_or_params : action or distribution parameters
 
             Either a single action taken under the behavior policy or a single
-            set of Beta-distribution parameters ``params = [alpha, beta]``.
+            set of normal-distribution parameters ``params = [mu, logvar]``.
 
         advantage : float
 
@@ -1307,8 +1309,8 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
         P : 3d arrays, dtype: float, shape: [batch_size, 2, actions_ndim]
 
             A batch of predicted distribution parameters :term:`P` of the
-            underlying `Beta distribution
-            <https://en.wikipedia.org/wiki/Beta_distribution>`_.
+            underlying `normal distribution
+            <https://en.wikipedia.org/wiki/Normal_distribution>`_.
 
         """
         model = self.target_model if use_target_model else self.predict_model
@@ -1327,11 +1329,11 @@ class BaseBetaPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, Ran
 
             A batch of state observations.
 
-        P : 2d Tensor, shape: [batch_size, actions_ndim]
+        P : 2d Tensor, shape: [batch_size, 2, actions_ndim]
 
             A batch of distribution parameters :term:`P` of the behavior
-            policy. For Box action spaces, this is essentially a batch of
-            parameters :math:`(\\alpha_t, \\beta_t)`, one for each state
+            policy. For Box action spaces, this is a batch of parameters
+            :math:`(\\mu_t, \\log(\\sigma_t^2))`, one for each state
             :math:`S_t`. Similar to the case of discrete action spaces,
             :term:`P` acts more as a projector than a prediction target.
 

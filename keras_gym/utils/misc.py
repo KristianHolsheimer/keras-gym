@@ -24,7 +24,7 @@ __all__ = (
 
 DIST_IDS = (
     'categorical',
-    'beta',
+    'normal',
 )
 
 
@@ -37,8 +37,8 @@ def check_dist_id(dist_id):
     ----------
     dist_id : str
 
-        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
-        a softmax policy or a Beta policy, respectively.
+        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
+        a softmax policy or a Gaussian policy, respectively.
 
     Returns
     -------
@@ -388,10 +388,11 @@ def is_policy(obj, check_updateable=False):
     """
     # import at runtime to avoid circular dependence
     from ..policies.base import BasePolicy
-    from ..function_approximators.base import BaseSoftmaxPolicy, BaseBetaPolicy
+    from ..function_approximators.base import (
+        BaseSoftmaxPolicy, BaseGaussianPolicy)
 
     if isinstance(obj, BasePolicy):
-        updateable = (BaseSoftmaxPolicy, BaseBetaPolicy)
+        updateable = (BaseSoftmaxPolicy, BaseGaussianPolicy)
         return isinstance(obj, updateable) if check_updateable else True
     return False
 

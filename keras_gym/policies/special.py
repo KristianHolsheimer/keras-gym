@@ -40,8 +40,9 @@ class RandomPolicy(BasePolicy, RandomStateMixin, ActionSpaceMixin):
             return np.ones(self.num_actions) / self.num_actions
 
         if self.action_space_is_box:
-            # use so-called Bayes' prior on the Beta dist (yields uniform dist)
-            return np.ones(self.actions_ndim), np.ones(self.actions_ndim)
+            mu = np.zeros(self.actions_ndim)          # zero mean
+            logvar = 10 * np.ones(self.actions_ndim)  # large variance
+            return mu, logvar
 
         raise ActionSpaceError(
             "method RandomPolicy.dist_params() is not yet implemented for "
@@ -75,8 +76,7 @@ class UserInputPolicy(BasePolicy, ActionSpaceMixin):
 
         for attempt in range(1, 4):  # 3 attempts
             try:
-                a = input(
-                    "Pick action from {{{}}}: ".format(actions))
+                a = input("Pick action from {{{}}}: ".format(actions))
                 return int(a)
             except ValueError:
                 print(

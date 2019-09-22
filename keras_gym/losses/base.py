@@ -34,8 +34,8 @@ class BasePolicyLoss(BaseLoss):
 
     dist_id : str
 
-        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
-        a softmax policy or a Beta policy, respectively.
+        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
+        a softmax policy or a Gaussian policy, respectively.
 
     Adv : 1d Tensor, dtype: float, shape: [batch_size]
 

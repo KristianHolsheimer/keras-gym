@@ -4,10 +4,10 @@ Updateable Policies
 .. autosummary::
     :nosignatures:
 
-    keras_gym.BetaPolicy
+    keras_gym.GaussianPolicy
     keras_gym.SoftmaxPolicy
 
 
-.. autoclass:: keras_gym.BetaPolicy
+.. autoclass:: keras_gym.GaussianPolicy
 .. autoclass:: keras_gym.SoftmaxPolicy
 

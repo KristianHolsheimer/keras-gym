@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import scipy.linalg
-from tensorflow.math import lbeta, digamma, log
 
 from ..base.errors import TensorCheckError
 from .misc import check_dist_id
@@ -174,8 +173,8 @@ def cross_entropy(
 
     dist_id : str
 
-        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
-        a softmax policy or a Beta policy, respectively.
+        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
+        a softmax policy or a Gaussian policy, respectively.
 
     allow_surrogate : bool, optional
 
@@ -200,10 +199,9 @@ def cross_entropy(
 
     Returns
     -------
-    cross_entropy : Tensor, shape: [batch_size, {num_actions,action_ndims}]
+    cross_entropy : Tensor, shape: [batch_size]
 
-        A batch of cross-entropy values
-        :math:`H[b,\\pi_\\theta](s, a)`.
+        A batch of cross-entropy values :math:`H[b,\\pi_\\theta](s, a)`.
 
     """
     dist_id = check_dist_id(dist_id)
@@ -213,48 +211,35 @@ def cross_entropy(
         check_tensor(Z1, ndim=2)
         check_tensor(Z2, same_as=Z1)
 
-        # normalize logits
-        pi1 = K.softmax(Z1, axis=1) if Z1_is_logit else Z1
-        pi2 = K.softmax(Z2, axis=1) if Z2_is_logit else Z2
-
         if allow_surrogate:
+            assert Z2_is_logit
             # Construct surrogate:
             # Let pi(a|s) = softmax(z(s,a)), then the surrogate for log(pi) is
             # logpi_surrogate = z(s,a) - sum_a' stop_gradient(pi(a'|s)) z(s,a')
-            Z2_mean = K.expand_dims(
-                tf.einsum('ij,ij->i', K.stop_gradient(pi2), Z2), axis=1)
+            pi2 = K.stop_gradient(K.softmax(Z2, axis=1))
+            Z2_mean = K.expand_dims(tf.einsum('ij,ij->i', pi2, Z2), axis=1)
             logpi2 = Z2 - Z2_mean  # surrogate, i.e. not truly log(pi)
-
         else:
-            logpi2 = log_softmax_tf(Z2, axis=1)
+            logpi2 = log_softmax_tf(Z2, axis=1) if Z2_is_logit else K.log(Z2)
 
+        pi1 = K.softmax(Z1, axis=1) if Z1_is_logit else Z1
         return K.sum(-pi1 * logpi2, axis=1)  # shape: [batch_size]
 
-    if dist_id == 'beta':
-        # https://en.wikipedia.org/wiki/Beta_distribution
-
+    if dist_id == 'normal':
         # expected input shapes: [batch_size, actions_ndim, 2]
         check_tensor(Z1, ndim=3, axis_size=2, axis=2)
-        check_tensor(Z2, ndim=3, axis_size=2, axis=2)
+        check_tensor(Z2, same_as=Z1)
 
-        # params of behavior policy: a = alpha, b = beta
-        p1, n1 = tf.unstack(Z1, axis=2)  # shapes: [batch, actions_ndim]
-        a1 = n1 * p1
-        b1 = n1 * (1 - p1)
+        # extract params
+        mu1, logvar1 = tf.unstack(Z1, axis=2)  # shapes: [batch, actions_ndim]
+        mu2, logvar2 = tf.unstack(Z2, axis=2)  # shapes: [batch, actions_ndim]
 
-        # params of updateable policy: a_th = alpha(theta), b_th = beta(theta)
-        p2, n2 = tf.unstack(Z2, axis=2)  # shapes: [batch, actions_ndim]
-        a2 = n2 * p2
-        b2 = n2 * (1 - p2)
-        ab2 = K.stack([a2, b2], -1)
+        cross_entropy = (
+            K.exp(logvar1 - logvar2)
+            + K.square(mu1 - mu2) / K.exp(logvar2)
+            + logvar2 + K.log(2 * np.pi)) / 2
 
-        cross_entropy = K.switch(
-            tf.is_finite(n1),
-            lbeta(ab2) - (a2 - 1) * digamma(a1) - (b2 - 1) * digamma(b1) + (a2 + b2 - 2) * digamma(a1 + b1),  # noqa: E501
-            lbeta(ab2) - (a2 - 1) * log(p1) - (b2 - 1) * log(1 - p1)
-        )
-
-        return cross_entropy  # shape: [batch_size, actions_ndim]
+        return K.mean(cross_entropy, axis=1)  # shape: [batch_size]
 
     raise NotImplementedError(
         "cross_entropy(dist_id='{}', ...)".format(dist_id))
@@ -341,8 +326,8 @@ def entropy(Z, dist_id, Z_is_logit=True):
 
     dist_id : str
 
-        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
-        a softmax policy or a Beta policy, respectively.
+        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
+        a softmax policy or a Gaussian policy, respectively.
 
     Z_is_logit : bool, optional
 
@@ -352,7 +337,7 @@ def entropy(Z, dist_id, Z_is_logit=True):
 
     Returns
     -------
-    entropy : Tensor, shape: [batch_size] or [batch_size, action_ndims}]
+    entropy : Tensor, shape: [batch_size]
 
         A batch of entropy values :math:`H[\\pi_\\theta](s, a)`.
 
@@ -369,27 +354,21 @@ def entropy(Z, dist_id, Z_is_logit=True):
             logpi = log_softmax_tf(Z, axis=1)
         else:
             pi = Z
-            logpi = log(pi)
+            logpi = K.log(pi)
 
         return K.sum(-pi * logpi, axis=1)  # shape: [batch_size]
 
-    if dist_id == 'beta':
-        # https://en.wikipedia.org/wiki/Beta_distribution
-
+    if dist_id == 'normal':
         # expected input shapes: [batch_size, actions_ndim, 2]
         check_tensor(Z, ndim=3, axis_size=2, axis=2)
 
-        # dist params of policy: a = alpha(theta), b = beta(theta)
-        p, n = tf.unstack(Z, axis=2)  # shapes: [batch, actions_ndim]
-        a = n * p
-        b = n * (1 - p)
-        ab = tf.stack([a, b], -1)
+        # dist params of policy
+        mu, logvar = tf.unstack(Z, axis=2)  # shapes: [batch, actions_ndim]
 
-        entropy = (
-            lbeta(ab) - (a - 1) * digamma(a) - (b - 1) * digamma(b)
-            + (a + b - 2) * digamma(a + b))  # noqa: W503
+        # entropy.shape: [batch_size, actions_ndim]
+        entropy = (1. + K.log(2 * np.pi) + logvar) / 2.
 
-        return entropy  # shape: [batch_size, actions_ndim]
+        return K.mean(entropy, axis=1)  # shape: [batch_size]
 
     raise NotImplementedError("entropy(dist_id='{}', ...)".format(dist_id))
 
@@ -470,68 +449,39 @@ def proba_ratio(P, Z1, Z2, dist_id):
 
     dist_id : str
 
-        The policy distribution id, e.g. ``'categorical'`` or ``'beta'`` for
-        a softmax policy or a Beta policy, respectively.
+        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
+        a softmax policy or a Gaussian policy, respectively.
 
     Returns
     -------
-    proba_ratio : Tensor, shape: [batch_size, {num_actions,action_ndims}]
+    proba_ratio : Tensor, shape: [batch_size]
 
-        A batch of probability ratios :math:`\\rho_\\theta(s,
-        a)`.
+        A batch of probability ratios :math:`\\rho_\\theta(s, a)`.
 
     """
     dist_id = check_dist_id(dist_id)
 
+    extra_kwargs = {}
     if dist_id == 'categorical':
-        # expected input shapes: [batch_size, num_actions]
         check_tensor(Z1, ndim=2)      # params of pi_theta1(a|s)
         check_tensor(Z2, same_as=Z1)  # params of pi_theta2(a|s)
         P.set_shape(Z1.get_shape())   # params of b(a|s)
-
-        # ratio as difference of log probabilities
-        logpi1 = log_softmax_tf(Z1, axis=1)
-        logpi2 = log_softmax_tf(Z2, axis=1)
-        ratio = K.exp(logpi1 - logpi2)
-
-        return K.sum(P * ratio, axis=1)  # shape: [batch_size]
-
-    if dist_id == 'beta':
-        # https://en.wikipedia.org/wiki/Beta_distribution
-
+        extra_kwargs.update({'Z1_is_logit': False, 'allow_surrogate': False})
+    elif dist_id == 'normal':
         # expected input shapes: [batch_size, actions_ndim, 2]
         check_tensor(Z1, ndim=3, axis_size=2, axis=2)  # pi_theta1(a|s)
         check_tensor(Z2, same_as=Z1)  # params of pi_theta2(a|s)
         P.set_shape(Z1.get_shape())   # params of b(a|s)
+    else:
+        raise NotImplementedError(
+            "proba_ratio(dist_id='{}', ...)".format(dist_id))
 
-        # clip for numerical stability
-        P = K.maximum(1e-16, P)
-        Z1 = K.maximum(1e-16, Z1)
-        Z2 = K.maximum(1e-16, Z2)
+    # ratio as difference of log probabilities
+    logpi1 = -cross_entropy(P, Z1, dist_id, **extra_kwargs)
+    logpi2 = -cross_entropy(P, Z2, dist_id, **extra_kwargs)
+    ratio = K.exp(logpi1 - logpi2)
 
-        # params of behavior policy (will ignore n = alpha + beta)
-        p, _ = tf.unstack(P, axis=2)  # shapes: [batch, actions_ndim]
-
-        # params of policy 1: a1 = alpha(theta_1), b2 = beta(theta_1)
-        p1, n1 = tf.unstack(Z1, axis=2)  # shapes: [batch, actions_ndim]
-        a1 = n1 * p1
-        b1 = n1 * (1 - p1)
-        ab1 = K.stack([a1, b1], -1)
-
-        # params of policy 2: a2 = alpha(theta_2), b2 = beta(theta_2)
-        p2, n2 = tf.unstack(Z2, axis=2)  # shapes: [batch, actions_ndim]
-        a2 = n2 * p2
-        b2 = n2 * (1 - p2)
-        ab2 = K.stack([a2, b2], -1)
-
-        # ratio as difference of log probabilities
-        ratio = K.exp(
-            -lbeta(ab1) + lbeta(ab2) + (a1 - a2) * K.log(p)
-            + (b1 - b2) * K.log(1 - p))  # noqa: W503
-
-        return ratio  # shape: [batch_size, actions_ndim]
-
-    raise NotImplementedError("log_pi(dist_id='{}', ...)".format(dist_id))
+    return ratio  # shape: [batch_size]
 
 
 def project_onto_actions_tf(Y, A):

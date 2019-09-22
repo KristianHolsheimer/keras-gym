@@ -12,7 +12,7 @@ __all__ = (
     'QTypeI',
     'QTypeII',
     'SoftmaxPolicy',
-    'BetaPolicy',
+    'GaussianPolicy',
     'V',
 
     # modules

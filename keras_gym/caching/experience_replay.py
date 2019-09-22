@@ -131,9 +131,9 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             :math:`a=2` was drawn from the behavior policy.
 
             For Box action spaces, the parameters are to be passed in as a pair
-            (tuple) of :math:`(\\alpha, \\beta)`. Or alternatively, you could
-            simply pass the sampled action :math:`A_t` itself. The latter is
-            the more common situation.
+            (tuple) of :math:`(\\mu, \\log(\\sigma^2))`. Or alternatively, you
+            could simply pass the sampled action :math:`A_t` itself. The latter
+            is the more common situation.
 
         r : float
 
@@ -286,15 +286,15 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
         n = (self.capacity + self.bootstrap_n,)
         s = self._s_shape
         if self.action_space_is_discrete:
-            a = (self.num_actions,)     # params of Categorical(p) distr
+            p = (self.num_actions,)     # params p of Categorical dist
         elif self.action_space_is_box:
-            a = (self.actions_ndim, 2)  # params of Beta(alpha, beta) distr
+            p = (self.actions_ndim, 2)  # params [mu, logvar] of normal dist
         else:
             raise ActionSpaceError.feature_request(self.env)
 
         # create cache attrs
         self._s = np.empty(n + s, self._s_dtype)  # frames
-        self._p = np.zeros(n + a, 'float')        # action propensities
+        self._p = np.zeros(n + p, 'float')        # action propensities
         self._r = np.zeros(n, 'float')            # rewards
         self._d = np.zeros(n, 'bool')             # done?
         self._e = np.zeros(n, 'int32')            # episode id

@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from math import log
 
 import tensorflow as tf
 from tensorflow import keras
@@ -10,7 +9,7 @@ from ..base.mixins import ActionSpaceMixin
 from ..base.errors import ActionSpaceError
 from ..losses import Huber, ProjectedSemiGradientLoss
 from .base import (
-    BaseV, BaseQTypeI, BaseQTypeII, BaseSoftmaxPolicy, BaseBetaPolicy)
+    BaseV, BaseQTypeI, BaseQTypeII, BaseSoftmaxPolicy, BaseGaussianPolicy)
 from .actor_critic import ActorCritic
 
 
@@ -20,7 +19,7 @@ __all__ = (
     'QTypeI',
     'QTypeII',
     'SoftmaxPolicy',
-    'BetaPolicy',
+    'GaussianPolicy',
     'ConjointActorCritic',
 )
 
@@ -197,37 +196,24 @@ class FunctionApproximator(ActionSpaceMixin):
 
         """
         if self.action_space_is_discrete:
-            multilinear_regression_layer = keras.layers.Dense(
+            Z = keras.layers.Dense(
                 units=self.num_actions,
                 kernel_initializer='zeros',
-                name=(variable_scope + '/policy/Z'))
-            Z = multilinear_regression_layer(X)  # logits
+                name=(variable_scope + '/policy/Z'))(X)
             return Z
 
         if self.action_space_is_box:
-            # p = alpha / (alpha + beta), 0 < p < 1
-            p = keras.layers.Dense(
-                units=self.actions_ndim,
+            Z_flat = keras.layers.Dense(
+                units=(self.actions_ndim * 2),
                 kernel_initializer='zeros',
-                activation='sigmoid',
-                name=(variable_scope + '/policy/p'))(X)
-
-            # n = alpha + beta, n > 0
-            n = keras.layers.Dense(
-                units=self.actions_ndim,
-                kernel_initializer='zeros',
-                bias_initializer=keras.initializers.constant(log(3)),
-                activation=K.exp,
-                name=(variable_scope + '/policy/n'))(X)
-
-            Z = keras.layers.Lambda(
-                lambda tensors: K.stack(tensors, axis=-1),
-                name=(variable_scope + '/policy/Z'))([p, n])
-
+                activation='linear',
+                name=(variable_scope + '/policy/Z_flat'))(X)
+            Z = keras.layers.Reshape(
+                target_shape=[self.actions_ndim, 2],
+                name=(variable_scope + '/policy/Z'))(Z_flat)
             return Z
 
         raise ActionSpaceError.feature_request(self.env)
-
 
     @abstractmethod
     def body(self, S, variable_scope):
@@ -683,7 +669,7 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
         if not self.action_space_is_discrete:
             raise ActionSpaceError(
                 "SoftmaxPolicy is incompatible with non-discrete action "
-                "spaces; please use other policy like BetaPolicy instead")
+                "spaces; please use other policy like GaussianPolicy instead")
 
         self.function_approximator = function_approximator
         self._init_models()
@@ -728,13 +714,13 @@ class SoftmaxPolicy(BaseSoftmaxPolicy):
         self.target_model = keras.Model(inputs=S, outputs=Z_target)
 
 
-class BetaPolicy(BaseBetaPolicy):
+class GaussianPolicy(BaseGaussianPolicy):
     """
 
-    An :term:`updateable policy` for environments with a bounded continuous
-    action space, i.e. a :class:`Box <gym.spaces.Box>`. It models the policy
-    :math:`\\pi_\\theta(a|s)` as a Beta distribution with parameters
-    :math:`(\\alpha_\\theta, \\beta_\\theta)`.
+    An :term:`updateable policy` for environments with a continuous action
+    space, i.e. a :class:`Box <gym.spaces.Box>`. It models the policy
+    :math:`\\pi_\\theta(a|s)` as a normal distribution with conditional
+    parameters :math:`(\\mu_\\theta(s), \\sigma_\\theta(s))`.
 
     Parameters
     ----------
@@ -958,7 +944,7 @@ class ConjointActorCritic(ActorCritic):
         if function_approximator.action_space_is_discrete:
             policy_class = BaseSoftmaxPolicy
         elif function_approximator.action_space_is_box:
-            policy_class = BaseBetaPolicy
+            policy_class = BaseGaussianPolicy
         else:
             raise ActionSpaceError.feature_request(function_approximator.env)
 
@@ -1013,7 +999,6 @@ class ConjointActorCritic(ActorCritic):
             check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
             check_tensor(Z_target, same_as=Z)
         elif self.action_space_is_box:
-            print(Z)
             check_tensor(Z, ndim=3, axis_size=self.actions_ndim, axis=1)
             check_tensor(Z, axis_size=2, axis=2)
             check_tensor(Z_target, same_as=Z)
