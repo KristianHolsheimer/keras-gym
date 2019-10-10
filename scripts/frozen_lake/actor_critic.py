@@ -5,7 +5,7 @@ from tensorflow.keras import backend as K
 from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
 
 
-# the cart-pole MDP
+# the MDP
 actions = {LEFT: 'L', RIGHT: 'R', UP: 'U', DOWN: 'D'}
 env = FrozenLakeEnv(is_slippery=False)
 env = km.wrappers.TrainMonitor(env)

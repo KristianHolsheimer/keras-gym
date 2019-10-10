@@ -19,7 +19,7 @@ cache = km.caching.MonteCarloCache(env, gamma=1)
 # state_id = '10600000000000005609'  # attack
 # state_id = '20600000000000004d7e'  # defend
 # state_id = '106000000001a021e87f'
-# n = km.planning.MCTSNode(state_id, ac, random_seed=7)
+# n = km.planning.MCTSNode(ac, state_id=state_id, random_seed=7)
 n = km.planning.MCTSNode(ac, random_seed=17, c_puct=3.5)
 
 n.env.render()
