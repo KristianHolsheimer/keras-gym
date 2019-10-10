@@ -4,7 +4,11 @@ class KerasGymError(Exception):
     pass
 
 
-class ActionSpaceError(KerasGymError):
+class SpaceError(KerasGymError):
+    pass
+
+
+class ActionSpaceError(SpaceError):
     @classmethod
     def feature_request(cls, env):
         return cls(

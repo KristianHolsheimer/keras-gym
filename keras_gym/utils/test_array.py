@@ -1,11 +1,13 @@
 import logging
 import numpy as np
+import gym
 import pytest
 
 from ..base.errors import NumpyArrayCheckError
 from .misc import set_tf_loglevel
 from .array import (
-    idx, check_numpy_array, project_onto_actions_np, softmax, log_softmax)
+    idx, check_numpy_array, project_onto_actions_np, softmax, log_softmax,
+    box_to_reals_np, reals_to_box_np)
 
 
 set_tf_loglevel(logging.ERROR)
@@ -93,3 +95,16 @@ def test_log_softmax_expected():
 
     # check normalization for large values
     np.testing.assert_array_almost_equal(np.exp(logz).sum(axis=1), np.ones(3))
+
+
+def test_box_to_reals_np():
+    rnd = np.random.RandomState(13)
+    space = gym.spaces.Box(-rnd.rand(3), rnd.rand(3))
+    space.np_random = rnd
+
+    A_expected = np.vstack((
+        space.sample(),
+        space.sample(),
+    ))
+    A_actual = reals_to_box_np(box_to_reals_np(A_expected, space), space)
+    np.testing.assert_array_almost_equal(A_actual, A_expected)

@@ -1,12 +1,16 @@
 import gym
 import numpy as np
 
-from ..base.errors import NumpyArrayCheckError
+from scipy.special import expit as sigmoid
+
+from ..base.errors import NumpyArrayCheckError, SpaceError
 
 
 __all__ = (
     'argmax',
     'argmin',
+    'box_to_reals_np',
+    'box_to_unit_interval_np',
     'check_numpy_array',
     'clipped_logit',
     'feature_vector',
@@ -14,7 +18,9 @@ __all__ = (
     'log_softmax',
     'one_hot',
     'project_onto_actions_np',
+    'reals_to_box_np',
     'softmax',
+    'unit_interval_to_box_np',
 )
 
 
@@ -92,6 +98,81 @@ def argmin(arr, axis=None, random_state=None):
     return argmax(-arr, axis=axis, random_state=random_state)
 
 
+def box_to_unit_interval_np(arr, space, eps=1e-15):
+    """
+
+    Rescale array values from Box space to the unit interval. This is
+    essentially just min-max scaling:
+
+    .. math::
+
+        x\\ \\mapsto\\ \\frac{x-x_\\text{low}}{x_\\text{high}-x_\\text{low}}
+
+    Parameters
+    ----------
+    arr : nd array
+
+        A numpy array containing a single instance or a batch of elements of
+        a Box space.
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    Returns
+    -------
+    out : nd array, same shape as input
+
+        A numpy array with the transformed values. The output values lie on the
+        unit interval :math:`[0, 1]`.
+
+    """
+    arr, lo, hi = _get_box_bounds(arr, space)
+
+    # box to unit interval
+    p = (arr - lo) / (hi - lo)
+
+    if np.any(p > 1) or np.any(p < 0):
+        raise ValueError("array values are not contained in the provided Box")
+
+    return p
+
+
+def box_to_reals_np(arr, space, epsilon=1e-15):
+    """
+
+    Transform array values from a Box space to the reals. This is done by
+    first mapping the Box values to the unit interval :math:`x\\in[0, 1]` and
+    then feeding it to the :func:`clipped_logit` function.
+
+    Parameters
+    ----------
+    arr : nd array
+
+        A numpy array containing a single instance or a batch of elements of
+        a Box space.
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    epsilon : float, optional
+
+        The cut-off value used by :func:`clipped_logit`.
+
+    Returns
+    -------
+    out : nd array, same shape as input
+
+        A numpy array with the transformed values. The output values are
+        real-valued.
+
+    """
+    return clipped_logit(box_to_unit_interval_np(arr, space), epsilon)
+
+
 def check_numpy_array(arr, ndim=None, ndim_min=None, dtype=None, shape=None, axis_size=None, axis=None):  # noqa: E501
     """
 
@@ -147,9 +228,15 @@ def check_numpy_array(arr, ndim=None, ndim_min=None, dtype=None, shape=None, axi
 
 def clipped_logit(x, epsilon=1e-15):
     """
-    A safe implementation of the logit function :math:`\\log(x) - \\log(1-x)`.
-    It clips the arguments of the log function from below so as to avoid
-    evaluating it at 0.
+
+    A safe implementation of the logit function
+    :math:`x\\mapsto\\log(x/(1-x))`. It clips the arguments of the log function
+    from below so as to avoid evaluating it at 0:
+
+    .. math::
+
+        \\text{logit}_\\epsilon(x)\\ =\\
+            \\log(\\max(\\epsilon, x)) - \\log(\\max(\\epsilon, 1 - x))
 
     Parameters
     ----------
@@ -333,6 +420,37 @@ def project_onto_actions_np(Y, A):
     return Y[idx(Y), A]
 
 
+def reals_to_box_np(arr, space):
+    """
+
+    Transform array values from the reals to a Box space. This is done by first
+    applying the logistic sigmoid to map the reals onto the unit interval and
+    then applying :func:`unit_interval_to_box_np` to rescale to the Box
+    space.
+
+    Parameters
+    ----------
+    arr : nd array
+
+        A numpy array containing a single instance or a batch of elements of
+        a Box space, encoded as logits.
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    Returns
+    -------
+    out : nd array, same shape as input
+
+        A numpy array with the transformed values. The output values are
+        contained in the provided Box space.
+
+    """
+    return unit_interval_to_box_np(sigmoid(arr), space)
+
+
 def softmax(arr, axis=-1):
     """
     Compute the softmax (normalized point-wise exponential).
@@ -364,3 +482,68 @@ def softmax(arr, axis=-1):
     exp_Z = np.exp(Z)
     p = exp_Z / np.sum(exp_Z, axis=axis, keepdims=True)
     return p
+
+
+def unit_interval_to_box_np(arr, space):
+    """
+
+    Rescale array values from the unit interval to a Box space. This is
+    essentially `inverted` min-max scaling:
+
+    .. math::
+
+        x\\ \\mapsto\\ x_\\text{low} + (x_\\text{high} - x_\\text{low})\\,x
+
+    Parameters
+    ----------
+    arr : nd array
+
+        A numpy array containing a single instance or a batch of elements of
+        a Box space, scaled to the unit interval.
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    Returns
+    -------
+    out : nd array, same shape as input
+
+        A numpy array with the transformed values. The output values are
+        contained in the provided Box space.
+
+    """
+    arr, lo, hi = _get_box_bounds(arr, space)
+
+    # box to unit interval
+    p = (arr - lo) / (hi - lo)
+
+    if np.any(p > 1) or np.any(p < 0):
+        raise ValueError("array values are not contained in the provided Box")
+
+    return p
+    arr, lo, hi = _get_box_bounds(arr, space)
+    return lo + (hi - lo) * arr
+
+
+def _get_box_bounds(arr, space):
+    check_numpy_array(arr, dtype=('float', np.float32, np.float64))
+    if not isinstance(space, gym.spaces.Box):
+        raise SpaceError("space must be a Box")
+
+    # prepare box bounds
+    lo, hi = space.low, space.high
+    check_numpy_array(lo, dtype=('float', np.float32, np.float64))
+    check_numpy_array(hi, dtype=('float', np.float32, np.float64))
+    if np.ndim(arr) == np.ndim(lo) + 1:
+        shape = arr.shape[1:]
+        lo = np.expand_dims(lo, axis=0)
+        hi = np.expand_dims(hi, axis=0)
+    else:
+        shape = arr.shape
+
+    if shape != lo.shape or shape != hi.shape:
+        SpaceError("array shape is incompatible with the Box space")
+
+    return arr, lo, hi
