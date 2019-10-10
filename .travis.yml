@@ -10,5 +10,4 @@ install:
   - pip install -r doc/requirements.txt
   - pip install .
 script:
-  - flake8 keras_gym
-  - pytest -n 4
+  - make test
