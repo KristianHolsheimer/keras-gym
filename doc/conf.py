@@ -12,6 +12,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import re
 import os
 import sys
 
@@ -27,8 +28,12 @@ copyright = '2018, Kristian Holsheimer'
 author = 'Kristian Holsheimer'
 
 
-with open(os.path.join(PACKAGEDIR, 'version.txt')) as f:
-    version = f.read().strip()  # example: '1.2.3'
+with open(os.path.join(PACKAGEDIR, 'keras_gym', '__init__.py')) as f:
+    version = re.search(r'__version__ \= \'(\d+\.\d+\.\d+)\'', f.read())
+    assert version is not None, "can't parse __version__ from __init__.py"
+    version = version.groups()[0]
+    assert len(version.split('.')) == 3, "bad version spec"
+    # majorminor = version.rsplit('.', 1)[0]
     release = version
 
 
