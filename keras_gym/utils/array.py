@@ -364,7 +364,7 @@ def one_hot(i, n, dtype='float'):
 
     Parameters
     ----------
-    i : int
+    i : int or 1d array of ints
 
         The index of the non-zero entry.
 
@@ -384,11 +384,21 @@ def one_hot(i, n, dtype='float'):
         The dense one-hot encoded vector.
 
     """
-    if not 0 <= i < n:
-        raise ValueError("i must be a non-negative and smaller than n")
-    x = np.zeros(int(n), dtype=dtype)
-    x[int(i)] = 1.0
-    return x
+    if isinstance(i, (int, np.integer)):
+        if not 0 <= i < n:
+            raise ValueError("i must be non-negative and smaller than n")
+        x = np.zeros(int(n), dtype=dtype)
+        x[int(i)] = 1.0
+        return x
+
+    if isinstance(i, np.ndarray) and i.ndim == 1 and i.dtype == np.integer:
+        if np.any(i >= n) or np.any(i < 0):
+            raise ValueError("i must be non-negative and smaller than n")
+        x = np.zeros((len(i), int(n)), dtype=dtype)
+        x[idx(i), i] = 1.0
+        return x
+
+    raise ValueError("i must be an int or 1d array of ints")
 
 
 def project_onto_actions_np(Y, A):
