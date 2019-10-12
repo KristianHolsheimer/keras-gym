@@ -25,6 +25,7 @@ Documentation
     notebooks/index
     function_approximators/index
     policies/index
+    proba_dists/index
     caching/index
     planning/index
     wrappers/index

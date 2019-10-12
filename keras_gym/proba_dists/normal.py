@@ -1,89 +1,83 @@
 import numpy as np
 import tensorflow as tf
-import gym
-from scipy import stats
-from scipy.special import expit as sigmoid
+from tensorflow.keras import backend as K
 
-from ..utils.helpers import check_tensor
-from ..base.errors import ActionSpaceError
+from ..utils.tensor import check_tensor
 from .base import BaseProbaDist
 
 
 class NormalDist(BaseProbaDist):
     """
 
-    Implementation of a (squashed) normal distribution.
-
-    Although the sampled values live on a bounded :class:`Box <gym.spaces.Box>`
-    space, the underlying distribution does describe a bona fide normal
-    distribution. It's only after sampling from the normal distribution that
-    the resulting value is squashed down to the bounded :class:`Box
-    <gym.spaces.Box>` space.
+    Implementation of a normal distribution.
 
     Parameters
     ----------
-    space : gym.spaces.Box
+    mu : 1d Tensor, dtype: float, shape: [batch_size, n]
 
-        A :class:`Box <gym.spaces.Box>` space.
+        A batch of vectors of means :math:`\\mu\\in\\mathbb{R}^n`.
 
-    mu : 1d Tensor, dtype: float, shape: [batch_size, actions_ndim]
-
-        A batch of vectors of means :math:`\\mu\\in\\mathbb{R}^n`, where
-        :math:`n` is the dimensionlity of the :class:`Box <gym.spaces.Box>`
-        action space.
-
-    logvar : 1d Tensor, dtype: float, shape: [batch_size, actions_ndim]
+    logvar : 1d Tensor, dtype: float, shape: [batch_size, n]
 
         A batch of vectors of log-variances
-        :math:`\\log(\\sigma^2)\\in\\mathbb{R}^n`, where :math:`n` is the
-        dimensionlity of the :class:`Box <gym.spaces.Box>` action space.
+        :math:`\\log(\\sigma^2)\\in\\mathbb{R}^n`
 
-    TODO: fix docstring
+    name : str, optional
+
+        Name scope of the distribution.
+
+    random_seed : int, optional
+
+        To get reproducible results.
 
     """
-    def __init__(self, space, model, name='', random_seed=None):
-        if not isinstance(space, gym.spaces.Box):
-            raise ActionSpaceError("space must be a Box")
+    def __init__(
+            self, mu, logvar,
+            name='normal_dist',
+            random_seed=None):
+
+        check_tensor(mu, ndim=2)
+        check_tensor(logvar, same_as=mu)
 
         self.name = name
-        self.space = space
-        self.ndim = len(space.shape)
+        self.mu = mu
+        self.logvar = logvar
         self.random_seed = random_seed  # also sets self.random (RandomState)
 
-        # this will set attrs: model, mu, logvar
-        self._check_model_and_set_params(model)
+    def sample(self):
+        noise = tf.random.normal(shape=K.shape(self.logvar))
+        sigma = K.exp(self.logvar / 2)
 
-    def sample(self, inputs_np):
-        mu_np, logvar_np = self.model.predict_on_batch(inputs_np)
-        sigma_np = np.exp(0.5 * logvar_np)
-        z = stats.norm(loc=mu_np, scale=sigma_np).rvs(random_state=self.random)
-        x = self.space.low + (self.space.high - self.space.low) * sigmoid(z)
-        return x
+        # reparametrization trick
+        x = self.mu + sigma * noise
+
+        return self._rename(x, 'sample')
 
     def log_proba(self, x):
-        check_tensor(x, same_as=self.mu)
-        z = (x - self.space.low) / (self.space.high - self.space.low)
+        check_tensor(x, same_dtype_as=self.mu)
+        check_tensor(x, ndim=2)
+        check_tensor(x, axis_size=K.int_shape(self.mu)[1], axis=1)
 
         # abbreviate vars
         m = self.mu
-        v = tf.exp(self.logvar)
+        v = K.exp(self.logvar)
         log_v = self.logvar
-        log_2pi = tf.constant(np.log(2 * np.pi))
+        log_2pi = K.constant(np.log(2 * np.pi))
 
         # main expression
-        log_p = -0.5 * (log_2pi + log_v + tf.square(z - m) / v)
+        log_p = -0.5 * (log_2pi + log_v + K.square(x - m) / v)
 
-        return tf.no_op(log_p, name=f'{self.name}/normal_dist/log_proba')
+        return self._rename(log_p, 'log_proba')
 
     def entropy(self):
         # abbreviate vars
         log_v = self.logvar
-        log_2pi = tf.constant(np.log(2 * np.pi))
+        log_2pi = K.constant(np.log(2 * np.pi))
 
         # main expression
         h = 0.5 * (log_2pi + log_v + 1)
 
-        return tf.no_op(h, name=f'{self.name}/normal_dist/entropy')
+        return self._rename(h, 'entropy')
 
     def cross_entropy(self, other):
         self._check_other(other)
@@ -91,15 +85,15 @@ class NormalDist(BaseProbaDist):
         # abbreviate vars
         m1 = self.mu
         m2 = other.mu
-        v1 = tf.exp(self.logvar)
-        v2 = tf.exp(other.logvar)
+        v1 = K.exp(self.logvar)
+        v2 = K.exp(other.logvar)
         log_v2 = other.logvar
-        log_2pi = tf.constant(np.log(2 * np.pi))
+        log_2pi = K.constant(np.log(2 * np.pi))
 
         # main expression
-        ce = 0.5 * (log_2pi + log_v2 + (v1 + tf.square(m1 - m2)) / v2)
+        ce = 0.5 * (log_2pi + log_v2 + (v1 + K.square(m1 - m2)) / v2)
 
-        return tf.no_op(ce, name=f'{self.name}/normal_dist/cross_entropy')
+        return self._rename(ce, 'cross_entropy')
 
     def kl_divergence(self, other):
         self._check_other(other)
@@ -107,35 +101,12 @@ class NormalDist(BaseProbaDist):
         # abbreviate vars
         m1 = self.mu
         m2 = other.mu
-        v1 = tf.exp(self.logvar)
-        v2 = tf.exp(other.logvar)
+        v1 = K.exp(self.logvar)
+        v2 = K.exp(other.logvar)
         log_v1 = self.logvar
         log_v2 = other.logvar
 
         # main expression
-        kldiv = 0.5 * (log_v2 - log_v1 + (v1 + tf.square(m1 - m2)) / v2 - 1)
+        kldiv = 0.5 * (log_v2 - log_v1 + (v1 + K.square(m1 - m2)) / v2 - 1)
 
-        return tf.no_op(kldiv, name=f'{self.name}/normal_dist/kl_divergence')
-
-    def proba_ratio(self, other, x):
-        rho = tf.exp(self.log_proba(x) - other.log_proba(x))
-        return tf.no_op(rho, name=f'{self.name}/normal_dist/proba_ratio')
-
-    def _check_model(self, model):
-        if not isinstance(model, tf.keras.Model):
-            raise TypeError(
-                f"expected a keras.Model, got: {model.__class__.__name__}")
-        if len(model.outputs) != 2:
-            raise ValueError(
-                "expected a model with two outputs (mu, logvar), the "
-                f"provided model has {len(model.outputs)} outputs instead")
-        if not model.output_names[0].endswith('/mu'):
-            raise ValueError(r"the first output must have name {scope}/mu")
-        if not model.output_names[1].endswith('/logvar'):
-            raise ValueError(r"the first output must have name {scope}/logvar")
-        mu, logvar = model.outputs
-        check_tensor(mu, ndim=2, axis_size=self.ndim, axis=1)
-        check_tensor(logvar, same_as=mu)
-        self.mu = mu
-        self.logvar = logvar
-        self.model = model
+        return self._rename(kldiv, 'kl_divergence')
