@@ -19,8 +19,8 @@ actor_critic = km.ConjointActorCritic(
     gamma=0.99,
     bootstrap_n=10,
     update_strategy='ppo',
-    ppo_clipping=0.2,
-    entropy_bonus=0.01)
+    ppo_clip_eps=0.2,
+    entropy_beta=0.01)
 
 v = actor_critic.value_function
 pi = actor_critic.policy

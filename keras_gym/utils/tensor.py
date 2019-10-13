@@ -1,21 +1,91 @@
+import gym
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import scipy.linalg
 
-from ..base.errors import TensorCheckError
-from .misc import check_dist_id
+from ..base.errors import TensorCheckError, SpaceError
 
 
 __all__ = (
+    'box_to_reals_tf',
+    'box_to_unit_interval_tf',
     'check_tensor',
-    'cross_entropy',
     'diff_transform_matrix',
-    'entropy',
     'log_softmax_tf',
-    'proba_ratio',
     'project_onto_actions_tf',
+    'reals_to_box_tf',
+    'unit_interval_to_box_tf',
 )
+
+
+def box_to_unit_interval_tf(tensor, space):
+    """
+
+    Rescale Tensor values from Box space to the unit interval. This is
+    essentially just min-max scaling:
+
+    .. math::
+
+        x\\ \\mapsto\\ \\frac{x-x_\\text{low}}{x_\\text{high}-x_\\text{low}}
+
+    Parameters
+    ----------
+    tensor : nd Tensor
+
+        A tensor containing a single instance or a batch of elements of a Box
+        space.
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    Returns
+    -------
+    out : nd Tensor, same shape as input
+
+        A Tensor with the transformed values. The output values lie on the unit
+        interval :math:`[0,1]`.
+
+    """
+    tensor, lo, hi = _get_box_bounds(tensor, space)
+    return (tensor - lo) / (hi - lo)
+
+
+def box_to_reals_tf(tensor, space, epsilon=1e-15):
+    """
+
+    Transform Tensor values from a Box space to the reals. This is done by
+    first mapping the Box values to the unit interval :math:`x\\in[0, 1]` and
+    then feeding it to the :func:`clipped_logit_tf` function.
+
+    Parameters
+    ----------
+    tensor : nd Tensor
+
+        A tensor containing a single instance or a batch of elements of a Box
+        space.
+
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    epsilon : float, optional
+
+        The cut-off value used by :func:`clipped_logit_tf`.
+
+    Returns
+    -------
+    out : nd Tensor, same shape as input
+
+        A Tensor with the transformed values. The output values are
+        real-valued.
+
+    """
+    return clipped_logit_tf(box_to_unit_interval_tf(tensor, space), epsilon)
 
 
 def check_tensor(
@@ -37,7 +107,7 @@ def check_tensor(
 
     Parameters
     ----------
-    ndim : int
+    ndim : int or list of ints
 
         Check ``K.ndim(tensor)``.
 
@@ -45,7 +115,7 @@ def check_tensor(
 
         Check if ``K.ndim(tensor)`` is at least ``ndim_min``.
 
-    dtype : Tensor dtype
+    dtype : Tensor dtype or list of Tensor dtypes
 
         Check ``tensor.dtype``.
 
@@ -99,9 +169,10 @@ def check_tensor(
         int_shape = K.int_shape(same_shape_as)
 
     check = ndim is not None
-    if check and K.ndim(tensor) != ndim:
+    ndims = [ndim] if not isinstance(ndim, (list, tuple, set)) else ndim
+    if check and K.ndim(tensor) not in ndims:
         raise TensorCheckError(
-            "expected input with ndim equal to {}, got ndim: {}"
+            "expected input with ndim(s) equal to {}, got ndim: {}"
             .format(ndim, K.ndim(tensor)))
 
     check = ndim_min is not None
@@ -111,9 +182,10 @@ def check_tensor(
             .format(ndim_min, K.ndim(tensor)))
 
     check = dtype is not None
-    if check and K.dtype(tensor) != dtype:
+    dtypes = [dtype] if not isinstance(dtype, (list, tuple, set)) else dtype
+    if check and K.dtype(tensor) not in dtypes:
         raise TensorCheckError(
-            "expected input with dtype {}, got dtype: {}"
+            "expected input with dtype(s) {}, got dtype: {}"
             .format(dtype, K.dtype(tensor)))
 
     check = int_shape is not None
@@ -129,120 +201,39 @@ def check_tensor(
             .format(axis_size, axis, K.int_shape(tensor)))
 
 
-def cross_entropy(
-        Z1, Z2, dist_id,
-        allow_surrogate=True,
-        Z1_is_logit=True,
-        Z2_is_logit=True):
-
+def clipped_logit_tf(x, epsilon=1e-15):
     """
 
-    This utility function computes the cross-entropy of an updateable policy
-    :math:`\\pi_{\\theta_2}(a|s)` relative to a another policy
-    :math:`\\pi_{\\theta_1}(a|s)`:
+    A safe implementation of the logit function
+    :math:`x\\mapsto\\log(x/(1-x))`. It clips the arguments of the log function
+    from below so as to avoid evaluating it at 0:
 
     .. math::
 
-        H[\\pi_{\\theta_1},\\pi_{\\theta_2}](s, a)\\ =\\
-            -\\pi_{\\theta_1}(a|s)\\,\\log\\pi_{\\theta_2}(a|s)
-
-    To turn this into a loss, one needs to aggregate over the batch axis=0 (as
-    usual) as well as aggregate/contract over axis=1 (i.e. over the actions
-    :math:`a`)
-
-    This is intended to be used as part of a loss/objective function. As such,
-    this may actually return a surrogate :math:`\\tilde{H}` instead. Such a
-    surrogate is constructed in such a way that it satisfies:
-
-    .. math::
-
-        \\nabla_\\theta \\tilde{H}[b,\\pi_\\theta]
-            \\ =\\ \\nabla_\\theta H[b,\\pi_\\theta]
+        \\text{logit}_\\epsilon(x)\\ =\\
+            \\log(\\max(\\epsilon, x)) - \\log(\\max(\\epsilon, 1 - x))
 
     Parameters
     ----------
-    Z1 : 2d Tensor, shape: [batch_size, {num_actions,actions_ndim}]
+    x : nd Tensor
 
-        A batch of distribution parameters. :term:`Z` contains the distribution
-        parameters of the updateable policy :math:`\\pi_\\theta(a|s)`.
+        Input tensor whose entries lie on the unit interval, :math:`x_i\\in
+        [0,1]`.
 
-    Z2 : 2d Tensor, shape: [batch_size, {num_actions,actions_ndim}]
+    epsilon : float, optional
 
-        Same as ``Z1`` except that it comes from a different set of parameters
-        :math:`\\theta_2\\neq\\theta_1` (in general).
-
-    dist_id : str
-
-        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
-        a softmax policy or a Gaussian policy, respectively.
-
-    allow_surrogate : bool, optional
-
-        Whether to allow the function to return a surrogate function instead of
-        the true function. The surrogate is generally more numerically stable,
-        but if your loss/objective is of the form :math:`J(\\theta) =
-        H[b,\\pi_\\theta]\\,f(\\theta)` it breaks the surrogate condition, i.e.
-        :math:`\\nabla_\\theta \\tilde{J}(\\theta) \\neq \\nabla_\\theta
-        J(\\theta)`.
-
-    Z1_is_logit : bool, optional
-
-        A flag to indicate whether the input ``Z1`` holds logits or whether it
-        already has had the softmax applied to it. This argument only applies
-        if the ``dist_id='categorical'``. It's ignored otherwise.
-
-    Z2_is_logit : bool, optional
-
-        A flag to indicate whether the input ``Z2`` holds logits or whether it
-        already has had the softmax applied to it. This argument only applies
-        if the ``dist_id='categorical'``. It's ignored otherwise.
+        The small number with which to clip the arguments of the logarithm from
+        below.
 
     Returns
     -------
-    cross_entropy : Tensor, shape: [batch_size]
+    z : nd Tensor, dtype: float, shape: same as input
 
-        A batch of cross-entropy values :math:`H[b,\\pi_\\theta](s, a)`.
+        The output logits whose entries lie on the real line,
+        :math:`z_i\\in\\mathbb{R}`.
 
     """
-    dist_id = check_dist_id(dist_id)
-
-    if dist_id == 'categorical':
-        # expected input shapes: [batch_size, num_actions]
-        check_tensor(Z1, ndim=2)
-        check_tensor(Z2, same_as=Z1)
-
-        if allow_surrogate:
-            assert Z2_is_logit
-            # Construct surrogate:
-            # Let pi(a|s) = softmax(z(s,a)), then the surrogate for log(pi) is
-            # logpi_surrogate = z(s,a) - sum_a' stop_gradient(pi(a'|s)) z(s,a')
-            pi2 = K.stop_gradient(K.softmax(Z2, axis=1))
-            Z2_mean = K.expand_dims(tf.einsum('ij,ij->i', pi2, Z2), axis=1)
-            logpi2 = Z2 - Z2_mean  # surrogate, i.e. not truly log(pi)
-        else:
-            logpi2 = log_softmax_tf(Z2, axis=1) if Z2_is_logit else K.log(Z2)
-
-        pi1 = K.softmax(Z1, axis=1) if Z1_is_logit else Z1
-        return K.sum(-pi1 * logpi2, axis=1)  # shape: [batch_size]
-
-    if dist_id == 'normal':
-        # expected input shapes: [batch_size, actions_ndim, 2]
-        check_tensor(Z1, ndim=3, axis_size=2, axis=2)
-        check_tensor(Z2, same_as=Z1)
-
-        # extract params
-        mu1, logvar1 = tf.unstack(Z1, axis=2)  # shapes: [batch, actions_ndim]
-        mu2, logvar2 = tf.unstack(Z2, axis=2)  # shapes: [batch, actions_ndim]
-
-        cross_entropy = (
-            K.exp(logvar1 - logvar2)
-            + K.square(mu1 - mu2) / K.exp(logvar2)
-            + logvar2 + K.log(2 * np.pi)) / 2
-
-        return K.mean(cross_entropy, axis=1)  # shape: [batch_size]
-
-    raise NotImplementedError(
-        "cross_entropy(dist_id='{}', ...)".format(dist_id))
+    return K.log(K.maximum(epsilon, x)) - K.log(K.maximum(epsilon, 1 - x))
 
 
 def diff_transform_matrix(num_frames, dtype='float32'):
@@ -303,76 +294,6 @@ def diff_transform_matrix(num_frames, dtype='float32'):
     return K.constant(m, dtype=dtype)
 
 
-def entropy(Z, dist_id, Z_is_logit=True):
-    """
-
-    This utility function computes the entropy of an updateable policy
-    :math:`\\pi_\\theta(a|s)`.
-
-    .. math::
-
-        H[\\pi_\\theta](s, a)\\ =\\ -\\pi_\\theta(a|s)\\,\\log\\pi_\\theta(a|s)
-
-    To turn this into a loss, one needs to aggregate over the batch axis=0 (as
-    usual) as well as aggregate/contract over axis=1 (i.e. over the actions
-    :math:`a`)
-
-    Parameters
-    ----------
-    Z : 2d Tensor, shape: [batch_size, {num_actions,actions_ndim}]
-
-        A batch of distribution parameters. :term:`Z` contains the distribution
-        parameters of the updateable policy :math:`\\pi_\\theta(a|s)`.
-
-    dist_id : str
-
-        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
-        a softmax policy or a Gaussian policy, respectively.
-
-    Z_is_logit : bool, optional
-
-        A flag to indicate whether the input ``Z`` holds logits or whether it
-        already has had the softmax applied to it. This argument only applies
-        if the ``dist_id='categorical'``. It's ignored otherwise.
-
-    Returns
-    -------
-    entropy : Tensor, shape: [batch_size]
-
-        A batch of entropy values :math:`H[\\pi_\\theta](s, a)`.
-
-    """
-    dist_id = check_dist_id(dist_id)
-
-    if dist_id == 'categorical':
-        # expected input shapes: [batch_size, num_actions]
-        check_tensor(Z, ndim=2)
-
-        # action propensities
-        if Z_is_logit:
-            pi = K.softmax(Z, axis=1)
-            logpi = log_softmax_tf(Z, axis=1)
-        else:
-            pi = Z
-            logpi = K.log(pi)
-
-        return K.sum(-pi * logpi, axis=1)  # shape: [batch_size]
-
-    if dist_id == 'normal':
-        # expected input shapes: [batch_size, actions_ndim, 2]
-        check_tensor(Z, ndim=3, axis_size=2, axis=2)
-
-        # dist params of policy
-        mu, logvar = tf.unstack(Z, axis=2)  # shapes: [batch, actions_ndim]
-
-        # entropy.shape: [batch_size, actions_ndim]
-        entropy = (1. + K.log(2 * np.pi) + logvar) / 2.
-
-        return K.mean(entropy, axis=1)  # shape: [batch_size]
-
-    raise NotImplementedError("entropy(dist_id='{}', ...)".format(dist_id))
-
-
 def log_softmax_tf(Z, axis=-1):
     """
     Compute the log-softmax.
@@ -401,87 +322,6 @@ def log_softmax_tf(Z, axis=-1):
     Z = K.clip(Z, -30, 30)                       # avoid overflow before exp
     log_P = Z - K.log(K.sum(K.exp(Z), axis=axis, keepdims=True))
     return log_P
-
-
-def proba_ratio(P, Z1, Z2, dist_id):
-    """
-
-    This utility function computes the probability ratio of an updateable
-    policy :math:`\\pi_{\\theta_1}(a|s)` and :math:`\\pi_{\\theta_2}(a|s)`,
-    evaluated on action(s) sampled from a behavior policy :math:`A\\sim
-    b(.|s)`:
-
-    .. math::
-
-        \\rho_\\theta(s, a)\\ =\\
-            -b(a|s)\\frac{\\pi_\\theta(a|s)}{\\pi_{\\theta_\\text{old}}(a|s)}
-
-    To turn this into a loss, one needs to aggregate over the batch axis=0 (as
-    usual) as well as aggregate/contract over axis=1 (i.e. over the actions
-    :math:`a`)
-
-    This is intended to be used as part of a loss/objective function. As such,
-    this may actually return a surrogate :math:`\\tilde{H}` instead. Such a
-    surrogate is constructed in such a way that it satisfies:
-
-    .. math::
-
-        \\nabla_\\theta \\tilde{\\rho}_\\theta
-            \\ =\\ \\nabla_\\theta \\rho_\\theta
-
-    Parameters
-    ----------
-    P : 2d Tensor, shape: [batch_size, {num_actions,actions_ndim}]
-
-        A batch of distribution parameters :term:`P` of the behavior policy.
-        For discrete action spaces, this is typically just a one-hot encoded
-        version of a batch of taken actions :term:`A`.
-
-    Z1 : 2d Tensor, shape: [batch_size, {num_actions,actions_ndim}]
-
-        A batch of distribution parameters. :term:`Z` contains the distribution
-        parameters of the updateable policy :math:`\\pi_\\theta(a|s)`.
-
-    Z2 : 2d Tensor, shape: [batch_size, {num_actions,actions_ndim}]
-
-        Same as ``Z1`` except that it comes from a different set of parameters
-        :math:`\\theta_2\\neq\\theta_1` (in general).
-
-    dist_id : str
-
-        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
-        a softmax policy or a Gaussian policy, respectively.
-
-    Returns
-    -------
-    proba_ratio : Tensor, shape: [batch_size]
-
-        A batch of probability ratios :math:`\\rho_\\theta(s, a)`.
-
-    """
-    dist_id = check_dist_id(dist_id)
-
-    extra_kwargs = {}
-    if dist_id == 'categorical':
-        check_tensor(Z1, ndim=2)      # params of pi_theta1(a|s)
-        check_tensor(Z2, same_as=Z1)  # params of pi_theta2(a|s)
-        P.set_shape(Z1.get_shape())   # params of b(a|s)
-        extra_kwargs.update({'Z1_is_logit': False, 'allow_surrogate': False})
-    elif dist_id == 'normal':
-        # expected input shapes: [batch_size, actions_ndim, 2]
-        check_tensor(Z1, ndim=3, axis_size=2, axis=2)  # pi_theta1(a|s)
-        check_tensor(Z2, same_as=Z1)  # params of pi_theta2(a|s)
-        P.set_shape(Z1.get_shape())   # params of b(a|s)
-    else:
-        raise NotImplementedError(
-            "proba_ratio(dist_id='{}', ...)".format(dist_id))
-
-    # ratio as difference of log probabilities
-    logpi1 = -cross_entropy(P, Z1, dist_id, **extra_kwargs)
-    logpi2 = -cross_entropy(P, Z2, dist_id, **extra_kwargs)
-    ratio = K.exp(logpi1 - logpi2)
-
-    return ratio  # shape: [batch_size]
 
 
 def project_onto_actions_tf(Y, A):
@@ -513,3 +353,90 @@ def project_onto_actions_tf(Y, A):
     indices = tf.stack([idx, A], axis=1)
     Y_projected = tf.gather_nd(Y, indices)  # shape: [batch_size]
     return Y_projected
+
+
+def reals_to_box_tf(tensor, space):
+    """
+
+    Transform Tensor values from the reals to a Box space. This is done by
+    first applying the logistic sigmoid to map the reals onto the unit interval
+    and then applying :func:`unit_interval_to_box_tf` to rescale to the Box
+    space.
+
+    Parameters
+    ----------
+    tensor : nd Tensor
+
+        A tensor containing a single instance or a batch of elements of a Box
+        space, encoded as logits.
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    Returns
+    -------
+    out : nd Tensor, same shape as input
+
+        A Tensor with the transformed values. The output values are contained
+        in the provided Box space.
+
+    """
+    return unit_interval_to_box_tf(K.sigmoid(tensor), space)
+
+
+def unit_interval_to_box_tf(tensor, space):
+    """
+
+    Rescale Tensor values from the unit interval to a Box space. This is
+    essentially `inverted` min-max scaling:
+
+    .. math::
+
+        x\\ \\mapsto\\ x_\\text{low} + (x_\\text{high} - x_\\text{low})\\,x
+
+    Parameters
+    ----------
+    tensor : nd Tensor
+
+        A numpy array containing a single instance or a batch of elements of
+        a Box space, scaled to the unit interval.
+
+    space : gym.spaces.Box
+
+        The Box space. This is needed to determine the shape and size of the
+        space.
+
+    Returns
+    -------
+    out : nd Tensor, same shape as input
+
+        A Tensor with the transformed values. The output values are contained
+        in the provided Box space.
+
+    """
+    arr, lo, hi = _get_box_bounds(tensor, space)
+    return lo + (hi - lo) * arr
+
+
+def _get_box_bounds(tensor, space):
+    check_tensor(tensor, dtype=('float32', 'float64'))
+    if not isinstance(space, gym.spaces.Box):
+        raise SpaceError("space must be a Box")
+
+    # prepare box bounds
+    lo = K.constant(space.low, dtype=tensor.dtype)
+    hi = K.constant(space.high, dtype=tensor.dtype)
+
+    if K.ndim(tensor) == K.ndim(lo) + 1:
+        shape = K.int_shape(tensor)[1:]
+        lo = K.expand_dims(lo, axis=0)
+        hi = K.expand_dims(hi, axis=0)
+    else:
+        shape = K.int_shape(tensor)
+
+    if shape != K.int_shape(lo) or shape != K.int_shape(hi):
+        SpaceError("tensor shape is incompatible with the Box space")
+
+    return tensor, lo, hi

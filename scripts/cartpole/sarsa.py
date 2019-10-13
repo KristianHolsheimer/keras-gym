@@ -9,7 +9,7 @@ env = gym.make('CartPole-v0')
 
 class Linear(km.FunctionApproximator):
     """ linear function approximator """
-    def body(self, X, variable_scope):
+    def body(self, X):
         # body is trivial, only flatten and then pass to head (one dense layer)
         return keras.layers.Flatten()(X)
 

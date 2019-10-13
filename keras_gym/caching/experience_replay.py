@@ -1,9 +1,8 @@
 import numpy as np
 
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin
-from ..base.errors import (
-    NumpyArrayCheckError, InsufficientCacheError, ActionSpaceError)
-from ..utils import check_numpy_array, get_env_attr
+from ..base.errors import NumpyArrayCheckError, InsufficientCacheError
+from ..utils import check_numpy_array, get_env_attr, one_hot
 
 
 __all__ = (
@@ -109,7 +108,7 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             bootstrap_n=value_function.bootstrap_n)
         return self
 
-    def add(self, s, a_or_params, r, done, episode_id):
+    def add(self, s, a, r, done, episode_id):
         """
         Add a transition to the experience replay buffer.
 
@@ -119,21 +118,9 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
 
             A single state observation.
 
-        a_or_params : action or distribution parameters
+        a : action
 
-            Either a single action taken under the behavior policy or a single
-            set of distribution parameters describing the behavior policy
-            :math:`b(a|s)`. See also the glossary entry for :term:`P`.
-
-            For instance, let's say our action space is :class:`Discrete(4)`,
-            then passing ``a_or_params = 2`` is equivalent to passing
-            ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
-            :math:`a=2` was drawn from the behavior policy.
-
-            For Box action spaces, the parameters are to be passed in as a pair
-            (tuple) of :math:`(\\mu, \\log(\\sigma^2))`. Or alternatively, you
-            could simply pass the sampled action :math:`A_t` itself. The latter
-            is the more common situation.
+            A single action.
 
         r : float
 
@@ -150,15 +137,23 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
 
         """
         s = self._extract_last_frame(s)
-        params = self.check_a_or_params(a_or_params)
 
         if not self._initialized:
-            self._s_shape = s.shape
             self._s_dtype = s.dtype
+            self._s_shape = s.shape
+            if self.action_space_is_discrete:
+                self._a_shape = (self.num_actions,)  # we do one-hot encoding
+                self._a_dtype = 'float'
+            else:
+                self._a_shape = self.env.action_space.shape
+                self._a_dtype = self.env.action_space.dtype
             self._init_cache()
 
+        if self.action_space_is_discrete:
+            a = self._one_hot_encode_discrete(a)
+
         self._s[self._i] = s
-        self._p[self._i] = params
+        self._a[self._i] = a
         self._r[self._i] = r
         self._d[self._i] = done
         self._e[self._i] = episode_id
@@ -172,11 +167,11 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
 
         Returns
         -------
-        S, P, Rn, In, S_next, P_next : tuple of arrays
+        S, A, Rn, In, S_next, A_next : tuple of arrays
 
             The returned tuple represents a batch of preprocessed transitions:
 
-                (:term:`S`, :term:`P`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`P_next`)
+                (:term:`S`, :term:`A`, :term:`Rn`, :term:`In`, :term:`S_next`, :term:`A_next`)
 
             These are typically used for bootstrapped updates, e.g. minimizing
             the bootstrapped MSE:
@@ -194,11 +189,11 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
                 "insufficient cached data to sample from")
 
         S = []
-        P = []
+        A = []
         Rn = []
         In = []
         S_next = []
-        P_next = []
+        A_next = []
 
         for attempt in range(10 * self.batch_size):
             # js are the S indices and ks are the S_next indices
@@ -241,10 +236,10 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             # permutation to transpose 'num_frames' axis to axis=-1
             perm = np.roll(np.arange(self._s.ndim), -1)
             S.append(self._s[js].transpose(perm))
-            P.append(self._p[js[-1:]])
+            A.append(self._a[js[-1:]])
             Rn.append(rn)
             S_next.append(self._s[ks].transpose(perm))
-            P_next.append(self._p[ks[-1:]])
+            A_next.append(self._a[ks[-1:]])
             if done:
                 In.append(np.zeros(1))
             else:
@@ -258,17 +253,17 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             raise RuntimeError("couldn't construct valid sample")
 
         S = np.stack(S, axis=0)
-        P = np.concatenate(P, axis=0)
+        A = np.concatenate(A, axis=0)
         Rn = np.concatenate(Rn, axis=0)
         In = np.concatenate(In, axis=0)
         S_next = np.stack(S_next, axis=0)
-        P_next = np.concatenate(P_next, axis=0)
+        A_next = np.concatenate(A_next, axis=0)
 
         if self.num_frames == 1:
             S = np.squeeze(S, axis=-1)
             S_next = np.squeeze(S_next, axis=-1)
 
-        return S, P, Rn, In, S_next, P_next
+        return S, A, Rn, In, S_next, A_next
 
     def clear(self):
         """
@@ -278,26 +273,25 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
         self._i = 0
         self._num_transitions = 0
 
+    def __len__(self):
+        return max(0, self._num_transitions - self.bootstrap_n)
+
+    def __bool__(self):
+        return bool(len(self))
+
     def _init_cache(self):
         self._i = 0
         self._num_transitions = 0
 
         # construct appropriate shapes
         n = (self.capacity + self.bootstrap_n,)
-        s = self._s_shape
-        if self.action_space_is_discrete:
-            p = (self.num_actions,)     # params p of Categorical dist
-        elif self.action_space_is_box:
-            p = (self.actions_ndim, 2)  # params [mu, logvar] of normal dist
-        else:
-            raise ActionSpaceError.feature_request(self.env)
 
         # create cache attrs
-        self._s = np.empty(n + s, self._s_dtype)  # frames
-        self._p = np.zeros(n + p, 'float')        # action propensities
-        self._r = np.zeros(n, 'float')            # rewards
-        self._d = np.zeros(n, 'bool')             # done?
-        self._e = np.zeros(n, 'int32')            # episode id
+        self._s = np.empty(n + self._s_shape, self._s_dtype)  # frames
+        self._a = np.zeros(n + self._a_shape, self._a_dtype)  # actions
+        self._r = np.zeros(n, 'float')                        # rewards
+        self._d = np.zeros(n, 'bool')                         # done?
+        self._e = np.zeros(n, 'int32')                        # episode id
         self._initialized = True
 
     def _extract_last_frame(self, s):
@@ -313,9 +307,3 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             NumpyArrayCheckError(
                 "expected ndim equal to 3 or 4, got shape: {}".format(s.shape))
         return s
-
-    def __len__(self):
-        return max(0, self._num_transitions - self.bootstrap_n)
-
-    def __bool__(self):
-        return bool(len(self))

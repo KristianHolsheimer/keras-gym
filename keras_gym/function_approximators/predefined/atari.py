@@ -35,11 +35,7 @@ class AtariFunctionApproximator(FunctionApproximator):
         learning rate.
 
     """
-    def body(self, S, variable_scope):
-        assert variable_scope in ('primary', 'target')
-
-        def v(name):
-            return '{}/{}'.format(variable_scope, name)
+    def body(self, S):
 
         def diff_transform(S):
             num_frames = get_env_attr(self.env, 'num_frames')
@@ -48,16 +44,16 @@ class AtariFunctionApproximator(FunctionApproximator):
             return K.dot(S, M)
 
         layers = [
-            keras.layers.Lambda(diff_transform, name=v('diff_transform')),
+            keras.layers.Lambda(diff_transform, name='diff_transform'),
             keras.layers.Conv2D(
-                name=v('conv1'), filters=16, kernel_size=8, strides=4,
+                name='conv1', filters=16, kernel_size=8, strides=4,
                 activation='relu'),
             keras.layers.Conv2D(
-                name=v('conv2'), filters=32, kernel_size=4, strides=2,
+                name='conv2', filters=32, kernel_size=4, strides=2,
                 activation='relu'),
-            keras.layers.Flatten(name=v('flatten')),
+            keras.layers.Flatten(name='flatten'),
             keras.layers.Dense(
-                name=v('dense1'), units=256, activation='relu')]
+                name='dense1', units=256, activation='relu')]
 
         # forward pass
         X = S

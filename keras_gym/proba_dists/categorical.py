@@ -8,7 +8,7 @@ from .base import BaseProbaDist
 
 class CategoricalDist(BaseProbaDist):
     """
-    Implementation of a categorical distribution.
+    Differential implementation of a categorical distribution.
 
     Parameters
     ----------
@@ -34,6 +34,8 @@ class CategoricalDist(BaseProbaDist):
         To get reproducible results.
 
     """
+    PARAM_NAMES = ('logits',)
+
     def __init__(
             self, logits,
             boltzmann_tau=0.2,
@@ -48,18 +50,12 @@ class CategoricalDist(BaseProbaDist):
         self.boltzmann_tau = boltzmann_tau
         self.random_seed = random_seed  # also sets self.random (RandomState)
 
-    def sample(self, n=1):
+    def sample(self):
         """
 
-        Sample from the probability distribution.
-
-        .. note::
-
-            The :func:`CategoricalDist.sample
-            <keras_gym.proba_dists.CategoricalDist.sample>` has not yet been
-            implemented in a differentiable way, but it will use the approach
-            outlined in `[ArXiv:1611.01144]
-            <https://arxiv.org/abs/1611.01144>`_
+        Sample from the probability distribution. In order to return a
+        differentiable sample, this method uses the approach outlined in
+        `[ArXiv:1611.01144] <https://arxiv.org/abs/1611.01144>`_.
 
         Returns
         -------
@@ -69,8 +65,13 @@ class CategoricalDist(BaseProbaDist):
             versions of deterministic variates.
 
         """
-        # FIXME: write differentiable implementation
-        return K.one_hot(K.argmax(self.logits), self.num_categories)
+        logp = log_softmax_tf(self.logits)
+        u = tf.random.uniform(
+            shape=K.shape(logp),
+            dtype=K.dtype(logp),
+            seed=self.random_seed)
+        g = -K.log(-K.log(u))  # g ~ Gumbel(0,1)
+        return K.softmax((g + logp) / self.boltzmann_tau)
 
     def log_proba(self, x):
         if K.ndim(x) == 2 and K.int_shape(x)[1] == 1:

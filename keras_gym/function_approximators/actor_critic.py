@@ -52,7 +52,7 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
     def _cache(self):
         return self.value_function._cache
 
-    def update(self, s, a_or_params, r, done):
+    def update(self, s, a, r, done):
         """
         Update both actor and critic.
 
@@ -62,17 +62,9 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
             A single state observation.
 
+        a : action
 
-        a_or_params : action or distribution parameters
-
-            Either a single action taken under the behavior policy or a single
-            set of distribution parameters describing the behavior policy
-            :math:`b(a|s)`. See also the glossary entry for :term:`P`.
-
-            For instance, let's say our action space is :class:`Discrete(4)`,
-            then passing ``a_or_params = 2`` is equivalent to passing
-            ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
-            :math:`a=2` was drawn from the behavior policy.
+            A single action.
 
         r : float
 
@@ -84,14 +76,13 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
         """
         assert self.env.observation_space.contains(s)
-        params = self.check_a_or_params(a_or_params)
-        self._cache.add(s, params, r, done)
+        self._cache.add(s, a, r, done)
 
         # eager updates
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
-    def batch_update(self, S, P, Rn, In, S_next, P_next=None):
+    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
         """
         Update both actor and critic on a batch of transitions.
 
@@ -101,13 +92,9 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
             A batch of state observations.
 
-        P : 2d Tensor, dtype: int, shape: [batch_size]
+        A : nd Tensor, shape: [batch_size, ...]
 
-            A batch of action propensities. :term:`P` is typically just an
-            indicator for which action was chosen by the behavior policy. In
-            this sense, :term:`P` acts as a projector more than a prediction
-            target. That is, :term:`P` is used to project our predicted values
-            down to those for which we actually received the feedback signal.
+            A batch of actions taken.
 
         Rn : 1d array, dtype: float, shape: [batch_size]
 
@@ -134,10 +121,10 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
             A batch of next-state observations.
 
-        P_next : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
+        A_next : 2d Tensor, shape: [batch_size, ...]
 
-            Same as :term:`P`, except for the (potential) next action. This
-            argument is only used if ``update_strategy='sarsa'``.
+            A batch of (potential) next actions :term:`A_next`. This argument
+            is only used if ``update_strategy='sarsa'``.
 
         Returns
         -------
@@ -154,15 +141,14 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         utils.check_numpy_array(G, ndim=1, dtype='float')
         if self.action_space_is_discrete:
             utils.check_numpy_array(
-                P, ndim=2, dtype='float', axis_size=self.num_actions, axis=1)
+                A, ndim=1, dtype='int')
         elif self.action_space_is_box:
             utils.check_numpy_array(
-                P, ndim=3, dtype='float', axis_size=self.actions_ndim, axis=1)
-            utils.check_numpy_array(P, axis_size=2, axis=2)
+                A, ndim=2, dtype='float', axis_size=self.actions_ndim, axis=1)
         else:
             raise ActionSpaceError.feature_request(self.env)
 
-        losses = self._train_on_batch([S, G], [P, G])
+        losses = self._train_on_batch([S, G], [A, G])  # FIXME: change signature
         return losses
 
     def __call__(self, s):
@@ -244,7 +230,7 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
         Returns
         -------
-        P, V : arrays with shapes: ([batch_size, num_actions], [batch_size])
+        V, dist : (array, ProbaDist with shapes: ([batch_size, num_actions], [batch_size])
 
             A batch of action probabilities and values
             :math:`(\\pi(.|s), v(s))`.
@@ -281,8 +267,8 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         G = keras.Input(name='actor_critic/G', shape=(1,), dtype='float')
 
         # predictions
-        V = keras.layers.Lambda(self.value_function.predict_model, name='V')(S)
-        Z = keras.layers.Lambda(self.policy.predict_model, name='Z')(S)
+        V = self.value_function.predict_model(S)
+        Z = self.policy.predict_model(S)
         Z_target = keras.layers.Lambda(
             self.policy.target_model, name='Z_target')(S)
 

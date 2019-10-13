@@ -9,10 +9,11 @@ from ..base.errors import NumpyArrayCheckError, SpaceError
 __all__ = (
     'argmax',
     'argmin',
+    'batch_to_single_instance',
     'box_to_reals_np',
     'box_to_unit_interval_np',
     'check_numpy_array',
-    'clipped_logit',
+    'clipped_logit_np',
     'feature_vector',
     'idx',
     'log_softmax',
@@ -24,7 +25,7 @@ __all__ = (
 )
 
 
-def argmax(arr, axis=None, random_state=None):
+def argmax(arr, axis=-1, random_state=None):
     """
 
     This is a little hack to ensure that argmax breaks ties randomly, which is
@@ -98,7 +99,33 @@ def argmin(arr, axis=None, random_state=None):
     return argmax(-arr, axis=axis, random_state=random_state)
 
 
-def box_to_unit_interval_np(arr, space, eps=1e-15):
+def batch_to_single_instance(X):
+    """
+    Take the first instance of an array that contains a batch of items.
+
+    Parameters
+    ----------
+    X : nd array, shape: [batch_size, \\*instance_shape]
+
+        A numpy array whose first axis is the batch axis.
+
+    Returns
+    -------
+    x : (n-1)d array, shape: [\\*instance_shape]
+
+        This is essentially just ``X[0]`` with some post processing.
+
+    """
+    x = X[0]
+    assert False, x.ndim
+    if x.ndim == 0 and x.dtype == 'int':
+        x = int(x.item())
+    if x.ndim == 0 and x.dtype == 'float':
+        x = float(x.item())
+    return x
+
+
+def box_to_unit_interval_np(arr, space):
     """
 
     Rescale array values from Box space to the unit interval. This is
@@ -144,7 +171,7 @@ def box_to_reals_np(arr, space, epsilon=1e-15):
 
     Transform array values from a Box space to the reals. This is done by
     first mapping the Box values to the unit interval :math:`x\\in[0, 1]` and
-    then feeding it to the :func:`clipped_logit` function.
+    then feeding it to the :func:`clipped_logit_np` function.
 
     Parameters
     ----------
@@ -160,7 +187,7 @@ def box_to_reals_np(arr, space, epsilon=1e-15):
 
     epsilon : float, optional
 
-        The cut-off value used by :func:`clipped_logit`.
+        The cut-off value used by :func:`clipped_logit_np`.
 
     Returns
     -------
@@ -170,7 +197,7 @@ def box_to_reals_np(arr, space, epsilon=1e-15):
         real-valued.
 
     """
-    return clipped_logit(box_to_unit_interval_np(arr, space), epsilon)
+    return clipped_logit_np(box_to_unit_interval_np(arr, space), epsilon)
 
 
 def check_numpy_array(arr, ndim=None, ndim_min=None, dtype=None, shape=None, axis_size=None, axis=None):  # noqa: E501
@@ -226,7 +253,7 @@ def check_numpy_array(arr, ndim=None, ndim_min=None, dtype=None, shape=None, axi
             .format(axis_size, axis, arr.shape))
 
 
-def clipped_logit(x, epsilon=1e-15):
+def clipped_logit_np(x, epsilon=1e-15):
     """
 
     A safe implementation of the logit function
@@ -524,15 +551,6 @@ def unit_interval_to_box_np(arr, space):
         contained in the provided Box space.
 
     """
-    arr, lo, hi = _get_box_bounds(arr, space)
-
-    # box to unit interval
-    p = (arr - lo) / (hi - lo)
-
-    if np.any(p > 1) or np.any(p < 0):
-        raise ValueError("array values are not contained in the provided Box")
-
-    return p
     arr, lo, hi = _get_box_bounds(arr, space)
     return lo + (hi - lo) * arr
 

@@ -16,7 +16,7 @@ km.enable_logging()
 
 class LinearFunc(km.FunctionApproximator):
     """ linear function approximator (body only does one-hot encoding) """
-    def body(self, S, variable_scope):
+    def body(self, S):
         one_hot_encoding = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
         return one_hot_encoding(S)
 

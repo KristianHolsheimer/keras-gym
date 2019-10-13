@@ -3,7 +3,7 @@ import logging
 import gym
 import numpy as np
 
-from ..utils import one_hot, check_numpy_array, clipped_logit
+from ..utils import one_hot, check_numpy_array, clipped_logit_np
 from .errors import ActionSpaceError
 
 
@@ -87,65 +87,12 @@ class ActionSpaceMixin:
             self._num_actions = self.env.action_space.n
         return self._num_actions
 
-    def check_a_or_params(self, a_or_params):
-        """
-        Check if input ``pi`` is either a valid vector of action propensities.
-        If ``pi`` is an integer, this will return a one-hot encoded version.
-
-        Parameters
-        ----------
-        a_or_params : action or distribution parameters
-
-            Either a single action taken under the behavior policy or a single
-            set of distribution parameters describing the behavior policy
-            :math:`b(a|s)`. See also the glossary entry for :term:`P`.
-
-            For instance, let's say our action space is :class:`Discrete(4)`,
-            then passing ``a_or_params = 2`` is equivalent to passing
-            ``a_or_params = [0, 0, 1, 0]``. Both would indicate that the action
-            :math:`a=2` was drawn from the behavior policy.
-
-        Returns
-        -------
-        params : nd array
-
-            A single set of distribution parameters describing the behavior
-            policy :math:`b(a|s)`. This is either same or derived from the
-            input.
-
-        """
-        if self.action_space_is_discrete:
-
-            if self.env.action_space.contains(a_or_params):
-                assert self.env.action_space.contains(a_or_params)
-                # assume Categorical distribution
-                params = one_hot(a_or_params, self.num_actions)
-            else:
-                check_numpy_array(
-                    a_or_params, ndim=1, axis_size=self.num_actions, axis=0)
-                params = a_or_params
-
-        elif self.action_space_is_box:
-
-            if self.env.action_space.contains(a_or_params):
-                # assume squashed normal distribution
-                hi, lo = self.env.action_space.high, self.env.action_space.low
-                sigmoid_mu = (a_or_params - lo) / (hi - lo)  # to unit interval
-                mu = clipped_logit(sigmoid_mu, epsilon=1e-15)  # to real line
-                logvar = -30 * np.ones_like(mu)  # effectively sigma = 0
-                params = np.stack([mu, logvar], axis=1)
-            else:
-                check_numpy_array(a_or_params, ndim=2)
-                check_numpy_array(axis_size=self.actions_ndim, axis=0)
-                check_numpy_array(axis_size=2, axis=1)
-                params = a_or_params
-        else:
-            raise ActionSpaceError(
-                "check_a_or_params() hasn't yet been implemented for action "
-                "spaces of type: {}"
-                .format(self.env.action_space.__class__.__name__))
-
-        return params
+    def _one_hot_encode_discrete(self, a):
+        # no-op if 'a' already looks one-hot encoded
+        if not (np.ndim(a) == 1 and a.size == self.num_actions):
+            assert np.ndim(a) == 0 and isinstance(a, (int, np.integer))
+            a = one_hot(a, self.num_actions)
+        return a
 
 
 class AddOrigStateToInfoDictMixin:

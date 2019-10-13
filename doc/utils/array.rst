@@ -9,7 +9,7 @@ Numpy-Array Utilities
     keras_gym.utils.box_to_reals_np
     keras_gym.utils.box_to_unit_interval_np
     keras_gym.utils.check_numpy_array
-    keras_gym.utils.clipped_logit
+    keras_gym.utils.clipped_logit_np
     keras_gym.utils.feature_vector
     keras_gym.utils.idx
     keras_gym.utils.log_softmax
@@ -25,7 +25,7 @@ Numpy-Array Utilities
 .. autofunction:: keras_gym.utils.box_to_reals_np
 .. autofunction:: keras_gym.utils.box_to_unit_interval_np
 .. autofunction:: keras_gym.utils.check_numpy_array
-.. autofunction:: keras_gym.utils.clipped_logit
+.. autofunction:: keras_gym.utils.clipped_logit_np
 .. autofunction:: keras_gym.utils.feature_vector
 .. autofunction:: keras_gym.utils.idx
 .. autofunction:: keras_gym.utils.log_softmax

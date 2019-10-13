@@ -4,7 +4,6 @@ Miscellaneous Utilities
 .. autosummary::
     :nosignatures:
 
-    keras_gym.utils.check_dist_id
     keras_gym.utils.enable_logging
     keras_gym.utils.generate_gif
     keras_gym.utils.get_env_attr
@@ -17,7 +16,6 @@ Miscellaneous Utilities
     keras_gym.utils.set_tf_loglevel
 
 
-.. autofunction:: keras_gym.utils.check_dist_id
 .. autofunction:: keras_gym.utils.enable_logging
 .. autofunction:: keras_gym.utils.generate_gif
 .. autofunction:: keras_gym.utils.get_env_attr

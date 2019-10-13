@@ -7,10 +7,8 @@ from . import (
     wrappers, utils)
 
 # Expose some commonly used classes to the package root:
-from .function_approximators import predefined
-from .function_approximators.generic import (
-    FunctionApproximator, V, QTypeI, QTypeII, SoftmaxPolicy, GaussianPolicy,
-    ConjointActorCritic)
-from .function_approximators.actor_critic import ActorCritic
+from .function_approximators import (
+    predefined, FunctionApproximator, V, QTypeI, QTypeII, SoftmaxPolicy,
+    GaussianPolicy, ActorCritic)
 from .policies import EpsilonGreedy, RandomPolicy, UserInputPolicy
 from .utils import render_episode, enable_logging

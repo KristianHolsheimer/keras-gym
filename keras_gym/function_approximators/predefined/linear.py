@@ -73,9 +73,9 @@ class LinearFunctionApproximator(FunctionApproximator, InteractionMixin):
         FunctionApproximator.__init__(self, env, optimizer, **optimizer_kwargs)
         self._init_interaction_layer(interaction)
 
-    def body(self, S, variable_scope):
+    def body(self, S):
         if K.ndim(S) > 2:
-            S = keras.layers.Flatten(name=(variable_scope + '/flatten'))(S)
+            S = keras.layers.Flatten(name='flatten')(S)
         if self.interaction_layer is not None:
             S = self.interaction_layer(S)
         return S

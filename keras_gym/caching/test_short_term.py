@@ -29,21 +29,21 @@ class TestNStepCache:
 
     S = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     A = np.array([6, 3, 7, 4, 6, 9, 2, 6, 7, 4, 3, 7, 7])
-    P = np.array([
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
-        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # a=9
-        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # a=2
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
-        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-    ])
+    # P = np.array([
+    #     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
+    #     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    #     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
+    #     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # a=9
+    #     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # a=2
+    #     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    #     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
+    #     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    # ])
     R = np.array([-0.48, 0.16, 0.23, 0.11, 1.46, 1.53, -2.43, 0.60, -0.25,
                   -0.16, -1.47, 1.48, -0.02])
     D = np.array([False] * 12 + [True])
@@ -77,9 +77,9 @@ class TestNStepCache:
                 break
 
         assert cache
-        S, P, Rn, In, S_next, P_next = cache.flush()
+        S, A, Rn, In, S_next, A_next = cache.flush()
         np.testing.assert_array_equal(S, self.S[:1])
-        np.testing.assert_array_equal(P, self.P[:1])
+        np.testing.assert_array_equal(A, self.A[:1])
         np.testing.assert_array_equal(Rn, self.R[:1])
         np.testing.assert_array_equal(In, [0])
 
@@ -95,22 +95,20 @@ class TestNStepCache:
 
         i = 0
         while cache:
-            s, pi, rn, i_next, s_next, pi_next = cache.pop()
+            s, a, rn, i_next, s_next, a_next = cache.pop()
             check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(pi, ndim=2, axis_size=1, axis=0)
-            check_numpy_array(pi, axis_size=cache.num_actions, axis=1)
+            check_numpy_array(a, ndim=1, axis_size=1, axis=0)
             check_numpy_array(rn, ndim=1, axis_size=1, axis=0)
             check_numpy_array(i_next, ndim=1, axis_size=1, axis=0)
             check_numpy_array(s_next, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(pi_next, ndim=2, axis_size=1, axis=0)
-            check_numpy_array(pi_next, axis_size=cache.num_actions, axis=1)
+            check_numpy_array(a_next, ndim=1, axis_size=1, axis=0)
             assert s[0] == self.S[i]
-            np.testing.assert_array_equal(pi[0], self.P[i])
+            np.testing.assert_array_equal(a[0], self.A[i])
             assert rn[0] == self.Rn[i]
             assert i_next[0] == self.In[i]
             if i < 13 - self.n:
                 assert s_next[0] == self.S[i + self.n]
-                np.testing.assert_array_equal(pi_next[0], self.P[i + self.n])
+                np.testing.assert_array_equal(a_next[0], self.A[i + self.n])
             i += 1
 
     def test_pop_eager(self):
@@ -121,42 +119,38 @@ class TestNStepCache:
 
             if cache:
                 assert i + 1 > self.n
-                s, pi, rn, i_next, s_next, pi_next = cache.pop()
+                s, a, rn, i_next, s_next, a_next = cache.pop()
                 check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-                check_numpy_array(pi, ndim=2, axis_size=1, axis=0)
-                check_numpy_array(pi, axis_size=cache.num_actions, axis=1)
+                check_numpy_array(a, ndim=1, axis_size=1, axis=0)
                 check_numpy_array(rn, ndim=1, axis_size=1, axis=0)
                 check_numpy_array(i_next, ndim=1, axis_size=1, axis=0)
                 check_numpy_array(s_next, ndim=1, axis_size=1, axis=0)
-                check_numpy_array(pi_next, ndim=2, axis_size=1, axis=0)
-                check_numpy_array(pi_next, axis_size=cache.num_actions, axis=1)
+                check_numpy_array(a_next, ndim=1, axis_size=1, axis=0)
                 assert s[0] == self.S[i - self.n]
-                np.testing.assert_array_equal(pi[0], self.P[i - self.n])
+                np.testing.assert_array_equal(a[0], self.A[i - self.n])
                 assert rn[0] == self.Rn[i - self.n]
                 assert i_next[0] == self.In[i - self.n]
                 assert s_next[0] == self.S[i]
-                np.testing.assert_array_equal(pi_next[0], self.P[i])
+                np.testing.assert_array_equal(a_next[0], self.A[i])
             else:
                 assert i + 1 <= self.n
 
         i = 13 - self.n
         while cache:
-            s, pi, gn, i_next, s_next, pi_next = cache.pop()
+            s, a, rn, i_next, s_next, a_next = cache.pop()
             check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(pi, ndim=2, axis_size=1, axis=0)
-            check_numpy_array(pi, axis_size=cache.num_actions, axis=1)
+            check_numpy_array(a, ndim=1, axis_size=1, axis=0)
             check_numpy_array(rn, ndim=1, axis_size=1, axis=0)
             check_numpy_array(i_next, ndim=1, axis_size=1, axis=0)
             check_numpy_array(s_next, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(pi_next, ndim=2, axis_size=1, axis=0)
-            check_numpy_array(pi_next, axis_size=cache.num_actions, axis=1)
+            check_numpy_array(a_next, ndim=1, axis_size=1, axis=0)
             assert s[0] == self.S[i]
-            np.testing.assert_array_equal(pi[0], self.P[i])
-            assert gn[0] == self.Rn[i]
+            np.testing.assert_array_equal(a[0], self.A[i])
+            assert rn[0] == self.Rn[i]
             assert i_next[0] == self.In[i]
             if i < 13 - self.n:
                 assert s_next[0] == self.S[i + self.n]
-                assert pi_next[0] == self.P[i + self.n]
+                assert a_next[0] == self.A[i + self.n]
             i += 1
 
     def test_flush(self):
@@ -169,13 +163,13 @@ class TestNStepCache:
             if i > self.n:
                 assert cache
 
-        S, P, Rn, In, S_next, P_next = cache.flush()
+        S, A, Rn, In, S_next, A_next = cache.flush()
         np.testing.assert_array_equal(S, self.S)
-        np.testing.assert_array_equal(P, self.P)
+        np.testing.assert_array_equal(A, self.A)
         np.testing.assert_array_equal(Rn, self.Rn)
         np.testing.assert_array_equal(In, self.In)
         np.testing.assert_array_equal(S_next[:-self.n], self.S[self.n:])
-        np.testing.assert_array_equal(P_next[:-self.n], self.P[self.n:])
+        np.testing.assert_array_equal(A_next[:-self.n], self.A[self.n:])
 
     def test_flush_eager(self):
         cache = NStepCache(self.env, self.n, gamma=self.gamma)
@@ -185,37 +179,36 @@ class TestNStepCache:
 
             if cache:
                 assert i + 1 > self.n
-                S, P, Rn, In, S_next, P_next = cache.flush()
+                S, A, Rn, In, S_next, A_next = cache.flush()
                 if i == 12:
                     slc = slice(i - self.n, None)
                     np.testing.assert_array_equal(S, self.S[slc])
-                    np.testing.assert_array_equal(P, self.P[slc])
+                    np.testing.assert_array_equal(A, self.A[slc])
                     np.testing.assert_array_equal(Rn, self.Rn[slc])
                     np.testing.assert_array_equal(In, self.In[slc])
                     np.testing.assert_array_equal(S_next.shape, (self.n + 1,))
-                    np.testing.assert_array_equal(
-                        P_next.shape, (self.n + 1, cache.num_actions))
+                    np.testing.assert_array_equal(A_next.shape, (self.n + 1,))
                 else:
                     slc = slice(i - self.n, i - self.n + 1)
                     np.testing.assert_array_equal(S, self.S[slc])
-                    np.testing.assert_array_equal(P, self.P[slc])
+                    np.testing.assert_array_equal(A, self.A[slc])
                     np.testing.assert_array_equal(Rn, self.Rn[slc])
                     np.testing.assert_array_equal(In, self.In[slc])
                     np.testing.assert_array_equal(S_next, self.S[[i]])
-                    np.testing.assert_array_equal(P_next, self.P[[i]])
+                    np.testing.assert_array_equal(A_next, self.A[[i]])
             else:
                 assert i + 1 <= self.n
 
         i = 13 - self.n
         while cache:
-            s, pi, gn, i_next, s_next, pi_next = cache.pop()
+            s, a, gn, i_next, s_next, a_next = cache.pop()
             assert s == self.S[i]
-            np.testing.assert_array_equal(pi, self.P[i])
+            np.testing.assert_array_equal(a, self.A[i])
             assert gn == self.Rn[i]
             assert i_next == self.In[i]
             if i < 13 - self.n:
                 assert s_next == self.S[i + self.n]
-                assert pi_next == self.P[i + self.n]
+                assert a_next == self.A[i + self.n]
             i += 1
 
     def test_flush_insufficient(self):
@@ -238,21 +231,21 @@ class TestMonteCarloCache:
     gamma = 0.85
     S = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     A = np.array([6, 3, 7, 4, 6, 9, 2, 6, 7, 4, 3, 7, 7])
-    P = np.array([
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
-        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # a=9
-        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # a=2
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
-        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
-    ])
+    # P = np.array([
+    #     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
+    #     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    #     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
+    #     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # a=9
+    #     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # a=2
+    #     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],  # a=6
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    #     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # a=4
+    #     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # a=3
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # a=7
+    # ])
     R = np.array([-0.48, 0.16, 0.23, 0.11, 1.46, 1.53, -2.43, 0.60, -0.25,
                   -0.16, -1.47, 1.48, -0.02])
     D = np.array([False] * 12 + [True])
@@ -282,13 +275,12 @@ class TestMonteCarloCache:
 
         for i in range(13):
             assert cache
-            s, pi, g = cache.pop()
+            s, a, g = cache.pop()
             check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(pi, ndim=2, axis_size=1, axis=0)
-            check_numpy_array(pi, axis_size=cache.num_actions, axis=1)
+            check_numpy_array(a, ndim=1, axis_size=1, axis=0)
             check_numpy_array(g, ndim=1, axis_size=1, axis=0)
             assert self.S[12 - i] == s[0]
-            np.testing.assert_array_equal(self.P[12 - i], pi[0])
+            np.testing.assert_array_equal(self.A[12 - i], a[0])
             assert self.G[12 - i] == g[0]
 
         assert not cache
@@ -308,7 +300,7 @@ class TestMonteCarloCache:
             cache.add(s, a, r, done)
             assert len(cache) == i
 
-        S, P, G = cache.flush()
+        S, A, G = cache.flush()
         np.testing.assert_array_equal(S, self.S[::-1])
-        np.testing.assert_array_equal(P, self.P[::-1])
+        np.testing.assert_array_equal(A, self.A[::-1])
         np.testing.assert_array_equal(G, self.G[::-1])

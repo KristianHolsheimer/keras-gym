@@ -1,32 +1,20 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
-import tensorflow as tf
-import gym
-import scipy.stats
-from scipy.special import expit as sigmoid
-from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..base.errors import MissingModelError, ActionSpaceError
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin, LoggerMixin
+from ..utils import check_tensor
 from ..policies.base import BasePolicy
-from ..caching import NStepCache
-from ..losses import ClippedSurrogateLoss, VanillaPolicyLoss
-from ..utils import (
-    project_onto_actions_np, softmax, argmax, check_numpy_array)
 
 
 __all__ = (
-    'BaseV',
-    'BaseQTypeI',
-    'BaseQTypeII',
-    'BaseSoftmaxPolicy',
-    'BaseGaussianPolicy',
+    'BaseFunctionApproximator',
+    'BaseUpdateablePolicy',
 )
 
 
-class BaseFunctionApproximator(ABC, LoggerMixin):
+class BaseFunctionApproximator(ABC, LoggerMixin, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
     @abstractmethod
     def __call__(self, *args, **kwargs):
         pass
@@ -48,12 +36,12 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
             'env', 'gamma', 'bootstrap_n', 'train_model', 'predict_model',
             'target_model', '_cache']
 
-        if skip is not None:
-            for attr in skip:
-                required_attrs.remove(attr)
+        if skip is None:
+            skip = []
 
         missing_attrs = ", ".join(
-            attr for attr in required_attrs if not hasattr(self, attr))
+            attr for attr in required_attrs
+            if attr not in skip and not hasattr(self, attr))
 
         if missing_attrs:
             raise AttributeError(
@@ -97,716 +85,20 @@ class BaseFunctionApproximator(ABC, LoggerMixin):
                 + \\tau\\,w_\\text{primary}
 
         """
-        if tf.__version__ >= '2.0':
-            target_weights = self.target_model.trainable_variables
-            primary_weights = self.predict_model.trainable_variables
-            tf.group(*(
-                K.update(wt, wt + tau * (wp - wt))
-                for wt, wp in zip(target_weights, primary_weights)))
-            self.logger.debug(
-                "updated target_mode with tau = {:.3g}".format(tau))
+        if tau > 1 or tau < 0:
+            ValueError("tau must lie on the unit interval [0,1]")
 
-        else:
-            if not hasattr(self, '_target_model_sync_op'):
-                target_weights = tf.get_collection(
-                    tf.GraphKeys.GLOBAL_VARIABLES, scope='target')  # list
-                primary_weights = tf.get_collection(
-                    tf.GraphKeys.GLOBAL_VARIABLES, scope='primary')  # list
+        Ws = self.predict_model.get_weights()
+        Wt = self.target_model.get_weights()
 
-                if not target_weights:
-                    raise MissingModelError(
-                        "no model weights found in variable scope: 'target'")
-                if not primary_weights:
-                    raise MissingModelError(
-                        "no model weights found in variable scope: 'primary'")
-                assert len(primary_weights) == len(target_weights)
-
-                self._target_model_sync_tau = tf.placeholder(
-                    tf.float32, shape=())
-                self._target_model_sync_op = tf.group(*(
-                    K.update(wt, wt + self._target_model_sync_tau * (wp - wt))
-                    for wt, wp in zip(target_weights, primary_weights)))
-
-            K.get_session().run(
-                self._target_model_sync_op,
-                feed_dict={self._target_model_sync_tau: tau})
-            self.logger.debug(
-                "updated target_mode with tau = {:.3g}".format(tau))
+        # update
+        Wt = [wt + tau * (wp - wt) for wt, wp in zip(Wt, Ws)]
+        self.target_model.set_weights(Wt)
 
 
-class BaseV(BaseFunctionApproximator):
+class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
     """
-    Base class for modeling a :term:`state value function`.
-
-    A :term:`state value function` is implemented by mapping :math:`s\\mapsto
-    v(s)`.
-
-    Parameters
-    ----------
-    env : gym environment
-
-        A gym environment.
-
-    train_model : keras.Model(:term:`S`, :term:`V`)
-
-        Used for training.
-
-    predict_model : keras.Model(:term:`S`, :term:`V`)
-
-        Used for predicting. For a :term:`state value function` the
-        :term:`target_model` and :term:`predict_model` are the same.
-
-    target_model : keras.Model(:term:`S`, :term:`V`)
-
-        A :term:`target_model` is used to make predictions on a bootstrapping
-        scenario. It can be advantageous to use a point-in-time copy of the
-        :term:`predict_model` to construct a bootstrapped target.
-
-    gamma : float, optional
-
-        The discount factor for discounting future rewards.
-
-    bootstrap_n : positive int, optional
-
-        The number of steps in n-step bootstrapping. It specifies the number of
-        steps over which we're willing to delay bootstrapping. Large :math:`n`
-        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
-        TD(0).
-
-    bootstrap_with_target_model : bool, optional
-
-        Whether to use the :term:`target_model` when constructing a
-        bootstrapped target. If False (default), the primary
-        :term:`predict_model` is used.
-
-    """
-    def __init__(
-            self, env, train_model, predict_model, target_model,
-            gamma=0.9,
-            bootstrap_n=1,
-            bootstrap_with_target_model=False):
-
-        self.env = env
-        self.train_model = train_model
-        self.predict_model = predict_model
-        self.target_model = target_model
-        self.gamma = float(gamma)
-        self.bootstrap_n = int(bootstrap_n)
-        self.bootstrap_with_target_model = bool(bootstrap_with_target_model)
-
-        self._cache = NStepCache(self.env, self.bootstrap_n, self.gamma)
-
-    def __call__(self, s, use_target_model=False):
-        """
-        Evaluate the Q-function.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        V : float or array of floats
-
-            The estimated value of the state :math:`v(s)`.
-
-        """
-        assert self.env.observation_space.contains(s)
-        S = np.expand_dims(s, axis=0)
-        V = self.batch_eval(S, use_target_model=use_target_model)
-        check_numpy_array(V, shape=(1,))
-        V = np.asscalar(V)
-        return V
-
-    def update(self, s, r, done):
-        """
-        Update the Q-function.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation..
-
-        r : float
-
-            A single observed reward.
-
-        done : bool
-
-            Whether the episode has finished.
-
-        """
-        assert self.env.observation_space.contains(s)
-        self._cache.add(s, 0, r, done)
-
-        # eager updates
-        while self._cache:
-            S, _, Rn, In, S_next, _ = self._cache.pop()
-            self.batch_update(S, Rn, In, S_next)
-
-    def batch_update(self, S, Rn, In, S_next):
-        """
-        Update the value function on a batch of transitions.
-
-        Parameters
-        ----------
-        S : nd array, shape: [batch_size, ...]
-
-            A batch of state observations.
-
-        Rn : 1d array, dtype: float, shape: [batch_size]
-
-            A batch of partial returns. For example, in n-step bootstrapping
-            this is given by:
-
-            .. math::
-
-                R^{(n)}_t\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
-                    \\gamma^{n-1}\\,R_{t+n-1}
-
-            In other words, it's the non-bootstrapped part of the n-step
-            return.
-
-        In : 1d array, dtype: float, shape: [batch_size]
-
-            A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I^{(n)}_t=\\gamma^n` if the episode is
-            ongoing and :math:`I^{(n)}_t=0` otherwise. This allows us to write
-            the bootstrapped target as:
-
-            .. math::
-
-                G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n}, A_{t+n})
-
-
-        S_next : nd array, shape: [batch_size, ...]
-
-            A batch of next-state observations.
-
-        Returns
-        -------
-        losses : dict
-
-            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
-
-        """
-        V_next = self.batch_eval(
-            S_next, use_target_model=self.bootstrap_with_target_model)
-        Gn = Rn + In * V_next
-        losses = self._train_on_batch(S, Gn)
-        return losses
-
-    def batch_eval(self, S, use_target_model=False):
-        """
-        Evaluate the state value function on a batch of state observations.
-
-        Parameters
-        ----------
-        S : nd array, shape: [batch_size, ...]
-
-            A batch of state observations.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        V : 1d array, dtype: float, shape: [batch_size]
-
-            The predicted state values.
-
-        """
-        model = self.target_model if use_target_model else self.predict_model
-
-        V = model.predict_on_batch(S)
-        check_numpy_array(V, ndim=2, axis_size=1, axis=1)
-        V = np.squeeze(V, axis=1)  # shape: [batch_size]
-        return V
-
-
-class BaseGenericQ(BaseFunctionApproximator, ActionSpaceMixin):
-    UPDATE_STRATEGIES = ('sarsa', 'q_learning', 'double_q_learning')
-
-    def __init__(
-            self, env, train_model, predict_model, target_model,
-            gamma=0.9,
-            bootstrap_n=1,
-            bootstrap_with_target_model=False,
-            update_strategy='sarsa'):
-
-        self.env = env
-        self.train_model = train_model
-        self.predict_model = predict_model
-        self.target_model = target_model
-        self.gamma = float(gamma)
-        self.bootstrap_n = int(bootstrap_n)
-        self.bootstrap_with_target_model = bool(bootstrap_with_target_model)
-        self.update_strategy = update_strategy
-
-        self._cache = NStepCache(self.env, self.bootstrap_n, self.gamma)
-
-    def __call__(self, s, a=None, use_target_model=False):
-        """
-        Evaluate the Q-function.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        a : action, optional
-
-            A single action.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        Q : float or array of floats
-
-            If action ``a`` is provided, a single float representing
-            :math:`q(s,a)` is returned. If, on the other hand, ``a`` is left
-            unspecified, a vector representing :math:`q(s,.)` is returned
-            instead. The shape of the latter return value is ``[num_actions]``,
-            which is only well-defined for discrete action spaces.
-
-        """
-        assert self.env.observation_space.contains(s)
-        S = np.expand_dims(s, axis=0)
-        if a is not None:
-            assert self.env.action_space.contains(a)
-            A = np.expand_dims(a, axis=0)
-            Q = self.batch_eval(S, A, use_target_model=use_target_model)
-            check_numpy_array(Q, shape=(1,))
-            Q = np.asscalar(Q)
-        else:
-            Q = self.batch_eval(S, use_target_model=use_target_model)
-            check_numpy_array(Q, shape=(1, self.num_actions))
-            Q = np.squeeze(Q, axis=0)
-        return Q
-
-    def update(self, s, pi, r, done):
-        """
-        Update the Q-function.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        pi : int or 1d array, shape: [num_actions]
-
-            Vector of action propensities under the behavior policy. This may
-            be just an indicator if the action propensities are inferred
-            through sampling. For instance, let's say our action space is
-            :class:`Discrete(4)`, then passing ``pi = 2`` is equivalent to
-            passing ``pi = [0, 0, 1, 0]``. Both would indicate that the action
-            :math:`a=2` was drawn from the behavior policy.
-
-        r : float
-
-            A single observed reward.
-
-        done : bool
-
-            Whether the episode has finished.
-
-        """
-        assert self.env.observation_space.contains(s)
-        pi = self.check_a_or_params(pi)
-        self._cache.add(s, pi, r, done)
-
-        # eager updates
-        while self._cache:
-            self.batch_update(*self._cache.pop())  # pop with batch_size=1
-
-    def batch_update(self, S, P, Rn, In, S_next, P_next=None):
-        """
-        Update the value function on a batch of transitions.
-
-        Parameters
-        ----------
-        S : nd array, shape: [batch_size, ...]
-
-            A batch of state observations.
-
-        P : 2d Tensor, dtype: int, shape: [batch_size]
-
-            A batch of action propensities. :term:`P` is typically just an
-            indicator for which action was chosen by the behavior policy. In
-            this sense, :term:`P` acts as a projector more than a prediction
-            target. That is, :term:`P` is used to project our predicted values
-            down to those for which we actually received the feedback signal.
-
-        Rn : 1d array, dtype: float, shape: [batch_size]
-
-            A batch of partial returns. For example, in n-step bootstrapping
-            this is given by:
-
-            .. math::
-
-                R^{(n)}_t\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
-                    \\gamma^{n-1}\\,R_{t+n-1}
-
-            In other words, it's the non-bootstrapped part of the n-step
-            return.
-
-        In : 1d array, dtype: float, shape: [batch_size]
-
-            A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I^{(n)}_t=\\gamma^n` if the episode is
-            ongoing and :math:`I^{(n)}_t=0` otherwise. This allows us to write
-            the bootstrapped target as:
-
-            .. math::
-
-                G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n}, A_{t+n})
-
-
-        S_next : nd array, shape: [batch_size, ...]
-
-            A batch of next-state observations.
-
-        P_next : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
-
-            Action propensities :term:`P_next` for the (potential) next action.
-            This argument is only used if ``update_strategy='sarsa'``.
-
-        Returns
-        -------
-        losses : dict
-
-            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
-
-        """
-        G = self.bootstrap_target(Rn, In, S_next, P_next)
-        losses = self._train_on_batch([S, G], P)
-        return losses
-
-    def bootstrap_target(self, Rn, In, S_next, P_next=None):
-        """
-        Get the bootstrapped target
-        :math:`G^{(n)}_t=R^{(n)}_t+\\gamma^nQ(S_{t+n}, A_{t+n})`.
-
-        Parameters
-        ----------
-        Rn : 1d array, dtype: float, shape: [batch_size]
-
-            A batch of partial returns. For example, in n-step bootstrapping
-            this is given by:
-
-            .. math::
-
-                R^{(n)}_t\\ =\\ R_t + \\gamma\\,R_{t+1} + \\dots
-                    \\gamma^{n-1}\\,R_{t+n-1}
-
-            In other words, it's the non-bootstrapped part of the n-step
-            return.
-
-        In : 1d array, dtype: float, shape: [batch_size]
-
-            A batch bootstrapping factor. For instance, in n-step bootstrapping
-            this is given by :math:`I^{(n)}_t=\\gamma^n` if the episode is
-            ongoing and :math:`I^{(n)}_t=0` otherwise. This allows us to write
-            the bootstrapped target as:
-
-            .. math::
-
-                G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n},A_{t+n})
-
-
-        S_next : nd array, shape: [batch_size, ...]
-
-            A batch of next-state observations.
-
-        P_next : 2d Tensor, dtype: int, shape: [batch_size, num_actions]
-
-            Action propensities :term:`P_next` for the (potential) next action.
-            This argument is only used if ``update_strategy='sarsa'``.
-
-        Returns
-        -------
-        Gn : 1d array, dtype: int, shape: [batch_size]
-
-            A batch of bootstrap-estimated returns
-            :math:`G^{(n)}_t=R^{(n)}_t+I^{(n)}_tQ(S_{t+n},A_{t+n})` computed
-            according to given ``update_strategy``.
-
-        """
-        if self.update_strategy == 'sarsa':
-            assert P_next is not None
-            Q_next = self.batch_eval(
-                S_next, use_target_model=self.bootstrap_with_target_model)
-            Q_next = np.einsum('ij,ij->i', Q_next, P_next)
-        elif self.update_strategy == 'q_learning':
-            Q_next = np.max(
-                self.batch_eval(
-                    S_next, use_target_model=self.bootstrap_with_target_model),
-                axis=1)
-        elif self.update_strategy == 'double_q_learning':
-            if not self.bootstrap_with_target_model:
-                raise ValueError(
-                    "incompatible settings: "
-                    "update_strategy='double_q_learning' requires that "
-                    "bootstrap_with_target_model=True")
-            A_next = np.argmax(
-                self.batch_eval(S_next, use_target_model=False), axis=1)
-            Q_next = self.batch_eval(S_next, use_target_model=True)
-            Q_next = project_onto_actions_np(Q_next, A_next)
-        else:
-            raise ValueError("unknown update_strategy")
-
-        Gn = Rn + In * Q_next
-        return Gn
-
-    @abstractmethod
-    def batch_eval(self, S, A=None, use_target_model=False):
-        """
-        Evaluate the Q-function on a batch of state (or state-action)
-        observations.
-
-        Parameters
-        ----------
-        S : nd array, shape: [batch_size, ...]
-
-            A batch of state observations.
-
-        A : 1d array, dtype: int, shape: [batch_size], optional
-
-            A batch of actions that were taken.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        Q : 1d or 2d array of floats
-
-            If action ``A`` is provided, a 1d array representing a batch of
-            :math:`q(s,a)` is returned. If, on the other hand, ``A`` is left
-            unspecified, a vector representing a batch of :math:`q(s,.)` is
-            returned instead. The shape of the latter return value is
-            ``[batch_size, num_actions]``, which is only well-defined for
-            discrete action
-            spaces.
-
-        """
-        pass
-
-
-class BaseQTypeI(BaseGenericQ):
-    """
-    Base class for modeling :term:`type-I <type-I state-action value function>`
-    Q-function.
-
-    A :term:`type-I <type-I state-action value function>` Q-function is
-    implemented by mapping :math:`(s, a)\\mapsto q(s,a)`.
-
-    Parameters
-    ----------
-    env : gym environment
-
-        A gym environment.
-
-    train_model : keras.Model([:term:`S`, :term:`A`], :term:`Q_sa`)
-
-        Used for training.
-
-    predict_model : keras.Model([:term:`S`, :term:`A`], :term:`Q_sa`)
-
-        Used for predicting. For :term:`type-I <type-I state-action value
-        function>` Q-functions, the :term:`target_model` and
-        :term:`predict_model` are the same.
-
-    target_model : keras.Model(:term:`S`, :term:`Q_sa`)
-
-        A :term:`target_model` is used to make predictions on a bootstrapping
-        scenario. It can be advantageous to use a point-in-time copy of the
-        :term:`predict_model` to construct a bootstrapped target.
-
-    gamma : float, optional
-
-        The discount factor for discounting future rewards.
-
-    bootstrap_n : positive int, optional
-
-        The number of steps in n-step bootstrapping. It specifies the number of
-        steps over which we're willing to delay bootstrapping. Large :math:`n`
-        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
-        TD(0).
-
-    bootstrap_with_target_model : bool, optional
-
-        Whether to use the :term:`target_model` when constructing a
-        bootstrapped target. If False (default), the primary
-        :term:`predict_model` is used.
-
-    update_strategy : str, optional
-
-        The update strategy that we use to select the (would-be) next-action
-        :math:`A_{t+n}` in the bootstrapped target:
-
-        .. math::
-
-            G^{(n)}_t\\ =\\ R^{(n)}_t + \\gamma^n Q(S_{t+n}, A_{t+n})
-
-        Options are:
-
-            'sarsa'
-                Sample the next action, i.e. use the action that was actually
-                taken.
-
-            'q_learning'
-                Take the action with highest Q-value under the current
-                estimate, i.e. :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n}, a)`.
-                This is an off-policy method.
-
-            'double_q_learning'
-                Same as 'q_learning', :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n},
-                a)`, except that the value itself is computed using the
-                :term:`target_model` rather than the primary model, i.e.
-
-                .. math::
-
-                    A_{t+n}\\ &=\\
-                        \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
-                    G^{(n)}_t\\ &=\\ R^{(n)}_t
-                        + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
-
-    """
-    def batch_eval(self, S, A=None, use_target_model=False):
-        model = self.target_model if use_target_model else self.predict_model
-
-        if A is not None:
-            Q = model.predict_on_batch([S, A])
-            check_numpy_array(Q, ndim=2, axis_size=1, axis=1)
-            Q = np.squeeze(Q, axis=1)
-            return Q  # shape: [batch_size]
-        else:
-            Q = []
-            for a in range(self.num_actions):
-                A = a * np.ones(len(S), dtype='int')
-                Q.append(self.batch_eval(S, A))
-            Q = np.stack(Q, axis=1)
-            check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
-            return Q  # shape: [batch_size, num_actions]
-
-
-class BaseQTypeII(BaseGenericQ):
-    """
-    Base class for modeling :term:`type-II <type-II state-action value
-    function>` Q-function.
-
-    A :term:`type-II <type-II state-action value function>` Q-function is
-    implemented by mapping :math:`s\\mapsto q(s,.)`.
-
-    Parameters
-    ----------
-    env : gym environment
-
-        A gym environment.
-
-    train_model : keras.Model([:term:`S`, :term:`G`], :term:`Q_s`)
-
-        Used for training.
-
-    predict_model : keras.Model(:term:`S`, :term:`Q_s`)
-
-        Used for predicting.
-
-    target_model : keras.Model(:term:`S`, :term:`Q_s`)
-
-        A :term:`target_model` is used to make predictions on a bootstrapping
-        scenario. It can be advantageous to use a point-in-time copy of the
-        :term:`predict_model` to construct a bootstrapped target.
-
-    gamma : float, optional
-
-        The discount factor for discounting future rewards.
-
-    bootstrap_n : positive int, optional
-
-        The number of steps in n-step bootstrapping. It specifies the number of
-        steps over which we're willing to delay bootstrapping. Large :math:`n`
-        corresponds to Monte Carlo updates and :math:`n=1` corresponds to
-        TD(0).
-
-    bootstrap_with_target_model : bool, optional
-
-        Whether to use the :term:`target_model` when constructing a
-        bootstrapped target. If False (default), the primary
-        :term:`predict_model` is used.
-
-    update_strategy : str, optional
-
-        The update strategy that we use to select the (would-be) next-action
-        :math:`A_{t+n}` in the bootsrapped target:
-
-        .. math::
-
-            G^{(n)}_t\\ =\\ R^{(n)}_t + \\gamma^n Q(S_{t+n}, A_{t+n})
-
-        Options are:
-
-            'sarsa'
-                Sample the next action, i.e. use the action that was actually
-                taken.
-
-            'q_learning'
-                Take the action with highest Q-value under the current
-                estimate, i.e. :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n}, a)`.
-                This is an off-policy method.
-
-            'double_q_learning'
-                Same as 'q_learning', :math:`A_{t+n} = \\arg\\max_aQ(S_{t+n},
-                a)`, except that the value itself is computed using the
-                :term:`target_model` rather than the primary model, i.e.
-
-                .. math::
-
-                    A_{t+n}\\ &=\\
-                        \\arg\\max_aQ_\\text{primary}(S_{t+n}, a)\\\\
-                    G^{(n)}_t\\ &=\\ R^{(n)}_t
-                        + \\gamma^n Q_\\text{target}(S_{t+n}, A_{t+n})
-
-    """
-    def batch_eval(self, S, A=None, use_target_model=False):
-        model = self.target_model if use_target_model else self.predict_model
-
-        if A is not None:
-            Q = model.predict_on_batch(S)  # shape: [batch_size, num_actions]
-            check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
-            check_numpy_array(
-                A, ndim=1, dtype='int', axis_size=Q.shape[0], axis=0)
-            Q = project_onto_actions_np(Q, A)
-            return Q  # shape: [batch_size]
-        else:
-            Q = model.predict_on_batch(S)
-            check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
-            return Q  # shape: [batch_size, num_actions]
-
-
-class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
-    """
-    Base class for modeling :term:`updateable policies <updateable policy>` for
-    discrete action spaces.
+    Base class for modeling :term:`updateable policies <updateable policy>`.
 
     Parameters
     ----------
@@ -828,12 +120,14 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
         scenario. It can be advantageous to use a point-in-time copy of the
         :term:`predict_model` to construct a bootstrapped target.
 
-    update_strategy : str, optional
+    update_strategy : str, callable, optional
 
-        The strategy for updating our policy. This typically determines the
-        loss function that we use for our policy function approximator.
+        The strategy for updating our policy. This determines the loss function
+        that we use for our policy function approximator. If you wish to use a
+        custom policy loss, you can override the
+        :func:`policy_loss_with_metrics` method.
 
-        Options are:
+        Provided options are:
 
             'vanilla'
                 Plain vanilla policy gradient. The corresponding (surrogate)
@@ -877,12 +171,12 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
                         -\\sum_a \\pi_b(a|S_t)\\, \\log \\pi_\\theta(a|S_t)
                     \\right\\}
 
-    ppo_clipping : float, optional
+    ppo_clip_eps : float, optional
 
         The clipping parameter :math:`\\epsilon` in the PPO clipped surrogate
         loss. This option is only applicable if ``update_strategy='ppo'``.
 
-    entropy_bonus : float, optional
+    entropy_beta : float, optional
 
         The coefficient of the entropy bonus term in the policy objective.
 
@@ -892,23 +186,23 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
     """
     UPDATE_STRATEGIES = ('vanilla', 'ppo', 'cross_entropy')
-    DIST = 'categorical'
 
     def __init__(
-            self, env, train_model, predict_model, target_model,
+            self, function_approximator,
             update_strategy='vanilla',
-            ppo_clipping=0.2,
-            entropy_bonus=0.01,
+            ppo_clip_eps=0.2,
+            entropy_beta=0.01,
             random_seed=None):
 
-        self.env = env
-        self.train_model = train_model
-        self.predict_model = predict_model
-        self.target_model = target_model
+        self.function_approximator = function_approximator
+        self.env = self.function_approximator.env
         self.update_strategy = update_strategy
-        self.ppo_clipping = float(ppo_clipping)
-        self.entropy_bonus = float(entropy_bonus)
-        self.random_seed = random_seed  # sets self.random in RandomStateMixin
+        self.ppo_clip_eps = float(ppo_clip_eps)
+        self.entropy_beta = float(entropy_beta)
+        self.random_seed = random_seed  # sets self.random via RandomStateMixin
+
+        self._init_models()
+        self._check_attrs()
 
     def __call__(self, s, use_target_model=False):
         """
@@ -932,18 +226,15 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
             A single action proposed under the current policy.
 
         """
-        p = self.dist_params(s, use_target_model=use_target_model)
-        a = self.random.choice(self.num_actions, p=p)
-        return a
+        S = np.expand_dims(s, axis=0)
+        A = self.batch_eval(S, use_target_model)
+        return A[0]
 
     def dist_params(self, s, use_target_model=False):
         """
 
         Get the parameters of the (conditional) probability distribution
-        :math:`\\pi(a|s)`. For a softmax policy, which is defined over a
-        discrete action space, the probability distribution is the `categorical
-        distribution
-        <https://en.wikipedia.org/wiki/Categorical_distribution>`_.
+        :math:`\\pi(a|s)`.
 
         Parameters
         ----------
@@ -958,19 +249,26 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
         Returns
         -------
-        params : 1d array, shape: [num_actions]
+        \\*params : tuple of arrays
 
-            The parameters of the categorical distribution that describes the
-            policy :math:`\\pi(a|s)`. The parameters consist of a vector of
-            action propensities :math:`\\pi(.|s)\\in\\mathbb{R}^n`, where
-            :math:`n` is the number of actions.
+            The raw distribution parameters.
 
         """
         assert self.env.observation_space.contains(s)
         S = np.expand_dims(s, axis=0)
-        P = self.batch_eval(S, use_target_model=use_target_model)
-        check_numpy_array(P, shape=(1, self.num_actions))
-        params = np.squeeze(P, axis=0)
+        if use_target_model:
+            params = self.target_param_model.predict(S)
+        else:
+            params = self.predict_param_model.predict(S)
+
+        # extract single instance
+        if isinstance(params, list):
+            params = [arr[0] for arr in params]
+        elif isinstance(params, np.ndarray):
+            params = params[0]
+        else:
+            TypeError(f"params have unexpected type: {type(params)}")
+
         return params
 
     def greedy(self, s, use_target_model=False):
@@ -995,11 +293,15 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
             A single action proposed under the current policy.
 
         """
-        p = self.dist_params(s, use_target_model=use_target_model)
-        a = argmax(p)
-        return a
+        assert self.env.observation_space.contains(s)
+        S = np.expand_dims(s, axis=0)
+        if use_target_model:
+            A = self.target_greedy_model.predict(S)
+        else:
+            A = self.predict_greedy_model.predict(S)
+        return A[0]
 
-    def update(self, s, pi, advantage):
+    def update(self, s, a, advantage):
         """
         Update the policy.
 
@@ -1009,13 +311,9 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
             A single state observation.
 
-        pi : 1d array, shape: [num_actions]
+        a : action
 
-            Vector of action propensities under the behavior policy. This may
-            be just an indicator if the action propensities are inferred
-            through sampling, e.g. if we have four possible actions ``pi = [0,
-            0, 1, 0]`` would indicate that the action :math:`a=2` was drawn
-            from the behavior policy.
+            A single action.
 
         advantage : float
 
@@ -1025,12 +323,11 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
         """
         assert self.env.observation_space.contains(s)
-        check_numpy_array(pi, ndim=1, axis_size=self.num_actions, axis=0)
-
+        assert self.env.action_space.contains(a)
         S = np.expand_dims(s, axis=0)
-        P = np.expand_dims(pi, axis=0)
+        A = np.expand_dims(a, axis=0)
         Adv = np.expand_dims(advantage, axis=0)
-        self.batch_update(S, P, Adv)
+        self.batch_update(S, A, Adv)
 
     def batch_eval(self, S, use_target_model=False):
         """
@@ -1049,19 +346,18 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
         Returns
         -------
-        P : 2d array, shape: [batch_size, num_actions]
+        A : 2d array, shape: [batch_size]
 
-            A batch of predicted action probabilities :math:`\\pi(a|s)`.
+            A batch of sampled actions.
 
         """
-        model = self.target_model if use_target_model else self.predict_model
+        if use_target_model:
+            A = self.target_model.predict(S)
+        else:
+            A = self.predict_model.predict(S)
+        return A
 
-        Z = model.predict_on_batch(S)
-        check_numpy_array(Z, ndim=2, axis_size=self.num_actions, axis=1)
-        P = softmax(Z, axis=1)
-        return P  # shape: [batch_size, num_actions]
-
-    def batch_update(self, S, P, Adv):
+    def batch_update(self, S, A, Adv):
         """
         Update the policy on a batch of transitions.
 
@@ -1071,15 +367,9 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
 
             A batch of state observations.
 
-        P : 2d Tensor, shape: [batch_size, num_actions]
+        A : nd array, shape: [batch_size, ...]
 
-            A batch of distribution parameters :term:`P` of the behavior
-            policy. For discrete action spaces, this is typically just a
-            one-hot encoded version of a batch of taken actions :term:`A`. In
-            this sense, :term:`P` acts as a projector more than a prediction
-            target. That is, :term:`P` is used to project our predicted values
-            down to those for which we actually received the feedback signal:
-            :term:`Adv`.
+            A batch of actions taken by the behavior policy.
 
         Adv : 1d array, dtype: float, shape: [batch_size]
 
@@ -1094,281 +384,119 @@ class BaseSoftmaxPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, 
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        check_numpy_array(P, ndim=2, axis_size=self.num_actions, axis=1)
-        losses = self._train_on_batch([S, Adv], P)
+        losses = self._train_on_batch([S, A, Adv], None)
         return losses
 
-    def _policy_loss(self, Adv, Z_target=None):
+    def policy_loss_with_metrics(
+            self, Adv, A, dist, behavior_dist, entropy_beta=0.01, **kwargs):
+        """
+
+        This method constructs the policy loss as a scalar-valued Tensor,
+        together with a dictionary of metrics (also scalars).
+
+        This method may be overridden to construct a custom policy loss and/or
+        to change the accompanying metrics.
+
+        Parameters
+        ----------
+        Adv : 1d Tensor, shape: [batch_size]
+
+            A batch of advantages.
+
+        A : nd Tensor, shape: [batch_size, ...]
+
+            A batch of actions taken under the behavior policy.
+
+        dist : ProbaDist
+
+            A probability distribution object of the policy to be updated.
+
+        behavior_dist : ProbaDist
+
+            A probability distribution object of the behavior policy.
+
+        entropy_beta : float, optional
+
+            This is the coefficient of the entropy-bonus term.
+
+        \\*\\*kwargs
+
+            Any additional kwargs that the policy loss might expect.
+
+        Returns
+        -------
+        loss : 0d Tensor (scalar)
+
+            The policy loss. This can be fed to a keras Model using
+            ``model.add_loss(loss)``.
+
+
+        """
+        Adv = K.stop_gradient(Adv)
+        check_tensor(Adv, ndim=1)
+
         if self.update_strategy == 'vanilla':
-            return VanillaPolicyLoss(
-                dist_id=self.DIST, Adv=Adv, entropy_bonus=self.entropy_bonus)
 
-        if self.update_strategy == 'ppo':
-            assert Z_target is not None
-            return ClippedSurrogateLoss(
-                dist_id=self.DIST, Adv=Adv, Z_target=Z_target,
-                entropy_bonus=self.entropy_bonus, epsilon=self.ppo_clipping)
-
-        if self.update_strategy == 'cross_entropy':
-            return keras.losses.CategoricalCrossentropy(from_logits=True)
-
-        raise ValueError(
-            "unknown update_strategy '{}'".format(self.update_strategy))
-
-
-class BaseGaussianPolicy(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin, RandomStateMixin):  # noqa: E501
-    UPDATE_STRATEGIES = ('vanilla', 'ppo', 'cross_entropy')
-    DIST = 'normal'
-
-    def __init__(
-            self, env, train_model, predict_model, target_model,
-            update_strategy='vanilla',
-            ppo_clipping=0.2,
-            entropy_bonus=0.01,
-            random_seed=None):
-
-        if not isinstance(env.action_space, gym.spaces.Box):
-            raise ActionSpaceError(
-                "Gaussian policy is only implemented for Box action spaces")
-
-        self.env = env
-        self.train_model = train_model
-        self.predict_model = predict_model
-        self.target_model = target_model
-        self.update_strategy = update_strategy
-        self.ppo_clipping = float(ppo_clipping)
-        self.entropy_bonus = float(entropy_bonus)
-        self.random_seed = random_seed  # sets self.random in RandomStateMixin
-
-    def __call__(self, s, use_target_model=False):
-        """
-        Draw an action from the current policy :math:`\\pi(a|s)`.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        a : action, shape: [actions_ndim]
-
-            A single action proposed under the current policy.
-
-        """
-        mu, logvar = self.dist_params(s, use_target_model=use_target_model)
-        sigma = np.exp(logvar / 2)
-        try:
-            z = scipy.stats.norm(mu, sigma).rvs()
-        except ValueError as e:
-            raise ValueError(f"{e.args[0]} params: mu={mu}, sigma={sigma}")
-
-        # scale from unit interval(s) to actual box size
-        high, low = self.env.action_space.high, self.env.action_space.low
-        a = low + (high - low) * sigmoid(z)
-        return a
-
-    def dist_params(self, s, use_target_model=False):
-        """
-
-        Get the parameters of the (conditional) probability distribution
-        :math:`\\pi(a|s)`. For a Gaussian policy, the probability distribution
-        is the `normal distribution
-        <https://en.wikipedia.org/wiki/Normal_distribution>`_.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        mu, logvar : tuple of 1d arrays, each of shape: [actions_ndim]
-
-            The parameters of the underlying normal distribution(s). The normal
-            distribution is defined over the real line, while the Box action
-            space is bounded. We sample actions from the unconstrained
-            distribution and then squash it down:
-
-            .. math::
-
-                z \\sim \\mathcal{N}(\\mu(s), \\sigma^2(s))
-                a = a_\\text{min}
-                    + (a_\\text{max} - a_\\text{min})\\,\\text{sigmoid}(z)
-
-            Note that ``logvar`` is related to the standard deviation
-            :math:`\\sigma` as:
-
-            .. math::
-
-                \\text{logvar}\\ &=\\ \\log(\\sigma(s)^2) \\\\
-                \\sigma(s) \\ &=\\ \\exp(\\text{logvar} / 2)
-
-        """
-        assert self.env.observation_space.contains(s)
-        S = np.expand_dims(s, axis=0)
-        P = self.batch_eval(S, use_target_model=use_target_model)
-        check_numpy_array(P, ndim=3, axis_size=1, axis=0)
-        check_numpy_array(P, axis_size=2, axis=2)
-        check_numpy_array(P, axis_size=self.actions_ndim, axis=1)
-
-        # extract params
-        params = np.squeeze(P, axis=0)
-        mu, logvar = params[:, 0], params[:, 1]
-
-        return mu, logvar
-
-    def greedy(self, s, use_target_model=False):
-        """
-        Draw the greedy action, i.e. :math:`\\arg\\max_a\\pi(a|s)`.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        a : action
-
-            A single action proposed under the current policy.
-
-        """
-        mu, _ = self.dist_params(s, use_target_model=use_target_model)
-
-        # scale from unit interval(s) to actual box size
-        high, low = self.env.action_space.high, self.env.action_space.low
-        a = low + (high - low) * sigmoid(mu)  # mode == mu for normal dist
-        return a
-
-    def update(self, s, a_or_params, advantage):
-        """
-        Update the policy.
-
-        Parameters
-        ----------
-        s : state observation
-
-            A single state observation.
-
-        a_or_params : action or distribution parameters
-
-            Either a single action taken under the behavior policy or a single
-            set of normal-distribution parameters ``params = [mu, logvar]``.
-
-        advantage : float
-
-            A value for the advantage :math:`\\mathcal{A}(s,a) = q(s,a) -
-            v(s)`. This might be a sampled or otherwise estimated version of
-            the true advantage.
-
-        """
-        assert self.env.observation_space.contains(s)
-        params = self.check_a_or_params(a_or_params)
-
-        S = np.expand_dims(s, axis=0)
-        P = np.expand_dims(params, axis=0)
-        Adv = np.expand_dims(advantage, axis=0)
-        self.batch_update(S, P, Adv)
-
-    def batch_eval(self, S, use_target_model=False):
-        """
-        Evaluate the policy on a batch of state observations.
-
-        Parameters
-        ----------
-        S : nd array, shape: [batch_size, ...]
-
-            A batch of state observations.
-
-        use_target_model : bool, optional
-
-            Whether to use the :term:`target_model` internally. If False
-            (default), the :term:`predict_model` is used.
-
-        Returns
-        -------
-        P : 3d arrays, dtype: float, shape: [batch_size, 2, actions_ndim]
-
-            A batch of predicted distribution parameters :term:`P` of the
-            underlying `normal distribution
-            <https://en.wikipedia.org/wiki/Normal_distribution>`_.
-
-        """
-        model = self.target_model if use_target_model else self.predict_model
-        P = model.predict_on_batch(S)
-        check_numpy_array(P, ndim=3, axis_size=2, axis=2)
-        check_numpy_array(P, axis_size=self.actions_ndim, axis=1)
-        return P
-
-    def batch_update(self, S, P, Adv):
-        """
-        Update the policy on a batch of transitions.
-
-        Parameters
-        ----------
-        S : nd array, shape: [batch_size, ...]
-
-            A batch of state observations.
-
-        P : 2d Tensor, shape: [batch_size, 2, actions_ndim]
-
-            A batch of distribution parameters :term:`P` of the behavior
-            policy. For Box action spaces, this is a batch of parameters
-            :math:`(\\mu_t, \\log(\\sigma_t^2))`, one for each state
-            :math:`S_t`. Similar to the case of discrete action spaces,
-            :term:`P` acts more as a projector than a prediction target.
-
-        Adv : 1d array, dtype: float, shape: [batch_size]
-
-            A value for the :term:`advantage <Adv>` :math:`\\mathcal{A}(s,a) =
-            q(s,a) - v(s)`. This might be sampled and/or estimated version of
-            the true advantage.
-
-        Returns
-        -------
-        losses : dict
-
-            A dict of losses/metrics, of type ``{name <str>: value <float>}``.
-
-        """
-        check_numpy_array(P, ndim=3, axis_size=2, axis=1)
-        check_numpy_array(P, axis_size=self.actions_ndim, axis=2)
-        losses = self._train_on_batch([S, Adv], P)
-        return losses
-
-    def _policy_loss(self, Adv, Z_target=None):
-        if self.update_strategy == 'vanilla':
-            return VanillaPolicyLoss(
-                dist_id=self.DIST, Adv=Adv, entropy_bonus=self.entropy_bonus)
-
-        if self.update_strategy == 'ppo':
-            assert Z_target is not None
-            return ClippedSurrogateLoss(
-                dist_id=self.DIST, Adv=Adv, Z_target=Z_target,
-                entropy_bonus=self.entropy_bonus, epsilon=self.ppo_clipping)
-
-        if self.update_strategy == 'cross_entropy':
-            return VanillaPolicyLoss(
-                dist_id=self.DIST, Adv=Adv, entropy_bonus=self.entropy_bonus)
-
-        raise ValueError(
-            "unknown update_strategy '{}'".format(self.update_strategy))
+            log_pi = dist.log_proba(A)
+            check_tensor(log_pi, same_as=Adv)
+
+            entropy = K.mean(dist.entropy())
+
+            # flip sign to get loss from objective
+            loss = -K.mean(Adv * log_pi) + entropy_beta * entropy
+
+            # no metrics related to behavior_dist since its not used in loss
+            metrics = {'policy/entropy': entropy}
+
+        elif self.update_strategy == 'ppo':
+
+            log_pi = dist.log_proba(A)
+            log_pi_old = K.stop_gradient(behavior_dist.log_proba(A))
+            check_tensor(log_pi, same_as=Adv)
+            check_tensor(log_pi_old, same_as=Adv)
+
+            eps = self.ppo_clip_eps
+            ratio = K.exp(log_pi - log_pi_old)
+            ratio_clip = K.clip(ratio, 1 - eps, 1 + eps)
+            check_tensor(log_pi, same_as=Adv)
+            check_tensor(log_pi_old, same_as=Adv)
+
+            clip_objective = K.mean(K.minimum(Adv * ratio, Adv * ratio_clip))
+            entropy = K.mean(dist.entropy())
+            kl_div = K.mean(behavior_dist.kl_divergence(dist))
+
+            # flip sign to get loss from objective
+            loss = -(clip_objective + entropy_beta * entropy)
+            metrics = {'policy/entropy': entropy, 'policy/kl_div': kl_div}
+
+        elif self.update_strategy == 'cross_entropy':
+            raise NotImplementedError('cross_entropy')
+
+        else:
+            raise ValueError(
+                "unknown update_strategy '{}'".format(self.update_strategy))
+
+        return loss, metrics
+
+    def _check_attrs(self):
+        model = [
+            'predict_model',
+            'target_model',
+            'predict_greedy_model',
+            'target_greedy_model',
+            'predict_param_model',
+            'target_param_model',
+            'train_model',
+        ]
+        misc = [
+            'function_approximator',
+            'env',
+            'update_strategy',
+            'ppo_clip_eps',
+            'entropy_beta',
+            'random_seed',
+        ]
+        missing_attrs = [a for a in model + misc if not hasattr(self, a)]
+        if missing_attrs:
+            raise AttributeError(
+                "missing attributes: {}".format(", ".join(missing_attrs)))

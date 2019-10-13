@@ -34,11 +34,7 @@ class ConnectFourFunctionApproximator(FunctionApproximator):
         learning rate.
 
     """
-    def body(self, S, variable_scope):
-        assert variable_scope in ('primary', 'target')
-
-        def v(name):
-            return '{}/{}'.format(variable_scope, name)
+    def body(self, S):
 
         def extract_state(S):
             return K.cast(S[:, 1:, :, :], 'float')
@@ -54,14 +50,14 @@ class ConnectFourFunctionApproximator(FunctionApproximator):
         layers = [
             keras.layers.Lambda(extract_state, name='extract_state'),
             keras.layers.Conv2D(
-                name=v('conv1'), filters=20, kernel_size=4, strides=1,
+                name='conv1', filters=20, kernel_size=4, strides=1,
                 activation='relu'),
             keras.layers.Conv2D(
-                name=v('conv2'), filters=40, kernel_size=2, strides=1,
+                name='conv2', filters=40, kernel_size=2, strides=1,
                 activation='relu'),
-            keras.layers.Flatten(name=v('flatten')),
+            keras.layers.Flatten(name='flatten'),
             keras.layers.Dense(
-                name=v('dense1'), units=64, activation='linear'),
+                name='dense1', units=64, activation='linear'),
         ]
 
         # forward pass

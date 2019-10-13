@@ -22,7 +22,7 @@ class BaseProbaDist(ABC, RandomStateMixin):
 
         Returns
         -------
-        sample : 1d array, shape: [batch_size, \\*variate_shape]
+        sample : 1d Tensor, shape: [batch_size, \\*variate_shape]
 
             The sampled variates.
 
@@ -36,13 +36,13 @@ class BaseProbaDist(ABC, RandomStateMixin):
 
         Parameters
         ----------
-        x : nd array, shape: [batch_size, ...]
+        x : nd Tensor, shape: [batch_size, ...]
 
             A batch of specific variates.
 
         Returns
         -------
-        log_proba : 1d array, shape: [batch_size]
+        log_proba : 1d Tensor, shape: [batch_size]
 
             The log-probabilities.
 
@@ -56,13 +56,13 @@ class BaseProbaDist(ABC, RandomStateMixin):
 
         Parameters
         ----------
-        x : nd array, shape: [batch_size, ...]
+        x : nd Tensor, shape: [batch_size, ...]
 
             A batch of specific variates.
 
         Returns
         -------
-        entropy : 1d array, shape: [batch_size]
+        entropy : 1d Tensor, shape: [batch_size]
 
             The entropy of the probability distribution.
 
@@ -91,7 +91,7 @@ class BaseProbaDist(ABC, RandomStateMixin):
 
         Returns
         -------
-        cross_entropy : 1d array, shape: [batch_size]
+        cross_entropy : 1d Tensor, shape: [batch_size]
 
             The cross-entropy.
 
@@ -120,7 +120,7 @@ class BaseProbaDist(ABC, RandomStateMixin):
 
         Returns
         -------
-        kl_divergence : 1d array, shape: [batch_size]
+        kl_divergence : 1d Tensor, shape: [batch_size]
 
             The KL-divergence.
 

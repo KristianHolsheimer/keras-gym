@@ -4,11 +4,8 @@ import logging
 
 from PIL import Image
 
-from ..base.errors import DistributionError
-
 
 __all__ = (
-    'check_dist_id',
     'enable_logging',
     'generate_gif',
     'get_env_attr',
@@ -20,50 +17,6 @@ __all__ = (
     'render_episode',
     'set_tf_loglevel',
 )
-
-
-DIST_IDS = (
-    'categorical',
-    'normal',
-)
-
-
-def check_dist_id(dist_id):
-    """
-
-    Check if the provided distribution id is valid.
-
-    Parameters
-    ----------
-    dist_id : str
-
-        The policy distribution id, e.g. ``'categorical'`` or ``'normal'`` for
-        a softmax policy or a Gaussian policy, respectively.
-
-    Returns
-    -------
-    dist_id : str
-
-        Same as input.
-
-    Raises
-    ------
-    DistributionError
-
-        Raises a :class:`DistributionError
-        <keras_gym.base.errors.DistributionError>` if the distribution id is
-        not recognized.
-
-    """
-    if not isinstance(dist_id, str):
-        raise DistributionError(
-            "Expected type for 'dist_id'; expected str but got: {}"
-            .format(type(dist_id)))
-    if dist_id not in DIST_IDS:
-        raise DistributionError(
-            "Unknown distribution: '{}', expected one of"
-            .format(dist_id, ','.join(map("'{}'".format, DIST_IDS))))
-    return dist_id
 
 
 def enable_logging(silence_tf_logging=True):
@@ -320,8 +273,8 @@ def is_vfunction(obj):
 
     """
     # import at runtime to avoid circular dependence
-    from ..function_approximators.base import BaseV
-    return isinstance(obj, BaseV)
+    from ..function_approximators.value_v import V
+    return isinstance(obj, V)
 
 
 def is_qfunction(obj, qtype=None):
@@ -350,14 +303,14 @@ def is_qfunction(obj, qtype=None):
 
     """
     # import at runtime to avoid circular dependence
-    from ..function_approximators.base import BaseQTypeI, BaseQTypeII
+    from ..function_approximators.value_q import QTypeI, QTypeII
 
     if qtype is None:
-        return isinstance(obj, (BaseQTypeI, BaseQTypeII))
+        return isinstance(obj, (QTypeI, QTypeII))
     elif qtype in (1, 1., '1', 'i', 'I'):
-        return isinstance(obj, BaseQTypeI)
+        return isinstance(obj, QTypeI)
     elif qtype in (2, 2., '2', 'ii', 'II'):
-        return isinstance(obj, BaseQTypeII)
+        return isinstance(obj, QTypeII)
     else:
         raise ValueError("unexpected qtype: {}".format(qtype))
 
@@ -388,13 +341,11 @@ def is_policy(obj, check_updateable=False):
     """
     # import at runtime to avoid circular dependence
     from ..policies.base import BasePolicy
-    from ..function_approximators.base import (
-        BaseSoftmaxPolicy, BaseGaussianPolicy)
+    from ..function_approximators.base import BaseUpdateablePolicy
 
-    if isinstance(obj, BasePolicy):
-        updateable = (BaseSoftmaxPolicy, BaseGaussianPolicy)
-        return isinstance(obj, updateable) if check_updateable else True
-    return False
+    if check_updateable:
+        return isinstance(obj, BaseUpdateablePolicy)
+    return isinstance(obj, BasePolicy)
 
 
 def set_tf_loglevel(level):

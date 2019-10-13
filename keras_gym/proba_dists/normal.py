@@ -31,6 +31,8 @@ class NormalDist(BaseProbaDist):
         To get reproducible results.
 
     """
+    PARAM_NAMES = ('mu', 'logvar')
+
     def __init__(
             self, mu, logvar,
             name='normal_dist',
@@ -45,8 +47,11 @@ class NormalDist(BaseProbaDist):
         self.random_seed = random_seed  # also sets self.random (RandomState)
 
     def sample(self):
-        noise = tf.random.normal(shape=K.shape(self.logvar))
         sigma = K.exp(self.logvar / 2)
+        noise = tf.random.normal(
+            shape=K.shape(sigma),
+            dtype=K.dtype(sigma),
+            seed=self.random_seed)
 
         # reparametrization trick
         x = self.mu + sigma * noise
@@ -64,8 +69,11 @@ class NormalDist(BaseProbaDist):
         log_v = self.logvar
         log_2pi = K.constant(np.log(2 * np.pi))
 
-        # main expression
+        # main expression, shape: [batch_size, actions_ndim]
         log_p = -0.5 * (log_2pi + log_v + K.square(x - m) / v)
+
+        # aggregate across actions_ndim
+        log_p = K.mean(log_p, axis=1)
 
         return self._rename(log_p, 'log_proba')
 
@@ -76,6 +84,9 @@ class NormalDist(BaseProbaDist):
 
         # main expression
         h = 0.5 * (log_2pi + log_v + 1)
+
+        # aggregate across actions_ndim
+        h = K.mean(h, axis=1)
 
         return self._rename(h, 'entropy')
 
@@ -93,6 +104,9 @@ class NormalDist(BaseProbaDist):
         # main expression
         ce = 0.5 * (log_2pi + log_v2 + (v1 + K.square(m1 - m2)) / v2)
 
+        # aggregate across actions_ndim
+        ce = K.mean(ce, axis=1)
+
         return self._rename(ce, 'cross_entropy')
 
     def kl_divergence(self, other):
@@ -108,5 +122,8 @@ class NormalDist(BaseProbaDist):
 
         # main expression
         kldiv = 0.5 * (log_v2 - log_v1 + (v1 + K.square(m1 - m2)) / v2 - 1)
+
+        # aggregate across actions_ndim
+        kldiv = K.mean(kldiv, axis=1)
 
         return self._rename(kldiv, 'kl_divergence')

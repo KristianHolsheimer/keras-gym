@@ -1,8 +1,12 @@
 import numpy as np
 import keras_gym as km
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
+
+if tf.__version__ >= '2.0':
+    tf.compat.v1.disable_eager_execution()  # otherwise incredibly slow
 
 
 # the MDP
@@ -16,7 +20,7 @@ km.enable_logging()
 
 class LinearFunc(km.FunctionApproximator):
     """ linear function approximator (body only does one-hot encoding) """
-    def body(self, S, variable_scope):
+    def body(self, S):
         one_hot_encoding = keras.layers.Lambda(lambda x: K.one_hot(x, 16))
         return one_hot_encoding(S)
 
@@ -49,8 +53,8 @@ for ep in range(num_episodes):
 
         if done:
             while cache:
-                S, P, G = cache.pop()
-                pi.batch_update(S, P, G)
+                S, A, G = cache.pop()
+                pi.batch_update(S, A, G)
             break
 
         s = s_next

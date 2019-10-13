@@ -19,18 +19,13 @@ keras losses.
 Policy Losses
 -------------
 
-These loss functions are used to implement policy-gradient (PG) methods. The
-two main policy-gradient strategies provided by **keras-gym** are vanilla PG
-and PPO-clipping, which are implemented using the loss functions:
-:class:`VanillaPolicyLoss <keras_gym.losses.VanillaPolicyLoss>` and
-:class:`ClippedSurrogateLoss <keras_gym.losses.ClippedSurrogateLoss>`,
-respectively.
+The way policy losses are implemented is slightly different from value losses
+due to their non-standard structure. A policy loss is implemented in a method
+on :term:`updateable policy` objects (see below). If you need to implement a
+custom policy loss, you can override this :func:`policy_loss_with_metrics`
+method.
 
-Besides the PG-objective style loss functions, we also have some "loss"
-functions that don't depend on the specific predictions made by the policy
-object. They can be used as constraints or diagnostics (metrics). Most notably,
-these include :class:`PolicyEntropy <keras_gym.losses.PolicyEntropy>` and
-:class:`PolicyKLDivergence <keras_gym.losses.PolicyKLDivergence>`.
+.. automethod:: keras_gym.function_approximators.base.BaseUpdateablePolicy.policy_loss_with_metrics
 
 
 Objects
@@ -39,4 +34,3 @@ Objects
 .. toctree::
 
     value_based
-    policy_based
