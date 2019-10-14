@@ -228,7 +228,7 @@ class BaseQ(BaseFunctionApproximator):
             assert A_next is not None
             Q_next = self.batch_eval(
                 S_next, use_target_model=self.bootstrap_with_target_model)
-            Q_next = project_onto_actions_np(Q_next, A_next)
+            Q_next = np.einsum('ij,ij->i', Q_next, A_next)
 
         elif self.update_strategy == 'q_learning':
             Q_next = self.batch_eval(
