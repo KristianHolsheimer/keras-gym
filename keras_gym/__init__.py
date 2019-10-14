@@ -1,8 +1,11 @@
 # flake8: noqa
 __version__ = '0.2.15'
 
-from .base.patches import _monkey_patch_tensorflow
-_monkey_patch_tensorflow()
+# ugly workarounds
+from .base.patches import run
+run()
+del run
+
 
 # ensure that all submodules are visible
 from . import (

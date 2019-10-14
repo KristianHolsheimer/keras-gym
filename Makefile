@@ -20,11 +20,15 @@ wheel:
 
 install:
 	$(PYTHON_EXEC) setup.py install
+	$(PYTHON_EXEC) -c "import keras_gym"
 
 upload: all
 	$(PYTHON_EXEC) -m twine upload -u krispisvis dist/*
 
-flake8:
+patch:
+	$(PYTHON_EXEC) -c "import keras_gym"
+
+flake8: patch
 	$(PYTHON_EXEC) -m flake8 keras_gym
 
 test: flake8
@@ -45,12 +49,6 @@ install_requirements:
 
 upgrade_requirements:
 	for r in requirements.txt requirements.dev.txt doc/requirements.txt; do $(PYTHON_EXEC) -m pur -r $$r; $(PYTHON_EXEC) -m pip install -r $$r; done
-
-tf_gpu:
-	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow tensorflow-gpu && $(PYTHON_EXEC) -m pip install tensorflow-gpu
-
-tf_cpu:
-	$(PYTHON_EXEC) -m pip uninstall --yes tensorflow tensorflow-gpu && $(PYTHON_EXEC) -m pip install tensorflow
 
 rm_pycache:
 	find -regex '.*__pycache__[^/]*' -type d -exec rm -rf '{}' \;
