@@ -1,8 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 
-from ..utils import (
-    check_tensor, check_numpy_array, is_vfunction, is_qfunction, is_policy)
+from ..utils import check_numpy_array, is_vfunction, is_qfunction, is_policy
 from ..base.mixins import ActionSpaceMixin
 from ..base.errors import ActionSpaceError
 from ..policies.base import BasePolicy

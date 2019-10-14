@@ -1,7 +1,8 @@
-from abc import abstractmethod
-
+import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras import backend as K
 
+from ..utils import check_tensor
 from ..base.mixins import ActionSpaceMixin
 from ..base.errors import ActionSpaceError
 
@@ -175,14 +176,9 @@ class FunctionApproximator(ActionSpaceMixin):
 
         Returns
         -------
-        Z : nd Tensor, shape: [batch_size, num_actions]
+        \\*params : Tensor or tuple of Tensors, shape: [batch_size, ...]
 
-            The output :term:`logits <Z>` :math:`z\\in\\mathbb{R}^n`, from
-            which we can compute a vector of action probabilities:
-
-            .. math::
-
-                \\pi(.|s)\\ =\\ \\text{softmax}(z)
+            These constitute the raw policy distribution parameters.
 
         """
         if self.action_space_is_discrete:
@@ -208,7 +204,6 @@ class FunctionApproximator(ActionSpaceMixin):
 
         raise ActionSpaceError.feature_request(self.env)
 
-    @abstractmethod
     def body(self, S):
         """
         This is the part of the computation graph that may be shared between
@@ -222,8 +217,57 @@ class FunctionApproximator(ActionSpaceMixin):
 
             The input state observation.
 
+        Returns
+        -------
+        X : nd Tensor, shape: [batch_size, ...]
+
+            The intermediate keras tensor.
+
         """
-        pass
+        def to_vector(x):
+            if K.ndim(x) == 1 and K.dtype(x).startswith('int'):
+                x = K.one_hot(x, self.env.observation_space.n)
+            elif K.ndim(S) > 2:
+                x = keras.layers.Flatten()(x)
+            return x
+
+        return keras.layers.Lambda(to_vector)(S)
+
+    def body_q1(self, S, A):
+        """
+        This is similar to :func:`body`, except that it takes a state-action
+        pair as input instead of only state observations.
+
+        Parameters
+        ----------
+        S : nd Tensor: shape: [batch_size, ...]
+
+            The input state observation.
+
+        A : nd Tensor: shape: [batch_size, ...]
+
+            The input actions.
+
+        Returns
+        -------
+        X : nd Tensor, shape: [batch_size, ...]
+
+            The intermediate keras tensor.
+
+        """
+        def kronecker_product(args):
+            S, A = args
+            if K.ndim(S) == 1 and K.dtype(S).startswith('int'):
+                S = K.one_hot(S, self.env.observation_space.n)
+            elif K.ndim(S) > 2:
+                S = keras.layers.Flatten()(S)
+            check_tensor(S, ndim=2, dtype=('float32', 'float64'))
+            check_tensor(A, ndim=2, dtype=('float32', 'float64'))
+            return tf.einsum('ij,ik->ijk', S, A)
+
+        X = keras.layers.Lambda(kronecker_product)([S, A])
+        X = keras.layers.Flatten()(X)
+        return X
 
     def _init_optimizer(self, optimizer, optimizer_kwargs):
         if optimizer is None:

@@ -6,7 +6,8 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ..base.errors import ActionSpaceError
-from ..utils import check_numpy_array, project_onto_actions_np
+from ..utils import (
+    one_hot, check_numpy_array, project_onto_actions_np, check_tensor)
 from ..caching import NStepCache
 from ..losses import ProjectedSemiGradientLoss
 
@@ -75,6 +76,8 @@ class BaseQ(BaseFunctionApproximator):
         S = np.expand_dims(s, axis=0)
         if a is not None:
             assert self.env.action_space.contains(a)
+            if self.action_space_is_discrete:
+                a = self._one_hot_encode_discrete(a)
             A = np.expand_dims(a, axis=0)
             Q = self.batch_eval(S, A, use_target_model=use_target_model)
             check_numpy_array(Q, shape=(1,))
@@ -115,6 +118,7 @@ class BaseQ(BaseFunctionApproximator):
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
+    @abstractmethod
     def batch_update(self, S, A, Rn, In, S_next, A_next=None):
         """
         Update the value function on a batch of transitions.
@@ -170,9 +174,7 @@ class BaseQ(BaseFunctionApproximator):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        G = self.bootstrap_target(Rn, In, S_next, A_next)
-        losses = self._train_on_batch([S, G], A)
-        return losses
+        pass
 
     def bootstrap_target(self, Rn, In, S_next, A_next=None):
         """
@@ -369,31 +371,35 @@ class QTypeI(BaseQ):
         else:
             Q = []
             for a in range(self.num_actions):
-                A = a * np.ones(len(S), dtype='int')
+                A = one_hot(a * np.ones(len(S), dtype='int'), self.num_actions)
                 Q.append(self.batch_eval(S, A))
             Q = np.stack(Q, axis=1)
             check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
 
+    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
+        G = self.bootstrap_target(Rn, In, S_next, A_next)
+        losses = self._train_on_batch([S, A], G)
+        return losses
+
     def _init_models(self):
 
-        def kronecker_product(args):
-            S, A = args
-            A = K.one_hot(A, self.num_actions)
-            return tf.einsum('ij,ik->ijk', S, A)
+        # extract input shapes
+        s_shape = self.env.observation_space.shape
+        s_dtype = self.env.observation_space.dtype
+        if self.action_space_is_discrete:
+            a_shape = [self.num_actions]
+            a_dtype = 'float'
+        else:
+            a_shape = self.env.action_space.shape
+            a_dtype = self.env.action_space.dtype
 
-        shape = self.env.observation_space.shape
-        dtype = self.env.observation_space.dtype
-
-        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
-        A = keras.Input(name='value/A', shape=(), dtype='int32')
-
-        # first combine inputs
-        S = keras.layers.Flatten()(S) if K.ndim(S) > 2 else S
-        X = keras.layers.Lambda(kronecker_product)([S, A])
+        # input
+        S = keras.Input(name='value/S', shape=s_shape, dtype=s_dtype)
+        A = keras.Input(name='value/A', shape=a_shape, dtype=a_dtype)
 
         # forward pass
-        X = self.function_approximator.body(X)
+        X = self.function_approximator.body_q1(S, A)
         Q = self.function_approximator.head_q1(X)
 
         # regular models
@@ -401,7 +407,6 @@ class QTypeI(BaseQ):
         self.train_model.compile(
             loss=self.function_approximator.VALUE_LOSS_FUNCTION,
             optimizer=self.function_approximator.optimizer)
-        self.train_model.summary()
 
         # predict and target model
         self.predict_model = self.train_model  # yes, it's trivial for type-I
@@ -491,6 +496,11 @@ class QTypeII(BaseQ):
             Q = model.predict_on_batch(S)
             check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
+
+    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
+        G = self.bootstrap_target(Rn, In, S_next, A_next)
+        losses = self._train_on_batch([S, G], A)
+        return losses
 
     def _init_models(self):
         if not self.action_space_is_discrete:

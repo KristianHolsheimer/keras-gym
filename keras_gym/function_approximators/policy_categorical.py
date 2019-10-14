@@ -112,8 +112,6 @@ class SoftmaxPolicy(BaseUpdateablePolicy):
                     self._available_actions, x, -1e3 * K.ones_like(x)),
                 name=('policy/logits/masked'))(logits)
 
-        # probability distribution
-
         # special layers
         A_sample = keras.layers.Lambda(
             lambda x: CategoricalDist(logits=x).sample())(logits)
@@ -126,10 +124,11 @@ class SoftmaxPolicy(BaseUpdateablePolicy):
         self.target_greedy_model = keras.models.clone_model(
             self.predict_greedy_model)
         self.predict_param_model = keras.Model(S, logits)
+        self.predict_param_model.summary()
         self.target_param_model = keras.models.clone_model(
             self.predict_param_model)
 
-        # loss and target tensor (depends on self.update_strategy)
+        # loss and target tensor
         self.dist = CategoricalDist(logits=logits)
         self.target_dist = CategoricalDist(logits=self.target_param_model(S))
         loss, metrics = self.policy_loss_with_metrics(Adv, A)
