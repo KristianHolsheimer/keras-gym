@@ -2,7 +2,7 @@ import numpy as np
 
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin
 from ..base.errors import NumpyArrayCheckError, InsufficientCacheError
-from ..utils import check_numpy_array, get_env_attr, one_hot
+from ..utils import check_numpy_array, get_env_attr
 
 
 __all__ = (

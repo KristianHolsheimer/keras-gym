@@ -1,35 +1,21 @@
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..utils import check_tensor, check_numpy_array, argmax
+from ..utils import check_tensor
 from ..proba_dists import CategoricalDist
 from .base import BaseUpdateablePolicy
 
 
 class SoftmaxPolicy(BaseUpdateablePolicy):
     """
-    Base class for modeling :term:`updateable policies <updateable policy>` for
-    discrete action spaces.
+
+    :term:`Updateable policy <updateable policy>` for discrete action spaces.
 
     Parameters
     ----------
-    env : gym environment
+    function_approximator : FunctionApproximator object
 
-        A gym environment.
-
-    train_model : keras.Model([:term:`S`, :term:`Adv`], :term:`Z`)
-
-        Used for training.
-
-    predict_model : keras.Model(:term:`S`, :term:`Z`)
-
-        Used for predicting.
-
-    target_model : keras.Model(:term:`S`, :term:`Z`)
-
-        A :term:`target_model` is used to make predictions on a bootstrapping
-        scenario. It can be advantageous to use a point-in-time copy of the
-        :term:`predict_model` to construct a bootstrapped target.
+        The main :term:`function approximator`.
 
     update_strategy : str, callable, optional
 
@@ -96,11 +82,11 @@ class SoftmaxPolicy(BaseUpdateablePolicy):
         Sets the random state to get reproducible results.
 
     """
-    def __call__(self, S, use_target_model=False):
+    def __call__(self, s, use_target_model=False):
         # Because we want our categorical samples to be differentiable,
         # self.predict_model cannot return fully deterministic samples.
         # We therefore perform the final sampling in the numpy layer.
-        p = super().__call__(S, use_target_model)  # p is almost deterministic
+        p = super().__call__(s, use_target_model)  # p is almost deterministic
         a = self.random.choice(self.num_actions, p=p)
         return a
 
@@ -114,24 +100,24 @@ class SoftmaxPolicy(BaseUpdateablePolicy):
 
         # forward pass
         X = self.function_approximator.body(S)
-        Z = self.function_approximator.head_pi(X)
-        check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
+        logits = self.function_approximator.head_pi(X)
+        check_tensor(logits, ndim=2, axis_size=self.num_actions, axis=1)
 
         # apply available-action mask (optional)
         if hasattr(self, 'available_actions_mask'):
             check_tensor(self.available_actions_mask, ndim=2, dtype='bool')
             # set logits to large negative values for unavailable actions
-            Z = keras.layers.Lambda(
-                lambda Z: K.switch(
-                    self._available_actions, Z, -1e3 * K.ones_like(Z)),
-                name=('policy/Z/masked'))(Z)
+            logits = keras.layers.Lambda(
+                lambda x: K.switch(
+                    self._available_actions, x, -1e3 * K.ones_like(x)),
+                name=('policy/logits/masked'))(logits)
 
         # probability distribution
-        dist = CategoricalDist(logits=Z)
 
         # special layers
-        A_sample = keras.layers.Lambda(lambda x: dist.sample())(Z)
-        A_greedy = keras.layers.Lambda(K.argmax)(Z)
+        A_sample = keras.layers.Lambda(
+            lambda x: CategoricalDist(logits=x).sample())(logits)
+        A_greedy = keras.layers.Lambda(K.argmax)(logits)
 
         # output models
         self.predict_model = keras.Model(S, A_sample)
@@ -139,17 +125,17 @@ class SoftmaxPolicy(BaseUpdateablePolicy):
         self.predict_greedy_model = keras.Model(S, A_greedy)
         self.target_greedy_model = keras.models.clone_model(
             self.predict_greedy_model)
-        self.predict_param_model = keras.Model(S, Z)
+        self.predict_param_model = keras.Model(S, logits)
         self.target_param_model = keras.models.clone_model(
             self.predict_param_model)
 
         # loss and target tensor (depends on self.update_strategy)
-        target_dist = CategoricalDist(logits=self.target_param_model(S))
-        loss, metrics = self.policy_loss_with_metrics(
-            Adv, A, dist, target_dist, entropy_beta=self.entropy_beta)
+        self.dist = CategoricalDist(logits=logits)
+        self.target_dist = CategoricalDist(logits=self.target_param_model(S))
+        loss, metrics = self.policy_loss_with_metrics(Adv, A)
 
         # models
-        self.train_model = keras.Model([S, A, Adv], Z)
+        self.train_model = keras.Model([S, A, Adv], logits)
         self.train_model.add_loss(loss)
         for name, metric in metrics.items():
             self.train_model.add_metric(metric, name=name, aggregation='mean')

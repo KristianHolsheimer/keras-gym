@@ -67,7 +67,8 @@ env.render()
 for t in range(num_steps):
 
     # print individual action probabilities
-    for i, p in enumerate(pi.dist_params(s)):
+    propensities = km.utils.softmax(pi.dist_params(s))
+    for i, p in enumerate(propensities):
         print("  π({:s}|s) = {:.3f}".format(actions[i], p))
 
     a = pi.greedy(s)

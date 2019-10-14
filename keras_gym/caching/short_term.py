@@ -6,7 +6,6 @@ import numpy as np
 
 from ..base.errors import InsufficientCacheError, EpisodeDoneError
 from ..base.mixins import ActionSpaceMixin
-from ..utils import one_hot
 
 
 __all__ = (

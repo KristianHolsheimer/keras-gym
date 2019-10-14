@@ -3,7 +3,7 @@ import logging
 import gym
 import numpy as np
 
-from ..utils import one_hot, check_numpy_array, clipped_logit_np
+from ..utils import one_hot
 from .errors import ActionSpaceError
 
 

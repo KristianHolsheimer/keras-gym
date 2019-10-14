@@ -1,6 +1,8 @@
+import tensorflow as tf
 from tensorflow import keras
 
-from .. import utils
+from ..utils import (
+    check_tensor, check_numpy_array, is_vfunction, is_qfunction, is_policy)
 from ..base.mixins import ActionSpaceMixin
 from ..base.errors import ActionSpaceError
 from ..policies.base import BasePolicy
@@ -35,10 +37,19 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
 
         #TODO: implement for Q-functions  -Kris
 
+    value_loss_weight : float, optional
+
+        Relative weight to give to the value-function loss:
+
+        .. code:: python
+
+            loss = policy_loss + value_loss_weight * value_loss
+
     """
-    def __init__(self, policy, value_function):
+    def __init__(self, policy, value_function, value_loss_weight=1.0):
         self.policy = policy
         self.value_function = value_function
+        self.value_loss_weight = value_loss_weight
 
         self._check_function_types()
         self._init_models()
@@ -138,17 +149,17 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         G = Rn + In * V_next
 
         # check shapes / dtypes
-        utils.check_numpy_array(G, ndim=1, dtype='float')
+        check_numpy_array(G, ndim=1, dtype='float')
         if self.action_space_is_discrete:
-            utils.check_numpy_array(
-                A, ndim=1, dtype='int')
+            check_numpy_array(
+                A, ndim=2, dtype='float', axis_size=self.num_actions, axis=1)
         elif self.action_space_is_box:
-            utils.check_numpy_array(
+            check_numpy_array(
                 A, ndim=2, dtype='float', axis_size=self.actions_ndim, axis=1)
         else:
             raise ActionSpaceError.feature_request(self.env)
 
-        losses = self._train_on_batch([S, G], [A, G])  # FIXME: change signature
+        losses = self._train_on_batch([S, A, G], None)
         return losses
 
     def __call__(self, s):
@@ -246,46 +257,48 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         self.value_function.sync_target_model(tau=tau)
 
     def _check_function_types(self):
-        if not utils.is_vfunction(self.value_function):
-            if utils.is_qfunction(self.value_function):
+        if not is_vfunction(self.value_function):
+            if is_qfunction(self.value_function):
                 raise NotImplementedError(
                     "ActorCritic hasn't been yet implemented for Q-functions, "
                     "please let me know is you need this; for the time being, "
                     "please use V-function instead.")
-        if not utils.is_policy(self.policy, check_updateable=True):
+        if not is_policy(self.policy, check_updateable=True):
             raise TypeError("expected an updateable policy")
         if self.policy.env != self.value_function.env:
             raise ValueError(
                 "the envs of policy and value_function do not match")
 
     def _init_models(self):
-        shape = self.env.observation_space.shape
-        dtype = self.env.observation_space.dtype
 
         # inputs
-        S = keras.Input(name='actor_critic/S', shape=shape, dtype=dtype)
-        G = keras.Input(name='actor_critic/G', shape=(1,), dtype='float')
+        S, A = self.policy.train_model.inputs[:2]
+        G = keras.Input(name='G', shape=(1,), dtype='float')
 
         # predictions
         V = self.value_function.predict_model(S)
-        Z = self.policy.predict_model(S)
-        Z_target = keras.layers.Lambda(
-            self.policy.target_model, name='Z_target')(S)
+        params = self.policy.predict_param_model(S)
 
-        # check if shapes are what we expect
-        if self.action_space_is_discrete:
-            utils.check_tensor(Z, ndim=2, axis_size=self.num_actions, axis=1)
-        elif self.action_space_is_box:
-            utils.check_tensor(Z, ndim=3, axis_size=self.actions_ndim, axis=1)
-            utils.check_tensor(Z, axis_size=2, axis=2)
-        utils.check_tensor(V, ndim=2, axis_size=1, axis=1)
+        # combine outputs
+        if isinstance(params, list):
+            outputs = params + [V]
+        elif isinstance(params, tuple):
+            outputs = list(params) + [V]
+        elif isinstance(params, tf.Tensor):
+            outputs = [params, V]
+        else:
+            raise TypeError(f"unexpected type for params: {type(params)}")
 
         # update loss with advantage coming directly from graph
-        policy_loss = self.policy._policy_loss(G - V, Z_target)
-        value_loss = self.value_function.train_model.loss
+        policy_loss, metrics = self.policy.policy_loss_with_metrics(G - V, A)
+        value_loss = self.value_function.train_model.loss(V, G)
+        metrics['policy/loss'] = policy_loss
+        metrics['value/loss'] = value_loss
+        loss = policy_loss + self.value_loss_weight * value_loss
 
         # joint model
-        self.train_model = keras.Model(inputs=[S, G], outputs=[Z, V])
-        self.train_model.compile(
-            loss=[policy_loss, value_loss],
-            optimizer=self.policy.train_model.optimizer)
+        self.train_model = keras.Model([S, A, G], outputs)
+        self.train_model.add_loss(loss)
+        for name, metric in metrics.items():
+            self.train_model.add_metric(metric, name=name, aggregation='mean')
+        self.train_model.compile(optimizer=self.policy.train_model.optimizer)

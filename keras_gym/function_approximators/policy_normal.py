@@ -1,9 +1,6 @@
-import numpy as np
 from tensorflow import keras
-from tensorflow.keras import backend as K
 
-from ..utils import check_numpy_array, check_tensor
-from ..base.errors import ActionSpaceError
+from ..utils import check_tensor
 from ..proba_dists import NormalDist
 from .base import BaseUpdateablePolicy
 
@@ -15,6 +12,16 @@ class GaussianPolicy(BaseUpdateablePolicy):
     space, i.e. a :class:`Box <gym.spaces.Box>`. It models the policy
     :math:`\\pi_\\theta(a|s)` as a normal distribution with conditional
     parameters :math:`(\\mu_\\theta(s), \\sigma_\\theta(s))`.
+
+    .. important::
+
+        This environment requires that the ``env`` is with:
+
+        .. code::
+
+            env = km.wrappers.BoxToReals(env)
+
+        This wrapper decompactifies the Box action space.
 
     Parameters
     ----------
@@ -113,10 +120,11 @@ class GaussianPolicy(BaseUpdateablePolicy):
         check_tensor(logvar, same_as=mu)
 
         # probability distribution
-        dist = NormalDist(mu=mu, logvar=logvar)
+        self.dist = NormalDist(mu=mu, logvar=logvar)
 
         # special layers
-        A_sample = keras.layers.Lambda(lambda x: dist.sample())([mu, logvar])
+        A_sample = keras.layers.Lambda(
+            lambda x: self.dist.sample())([mu, logvar])
         A_greedy = mu
 
         # output models
@@ -130,9 +138,8 @@ class GaussianPolicy(BaseUpdateablePolicy):
             self.predict_param_model)
 
         # loss and target tensor (depends on self.update_strategy)
-        target_dist = NormalDist(*self.target_param_model(S))
-        loss, metrics = self.policy_loss_with_metrics(
-            Adv, A, dist, target_dist, entropy_beta=self.entropy_beta)
+        self.target_dist = NormalDist(*self.target_param_model(S))
+        loss, metrics = self.policy_loss_with_metrics(Adv, A)
 
         # models
         self.train_model = keras.Model([S, A, Adv], [mu, logvar])

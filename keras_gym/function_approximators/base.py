@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin, LoggerMixin
@@ -102,23 +103,10 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
     Parameters
     ----------
-    env : gym environment
+    function_approximator : FunctionApproximator
 
-        A gym environment.
-
-    train_model : keras.Model([:term:`S`, :term:`Adv`], :term:`Z`)
-
-        Used for training.
-
-    predict_model : keras.Model(:term:`S`, :term:`Z`)
-
-        Used for predicting.
-
-    target_model : keras.Model(:term:`S`, :term:`Z`)
-
-        A :term:`target_model` is used to make predictions on a bootstrapping
-        scenario. It can be advantageous to use a point-in-time copy of the
-        :term:`predict_model` to construct a bootstrapped target.
+        The main :class:`FunctionApproximator <keras_gym.FunctionApproximator>`
+        object.
 
     update_strategy : str, callable, optional
 
@@ -387,8 +375,7 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
         losses = self._train_on_batch([S, A, Adv], None)
         return losses
 
-    def policy_loss_with_metrics(
-            self, Adv, A, dist, behavior_dist, entropy_beta=0.01, **kwargs):
+    def policy_loss_with_metrics(self, Adv, A):
         """
 
         This method constructs the policy loss as a scalar-valued Tensor,
@@ -407,22 +394,6 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
             A batch of actions taken under the behavior policy.
 
-        dist : ProbaDist
-
-            A probability distribution object of the policy to be updated.
-
-        behavior_dist : ProbaDist
-
-            A probability distribution object of the behavior policy.
-
-        entropy_beta : float, optional
-
-            This is the coefficient of the entropy-bonus term.
-
-        \\*\\*kwargs
-
-            Any additional kwargs that the policy loss might expect.
-
         Returns
         -------
         loss : 0d Tensor (scalar)
@@ -433,25 +404,27 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
         """
         Adv = K.stop_gradient(Adv)
+        if K.ndim(Adv) == 2:
+            Adv = K.squeeze(Adv, axis=1)
         check_tensor(Adv, ndim=1)
 
         if self.update_strategy == 'vanilla':
 
-            log_pi = dist.log_proba(A)
+            log_pi = self.dist.log_proba(A)
             check_tensor(log_pi, same_as=Adv)
 
-            entropy = K.mean(dist.entropy())
+            entropy = K.mean(self.dist.entropy())
 
             # flip sign to get loss from objective
-            loss = -K.mean(Adv * log_pi) + entropy_beta * entropy
+            loss = -K.mean(Adv * log_pi) + self.entropy_beta * entropy
 
             # no metrics related to behavior_dist since its not used in loss
             metrics = {'policy/entropy': entropy}
 
         elif self.update_strategy == 'ppo':
 
-            log_pi = dist.log_proba(A)
-            log_pi_old = K.stop_gradient(behavior_dist.log_proba(A))
+            log_pi = self.dist.log_proba(A)
+            log_pi_old = K.stop_gradient(self.target_dist.log_proba(A))
             check_tensor(log_pi, same_as=Adv)
             check_tensor(log_pi_old, same_as=Adv)
 
@@ -462,11 +435,11 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
             check_tensor(log_pi_old, same_as=Adv)
 
             clip_objective = K.mean(K.minimum(Adv * ratio, Adv * ratio_clip))
-            entropy = K.mean(dist.entropy())
-            kl_div = K.mean(behavior_dist.kl_divergence(dist))
+            entropy = K.mean(self.dist.entropy())
+            kl_div = K.mean(self.target_dist.kl_divergence(self.dist))
 
             # flip sign to get loss from objective
-            loss = -(clip_objective + entropy_beta * entropy)
+            loss = -(clip_objective + self.entropy_beta * entropy)
             metrics = {'policy/entropy': entropy, 'policy/kl_div': kl_div}
 
         elif self.update_strategy == 'cross_entropy':
@@ -475,6 +448,9 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
         else:
             raise ValueError(
                 "unknown update_strategy '{}'".format(self.update_strategy))
+
+        # rename
+        loss = tf.identity(loss, name='policy_loss')
 
         return loss, metrics
 
