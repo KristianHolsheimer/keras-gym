@@ -124,7 +124,6 @@ class SoftmaxPolicy(BaseUpdateablePolicy):
         self.target_greedy_model = keras.models.clone_model(
             self.predict_greedy_model)
         self.predict_param_model = keras.Model(S, logits)
-        self.predict_param_model.summary()
         self.target_param_model = keras.models.clone_model(
             self.predict_param_model)
 

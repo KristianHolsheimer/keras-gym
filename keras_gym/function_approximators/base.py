@@ -89,12 +89,14 @@ class BaseFunctionApproximator(ABC, LoggerMixin, ActionSpaceMixin, RandomStateMi
         if tau > 1 or tau < 0:
             ValueError("tau must lie on the unit interval [0,1]")
 
-        Ws = self.predict_model.get_weights()
-        Wt = self.target_model.get_weights()
-
-        # update
-        Wt = [wt + tau * (wp - wt) for wt, wp in zip(Wt, Ws)]
-        self.target_model.set_weights(Wt)
+        for m in ('model', 'param_model', 'greedy_model'):
+            if hasattr(self, 'target_' + m):
+                p = getattr(self, 'predict_' + m)
+                t = getattr(self, 'target_' + m)
+                Wp = p.get_weights()
+                Wt = t.get_weights()
+                Wt = [wt + tau * (wp - wt) for wt, wp in zip(Wt, Wp)]
+                t.set_weights(Wt)
 
 
 class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
