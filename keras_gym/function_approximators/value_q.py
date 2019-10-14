@@ -1,13 +1,10 @@
 from abc import abstractmethod
 
 import numpy as np
-import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import backend as K
 
 from ..base.errors import ActionSpaceError
-from ..utils import (
-    one_hot, check_numpy_array, project_onto_actions_np, check_tensor)
+from ..utils import one_hot, check_numpy_array, project_onto_actions_np
 from ..caching import NStepCache
 from ..losses import ProjectedSemiGradientLoss
 

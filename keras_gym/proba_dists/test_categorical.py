@@ -34,10 +34,10 @@ dists_np = [multinomial(n=1, p=p) for p in proba_np]  # cannot broadcast
 
 
 def test_sample():
-    if tf.__version__ >= '2.0':
-        expected = one_hot(np.array([1, 1, 1, 2, 1, 0, 2]), n=3)
-    else:
-        expected = one_hot(np.array([1, 1, 1, 2, 1, 0, 2]), n=3)
+    # if tf.__version__ >= '2.0':
+    #     expected = one_hot(np.array([1, 1, 1, 2, 1, 0, 2]), n=3)
+    # else:
+    #     expected = one_hot(np.array([1, 1, 1, 2, 1, 0, 2]), n=3)
 
     actual = keras.Model(x, sample).predict(x_np)
 

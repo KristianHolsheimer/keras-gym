@@ -4,7 +4,7 @@ import pytest
 import gym
 import numpy as np
 
-from ..utils import check_numpy_array
+from ..utils import check_numpy_array, one_hot
 from ..base.errors import InsufficientCacheError, EpisodeDoneError
 from .short_term import NStepCache, MonteCarloCache
 
@@ -49,6 +49,7 @@ class TestNStepCache:
     D = np.array([False] * 12 + [True])
     In = np.array([0.44370531249999995] * 8 + [0.0] * 5)
     episode = list(zip(S, A, R, D))
+    A = one_hot(A, 10)
 
     @property
     def Rn(self):
@@ -97,11 +98,13 @@ class TestNStepCache:
         while cache:
             s, a, rn, i_next, s_next, a_next = cache.pop()
             check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(a, ndim=1, axis_size=1, axis=0)
+            check_numpy_array(a, ndim=2, axis_size=1, axis=0)
+            check_numpy_array(a, ndim=2, axis_size=10, axis=1)
             check_numpy_array(rn, ndim=1, axis_size=1, axis=0)
             check_numpy_array(i_next, ndim=1, axis_size=1, axis=0)
             check_numpy_array(s_next, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(a_next, ndim=1, axis_size=1, axis=0)
+            check_numpy_array(a_next, ndim=2, axis_size=1, axis=0)
+            check_numpy_array(a_next, ndim=2, axis_size=10, axis=1)
             assert s[0] == self.S[i]
             np.testing.assert_array_equal(a[0], self.A[i])
             assert rn[0] == self.Rn[i]
@@ -121,11 +124,13 @@ class TestNStepCache:
                 assert i + 1 > self.n
                 s, a, rn, i_next, s_next, a_next = cache.pop()
                 check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-                check_numpy_array(a, ndim=1, axis_size=1, axis=0)
+                check_numpy_array(a, ndim=2, axis_size=1, axis=0)
+                check_numpy_array(a, ndim=2, axis_size=10, axis=1)
                 check_numpy_array(rn, ndim=1, axis_size=1, axis=0)
                 check_numpy_array(i_next, ndim=1, axis_size=1, axis=0)
                 check_numpy_array(s_next, ndim=1, axis_size=1, axis=0)
-                check_numpy_array(a_next, ndim=1, axis_size=1, axis=0)
+                check_numpy_array(a_next, ndim=2, axis_size=1, axis=0)
+                check_numpy_array(a_next, ndim=2, axis_size=10, axis=1)
                 assert s[0] == self.S[i - self.n]
                 np.testing.assert_array_equal(a[0], self.A[i - self.n])
                 assert rn[0] == self.Rn[i - self.n]
@@ -139,11 +144,13 @@ class TestNStepCache:
         while cache:
             s, a, rn, i_next, s_next, a_next = cache.pop()
             check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(a, ndim=1, axis_size=1, axis=0)
+            check_numpy_array(a, ndim=2, axis_size=1, axis=0)
+            check_numpy_array(a, ndim=2, axis_size=10, axis=1)
             check_numpy_array(rn, ndim=1, axis_size=1, axis=0)
             check_numpy_array(i_next, ndim=1, axis_size=1, axis=0)
             check_numpy_array(s_next, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(a_next, ndim=1, axis_size=1, axis=0)
+            check_numpy_array(a_next, ndim=2, axis_size=1, axis=0)
+            check_numpy_array(a_next, ndim=2, axis_size=10, axis=1)
             assert s[0] == self.S[i]
             np.testing.assert_array_equal(a[0], self.A[i])
             assert rn[0] == self.Rn[i]
@@ -187,7 +194,8 @@ class TestNStepCache:
                     np.testing.assert_array_equal(Rn, self.Rn[slc])
                     np.testing.assert_array_equal(In, self.In[slc])
                     np.testing.assert_array_equal(S_next.shape, (self.n + 1,))
-                    np.testing.assert_array_equal(A_next.shape, (self.n + 1,))
+                    np.testing.assert_array_equal(
+                        A_next.shape, (self.n + 1, 10))
                 else:
                     slc = slice(i - self.n, i - self.n + 1)
                     np.testing.assert_array_equal(S, self.S[slc])
@@ -254,6 +262,7 @@ class TestMonteCarloCache:
         G[i] = r + gamma * G[i - 1]
     G = G[::-1]
     episode = list(zip(S, A, R, D))
+    A = one_hot(A, 10)
 
     def test_append_pop_too_soon(self):
         cache = MonteCarloCache(self.env, self.gamma)
@@ -277,7 +286,8 @@ class TestMonteCarloCache:
             assert cache
             s, a, g = cache.pop()
             check_numpy_array(s, ndim=1, axis_size=1, axis=0)
-            check_numpy_array(a, ndim=1, axis_size=1, axis=0)
+            check_numpy_array(a, ndim=2, axis_size=1, axis=0)
+            check_numpy_array(a, ndim=2, axis_size=10, axis=1)
             check_numpy_array(g, ndim=1, axis_size=1, axis=0)
             assert self.S[12 - i] == s[0]
             np.testing.assert_array_equal(self.A[12 - i], a[0])
