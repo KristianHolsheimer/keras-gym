@@ -13,6 +13,7 @@ data/
 
 # tests
 .coverage
+.hypothesis
 
 # doc
 doc/build/
