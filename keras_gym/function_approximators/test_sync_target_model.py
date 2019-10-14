@@ -139,6 +139,17 @@ def test_pi_ppo():
                     pi.batch_update(S, A, G)
             s = s_next
 
+    # predict_model weights
+    expected = pi.predict_model.get_weights()[0]
+    actual = pi.target_model.get_weights()[0]
+    msg = "Arrays are not almost equal to 6 decimals"
+    with pytest.raises(AssertionError, match=msg):
+        np.testing.assert_array_almost_equal(actual, expected)
+    pi.sync_target_model()
+    actual = pi.target_model.get_weights()[0]
+    np.testing.assert_array_almost_equal(actual, expected)
+
+    # model weights
     expected = pi.predict_model.get_weights()[0]
     actual = pi.target_model.get_weights()[0]
 
@@ -150,23 +161,7 @@ def test_pi_ppo():
     actual = pi.target_model.get_weights()[0]
     np.testing.assert_array_almost_equal(actual, expected)
 
-
-def test_pi_param_ppo():
-    pi = SoftmaxPolicy(func, update_strategy='ppo')
-    cache = MonteCarloCache(env, gamma=0.9)
-
-    # run episodes
-    for _ in range(20):
-        s = env.reset()
-        for a in [DOWN, DOWN, RIGHT, RIGHT, DOWN, RIGHT]:
-            s_next, r, done, info = env.step(a)
-            cache.add(s, a, r, done)
-            if done:
-                while cache:
-                    S, A, G = cache.pop()
-                    pi.batch_update(S, A, G)
-            s = s_next
-
+    # param_model weights
     expected = pi.predict_param_model.get_weights()[0]
     actual = pi.target_param_model.get_weights()[0]
 
@@ -178,23 +173,7 @@ def test_pi_param_ppo():
     actual = pi.target_param_model.get_weights()[0]
     np.testing.assert_array_almost_equal(actual, expected)
 
-
-def test_pi_greedy_ppo():
-    pi = SoftmaxPolicy(func, update_strategy='ppo')
-    cache = MonteCarloCache(env, gamma=0.9)
-
-    # run episodes
-    for _ in range(20):
-        s = env.reset()
-        for a in [DOWN, DOWN, RIGHT, RIGHT, DOWN, RIGHT]:
-            s_next, r, done, info = env.step(a)
-            cache.add(s, a, r, done)
-            if done:
-                while cache:
-                    S, A, G = cache.pop()
-                    pi.batch_update(S, A, G)
-            s = s_next
-
+    # greedy_model weights
     expected = pi.predict_greedy_model.get_weights()[0]
     actual = pi.target_greedy_model.get_weights()[0]
 
