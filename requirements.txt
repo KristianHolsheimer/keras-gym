@@ -4,3 +4,4 @@ numpy>=1.16,<1.17
 pandas>=0.23.4
 scipy>=1.2.1
 tensorflow>=1.14,<2.0
+absl-py>=0.8.1
