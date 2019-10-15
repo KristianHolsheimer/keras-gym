@@ -3,7 +3,6 @@ import time
 import gym
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import backend as K
 
 from ..base.mixins import ActionSpaceMixin, LoggerMixin
 
