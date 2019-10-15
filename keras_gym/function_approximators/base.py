@@ -398,10 +398,16 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
         Returns
         -------
-        loss : 0d Tensor (scalar)
+        loss, metrics : (Tensor, dict of Tensors)
 
-            The policy loss. This can be fed to a keras Model using
-            ``model.add_loss(loss)``.
+            The policy loss along with some metrics, which is a dict of type
+            ``{name <str>: metric <Tensor>}``. The loss and each of the metrics
+            (dict values) are scalar Tensors, i.e. Tensors with ``ndim=0``.
+
+            The ``loss`` is passed to a keras Model using
+            ``train_model.add_loss(loss)``. Similarly, each metric in the
+            metric dict is passed to the model using
+            ``train_model.add_metric(metric, name=name, aggregation='mean')``.
 
 
         """
