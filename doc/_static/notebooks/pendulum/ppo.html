@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>sarsa</title>
+<title>ppo</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13092,65 +13092,70 @@ div#notebook {
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># %load ../../scripts/cartpole/sarsa.py</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># %load ../../scripts/pendulum/ppo.py</span>
 <span class="kn">import</span> <span class="nn">gym</span>
 <span class="kn">import</span> <span class="nn">keras_gym</span> <span class="k">as</span> <span class="nn">km</span>
 <span class="kn">from</span> <span class="nn">tensorflow</span> <span class="k">import</span> <span class="n">keras</span>
+<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="k">import</span> <span class="n">backend</span> <span class="k">as</span> <span class="n">K</span>
 
 
-<span class="c1"># the cart-pole MDP</span>
-<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;CartPole-v0&#39;</span><span class="p">)</span>
+<span class="c1">###############################################################################</span>
+<span class="c1"># environment (MDP)</span>
+<span class="c1">###############################################################################</span>
+
+<span class="n">env</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="s1">&#39;Pendulum-v0&#39;</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">BoxActionsToReals</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">TrainMonitor</span><span class="p">(</span>
+    <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">tensorboard_dir</span><span class="o">=</span><span class="s1">&#39;/tmp/tensorboard/pendulum/ppo_static&#39;</span><span class="p">)</span>
+<span class="n">km</span><span class="o">.</span><span class="n">enable_logging</span><span class="p">()</span>
 
 
-<span class="k">class</span> <span class="nc">Linear</span><span class="p">(</span><span class="n">km</span><span class="o">.</span><span class="n">FunctionApproximator</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; linear function approximator &quot;&quot;&quot;</span>
+<span class="c1">###############################################################################</span>
+<span class="c1"># function approximator</span>
+<span class="c1">###############################################################################</span>
+
+<span class="k">class</span> <span class="nc">MLP</span><span class="p">(</span><span class="n">km</span><span class="o">.</span><span class="n">FunctionApproximator</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
-        <span class="c1"># body is trivial, only flatten and then pass to head (one dense layer)</span>
-        <span class="k">return</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">K</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">K</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">x</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">)(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">)(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">X</span>
 
 
-<span class="c1"># value function and its derived policy</span>
-<span class="n">func</span> <span class="o">=</span> <span class="n">Linear</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
-<span class="n">q</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">QTypeI</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">update_strategy</span><span class="o">=</span><span class="s1">&#39;sarsa&#39;</span><span class="p">)</span>
-<span class="n">policy</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">EpsilonGreedy</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
-
-<span class="c1"># static parameters</span>
-<span class="n">num_episodes</span> <span class="o">=</span> <span class="mi">200</span>
-<span class="n">num_steps</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">max_episode_steps</span>
-
-<span class="c1"># used for early stopping</span>
-<span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">mlp</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+<span class="n">pi</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">GaussianPolicy</span><span class="p">(</span><span class="n">mlp</span><span class="p">,</span> <span class="n">update_strategy</span><span class="o">=</span><span class="s1">&#39;ppo&#39;</span><span class="p">)</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">V</span><span class="p">(</span><span class="n">mlp</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">bootstrap_n</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="n">ac</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">ActorCritic</span><span class="p">(</span><span class="n">pi</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
 
 
-<span class="c1"># train</span>
-<span class="k">for</span> <span class="n">ep</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_episodes</span><span class="p">):</span>
+<span class="n">buffer</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">caching</span><span class="o">.</span><span class="n">ExperienceReplayBuffer</span><span class="o">.</span><span class="n">from_value_function</span><span class="p">(</span>
+    <span class="n">value_function</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
+
+
+<span class="c1">###############################################################################</span>
+<span class="c1"># run</span>
+<span class="c1">###############################################################################</span>
+
+<span class="k">while</span> <span class="n">env</span><span class="o">.</span><span class="n">T</span> <span class="o">&lt;</span> <span class="mi">1000000</span><span class="p">:</span>
     <span class="n">s</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-    <span class="n">policy</span><span class="o">.</span><span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.1</span> <span class="k">if</span> <span class="n">ep</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="mf">0.01</span>
-
-    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_steps</span><span class="p">):</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">policy</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">max_episode_steps</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">pi</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">use_target_model</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">s_next</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
-        <span class="n">q</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">)</span>
+        <span class="n">buffer</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">ep</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">buffer</span><span class="o">.</span><span class="n">capacity</span><span class="p">:</span>
+            <span class="c1"># use 4 epochs per round</span>
+            <span class="n">num_batches</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">buffer</span><span class="o">.</span><span class="n">capacity</span> <span class="o">/</span> <span class="n">buffer</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_batches</span><span class="p">):</span>
+                <span class="n">ac</span><span class="o">.</span><span class="n">batch_update</span><span class="p">(</span><span class="o">*</span><span class="n">buffer</span><span class="o">.</span><span class="n">sample</span><span class="p">())</span>
+            <span class="n">buffer</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="n">pi</span><span class="o">.</span><span class="n">sync_target_model</span><span class="p">(</span><span class="n">tau</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">num_steps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;num_consecutive_successes: </span><span class="si">{}</span><span class="s2">&quot;</span>
-                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_consecutive_successes</span><span class="p">))</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">num_consecutive_successes</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;failed after </span><span class="si">{}</span><span class="s2"> steps&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="p">))</span>
             <span class="k">break</span>
 
         <span class="n">s</span> <span class="o">=</span> <span class="n">s_next</span>
-
-    <span class="k">if</span> <span class="n">num_consecutive_successes</span> <span class="o">==</span> <span class="mi">10</span><span class="p">:</span>
-        <span class="k">break</span>
-
-
-<span class="c1"># run env one more time to render</span>
-<span class="n">km</span><span class="o">.</span><span class="n">render_episode</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">policy</span><span class="p">,</span> <span class="n">step_delay_ms</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
 </pre></div>
 
     </div>

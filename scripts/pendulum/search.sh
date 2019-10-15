@@ -3,8 +3,8 @@ trap "kill 0" EXIT
 
 rm -rf /tmp/tensorboard
 
-for id in `seq 1 10`; do
-    CUDA_VISIBLE_DEVICES=-1 python3 -Wignore ppo.py \
+for id in `seq 1 5`; do
+    CUDA_VISIBLE_DEVICES=-1 python3 -Wignore ppo_search.py \
         --id $id \
         --learning_rate 1e-3 \
         --entropy_beta 0.01 \

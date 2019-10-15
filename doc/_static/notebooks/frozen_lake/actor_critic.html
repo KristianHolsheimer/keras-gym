@@ -13017,45 +13017,6 @@ ul.typeahead-list  > li > a.pull-right {
 .highlight .vm { color: #19177C } /* Name.Variable.Magic */
 .highlight .il { color: #666666 } /* Literal.Number.Integer.Long */
     </style>
-<style type="text/css">
-    
-/* Temporary definitions which will become obsolete with Notebook release 5.0 */
-.ansi-black-fg { color: #3E424D; }
-.ansi-black-bg { background-color: #3E424D; }
-.ansi-black-intense-fg { color: #282C36; }
-.ansi-black-intense-bg { background-color: #282C36; }
-.ansi-red-fg { color: #E75C58; }
-.ansi-red-bg { background-color: #E75C58; }
-.ansi-red-intense-fg { color: #B22B31; }
-.ansi-red-intense-bg { background-color: #B22B31; }
-.ansi-green-fg { color: #00A250; }
-.ansi-green-bg { background-color: #00A250; }
-.ansi-green-intense-fg { color: #007427; }
-.ansi-green-intense-bg { background-color: #007427; }
-.ansi-yellow-fg { color: #DDB62B; }
-.ansi-yellow-bg { background-color: #DDB62B; }
-.ansi-yellow-intense-fg { color: #B27D12; }
-.ansi-yellow-intense-bg { background-color: #B27D12; }
-.ansi-blue-fg { color: #208FFB; }
-.ansi-blue-bg { background-color: #208FFB; }
-.ansi-blue-intense-fg { color: #0065CA; }
-.ansi-blue-intense-bg { background-color: #0065CA; }
-.ansi-magenta-fg { color: #D160C4; }
-.ansi-magenta-bg { background-color: #D160C4; }
-.ansi-magenta-intense-fg { color: #A03196; }
-.ansi-magenta-intense-bg { background-color: #A03196; }
-.ansi-cyan-fg { color: #60C6C8; }
-.ansi-cyan-bg { background-color: #60C6C8; }
-.ansi-cyan-intense-fg { color: #258F8F; }
-.ansi-cyan-intense-bg { background-color: #258F8F; }
-.ansi-white-fg { color: #C5C1B4; }
-.ansi-white-bg { background-color: #C5C1B4; }
-.ansi-white-intense-fg { color: #A1A6B2; }
-.ansi-white-intense-bg { background-color: #A1A6B2; }
-
-.ansi-bold { font-weight: bold; }
-
-    </style>
 
 
 <style type="text/css">
@@ -13139,7 +13100,7 @@ div#notebook {
 <span class="kn">from</span> <span class="nn">gym.envs.toy_text.frozen_lake</span> <span class="k">import</span> <span class="n">FrozenLakeEnv</span><span class="p">,</span> <span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">LEFT</span><span class="p">,</span> <span class="n">RIGHT</span>
 
 
-<span class="c1"># the cart-pole MDP</span>
+<span class="c1"># the MDP</span>
 <span class="n">actions</span> <span class="o">=</span> <span class="p">{</span><span class="n">LEFT</span><span class="p">:</span> <span class="s1">&#39;L&#39;</span><span class="p">,</span> <span class="n">RIGHT</span><span class="p">:</span> <span class="s1">&#39;R&#39;</span><span class="p">,</span> <span class="n">UP</span><span class="p">:</span> <span class="s1">&#39;U&#39;</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">:</span> <span class="s1">&#39;D&#39;</span><span class="p">}</span>
 <span class="n">env</span> <span class="o">=</span> <span class="n">FrozenLakeEnv</span><span class="p">(</span><span class="n">is_slippery</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">env</span> <span class="o">=</span> <span class="n">km</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">TrainMonitor</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
@@ -13150,7 +13111,7 @@ div#notebook {
 
 <span class="k">class</span> <span class="nc">LinearFunc</span><span class="p">(</span><span class="n">km</span><span class="o">.</span><span class="n">FunctionApproximator</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; linear function approximator (body only does one-hot encoding) &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">variable_scope</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S</span><span class="p">):</span>
         <span class="n">one_hot_encoding</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">Lambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">K</span><span class="o">.</span><span class="n">one_hot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">one_hot_encoding</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
 

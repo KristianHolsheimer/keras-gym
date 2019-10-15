@@ -2,7 +2,7 @@ import gym
 import numpy as np
 
 
-from ..base.mixins import AddOrigStateToInfoDictMixin
+from ..base.mixins import AddOrigToInfoDictMixin
 from ..utils import feature_vector
 
 
@@ -11,7 +11,7 @@ __all__ = (
 )
 
 
-class DefaultPreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
+class DefaultPreprocessor(gym.Wrapper, AddOrigToInfoDictMixin):
     """
     This is our default preprocessor. It's an environment wrapper that ensures
     that the state observations can be readily fed into a function
@@ -67,6 +67,6 @@ class DefaultPreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
 
     def step(self, a):
         self._s_next_orig, r, done, info = self.env.step(a)
-        self._add_orig_to_info_dict(info)
+        self._add_s_orig_to_info_dict(info)
         s_next = feature_vector(self._s_next_orig, self.env.observation_space)
         return s_next, r, done, info

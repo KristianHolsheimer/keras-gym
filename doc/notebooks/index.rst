@@ -11,3 +11,4 @@ learning by example.
     cartpole/index
     atari/index
     frozen_lake/index
+    pendulum/index

@@ -19,7 +19,7 @@ class Func(km.FunctionApproximator):
         return X
 
 
-def test_atari_ppo_conjoint():
+def test_atari_ppo():
     # env with preprocessing
     env = gym.make('PongDeterministic-v4')
     env = km.wrappers.ImagePreprocessor(
@@ -73,4 +73,4 @@ def test_atari_ppo_conjoint():
         if env.G > 0:
             break
 
-    assert env.T < 500000, "test_atari_ppo_conjoint didn't converge"
+    assert env.T < 500000, "test_atari_ppo didn't converge"

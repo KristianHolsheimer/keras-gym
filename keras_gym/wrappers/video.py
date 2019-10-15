@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 
 from ..utils import check_numpy_array
-from ..base.mixins import AddOrigStateToInfoDictMixin
+from ..base.mixins import AddOrigToInfoDictMixin
 from ..base.errors import NumpyArrayCheckError
 
 
@@ -13,7 +13,7 @@ __all__ = (
 )
 
 
-class ImagePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
+class ImagePreprocessor(gym.Wrapper, AddOrigToInfoDictMixin):
     """
     Preprocessor for images.
 
@@ -91,12 +91,12 @@ class ImagePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
 
     def step(self, a):
         self._s_next_orig, r, done, info = self.env.step(a)
-        self._add_orig_to_info_dict(info)
+        self._add_s_orig_to_info_dict(info)
         s_next = self._preprocess_frame(self._s_next_orig)
         return s_next, r, done, info
 
 
-class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
+class FrameStacker(gym.Wrapper, AddOrigToInfoDictMixin):
     """
     Stack multiple frames into one state observation.
 
@@ -146,7 +146,7 @@ class FrameStacker(gym.Wrapper, AddOrigStateToInfoDictMixin):
 
     def step(self, a):
         self._s_next_orig, r, done, info = self.env.step(a)
-        self._add_orig_to_info_dict(info)
+        self._add_s_orig_to_info_dict(info)
         self._frames = np.roll(self._frames, -1, axis=0)
         self._frames[-1] = self._s_next_orig
         s_next = np.transpose(self._frames, self._perm)  # shape: [h, w, c?, f]

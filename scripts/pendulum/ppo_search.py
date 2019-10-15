@@ -1,17 +1,47 @@
+import argparse
 import gym
 import keras_gym as km
-from tensorflow import keras
-from tensorflow.keras import backend as K
+import tensorflow as tf
+
+# common abbreviations
+keras = tf.keras
+K = keras.backend
 
 
 ###############################################################################
-# environment (MDP)
+# input args
 ###############################################################################
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--learning_rate', type=float, default=1e-3)
+parser.add_argument('--gamma', type=float, default=0.9)
+parser.add_argument('--eps_clip', type=float, default=0.2)
+parser.add_argument('--entropy_beta', type=float, default=0.01)
+parser.add_argument('--bootstrap_n', type=int, default=5)
+parser.add_argument('--policy_loss_weight', type=float, default=1.)
+parser.add_argument('--value_loss_weight', type=float, default=1.)
+parser.add_argument('--batch_size', type=int, default=512)
+parser.add_argument('--minibatch_size', type=int, default=32)
+parser.add_argument('--target_sync_tau', type=float, default=0.1)
+parser.add_argument('--id', type=int)
+
+
+args = parser.parse_args()
+
+tensorboard_dir = (
+    '/tmp/tensorboard/' + (f'ID={args.id};' if args.id is not None else '') +
+    f'LR={args.learning_rate};'
+    f'N={args.bootstrap_n};'
+    f'GAMMA={args.gamma};'
+    f'TAU={args.target_sync_tau};'
+    f'BATCH={args.batch_size};'
+    f'MBATCH={args.minibatch_size};'
+    f'ENTBETA={args.entropy_beta};'
+)
 
 env = gym.make('Pendulum-v0')
 env = km.wrappers.BoxActionsToReals(env)
-env = km.wrappers.TrainMonitor(
-    env=env, tensorboard_dir='/tmp/tensorboard/pendulum/ppo_static')
+env = km.wrappers.TrainMonitor(env, tensorboard_dir=tensorboard_dir)
 km.enable_logging()
 
 
@@ -28,14 +58,14 @@ class MLP(km.FunctionApproximator):
         return X
 
 
-mlp = MLP(env, lr=1e-3)
+mlp = MLP(env, lr=args.learning_rate)
 pi = km.GaussianPolicy(mlp, update_strategy='ppo')
-v = km.V(mlp, gamma=0.9, bootstrap_n=5)
+v = km.V(mlp, gamma=args.gamma, bootstrap_n=args.bootstrap_n)
 ac = km.ActorCritic(pi, v)
 
 
 buffer = km.caching.ExperienceReplayBuffer.from_value_function(
-    value_function=v, capacity=512, batch_size=32)
+    value_function=v, capacity=args.batch_size, batch_size=args.minibatch_size)
 
 
 ###############################################################################
@@ -55,7 +85,7 @@ while env.T < 1000000:
             for _ in range(num_batches):
                 ac.batch_update(*buffer.sample())
             buffer.clear()
-            pi.sync_target_model(tau=0.1)
+            pi.sync_target_model(tau=args.target_sync_tau)
 
         if done:
             break

@@ -6,7 +6,12 @@ v0.2.16
 
 Major update: support Box action spaces.
 
-- replaced :class:`SoftmaxPolicyLossWithLogits` by the more general :class:`VanillaPolicyLoss <keras_gym.losses.VanillaPolicyLoss>`
+- introduced :mod:`keras_gym.proba_dists` sub-module, which implements differentiable proability ditributions (incl. differentiable :func:`sample` methods)
+- removed policy-based losses in favor :func:`BaseUpdateablePolicy.policy_loss_with_metrics`, which now uses the differentiable :class:`ProbaDist` objects
+- removed :class:`ConjointActorCritic` (was redundant)
+- changed how we implement target models: no longer rely on global namespaces; instead we use :func:`keras.models.clone_model`
+- changed :func:`BaseFunctionApproximator.sync_target_model`: use ``model.{get,set}_weights()``
+- added script and notebook for Pendulum-v0 with PPO
 
 
 v0.2.15

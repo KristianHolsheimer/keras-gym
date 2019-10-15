@@ -119,12 +119,9 @@ class GaussianPolicy(BaseUpdateablePolicy):
         check_tensor(mu, ndim=2, axis_size=self.actions_ndim, axis=1)
         check_tensor(logvar, same_as=mu)
 
-        # probability distribution
-        self.dist = NormalDist(mu=mu, logvar=logvar)
-
         # special layers
         A_sample = keras.layers.Lambda(
-            lambda x: self.dist.sample())([mu, logvar])
+            lambda args: NormalDist(*args).sample())([mu, logvar])
         A_greedy = mu
 
         # output models
@@ -138,6 +135,7 @@ class GaussianPolicy(BaseUpdateablePolicy):
             self.predict_param_model)
 
         # loss and target tensor (depends on self.update_strategy)
+        self.dist = NormalDist(mu=mu, logvar=logvar)
         self.target_dist = NormalDist(*self.target_param_model(S))
         loss, metrics = self.policy_loss_with_metrics(Adv, A)
 
