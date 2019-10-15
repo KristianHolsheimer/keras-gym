@@ -151,10 +151,12 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         check_numpy_array(G, ndim=1, dtype='float')
         if self.action_space_is_discrete:
             check_numpy_array(
-                A, ndim=2, dtype='float', axis_size=self.num_actions, axis=1)
+                A, ndim=2, dtype=('float32', 'float64'),
+                axis_size=self.num_actions, axis=1)
         elif self.action_space_is_box:
             check_numpy_array(
-                A, ndim=2, dtype='float', axis_size=self.actions_ndim, axis=1)
+                A, ndim=2, dtype=('float32', 'float64'),
+                axis_size=self.actions_ndim, axis=1)
         else:
             raise ActionSpaceError.feature_request(self.env)
 

@@ -5,7 +5,7 @@ import keras_gym as km
 import gym
 import numpy as np
 import tensorflow as tf
-from keras_gym.base.mixins import AddOrigStateToInfoDictMixin
+from keras_gym.base.mixins import AddOrigToInfoDictMixin
 from matplotlib import pyplot as plt
 
 keras = tf.keras
@@ -13,7 +13,7 @@ K = keras.backend
 K.clear_session()
 
 
-class ChasePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
+class ChasePreprocessor(gym.Wrapper, AddOrigToInfoDictMixin):
     NUM_LAYERS = 4
     WIDTH = 20
     HEIGHT = 20
@@ -54,7 +54,7 @@ class ChasePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
         info = {}
         s_next = self._preprocess(s_next)
         self._s_next_orig = self._image(s_next)
-        self._add_orig_to_info_dict(info)
+        self._add_s_orig_to_info_dict(info)
         return s_next, r, done, info
 
     def render(self, *args, **kwargs):
@@ -66,23 +66,16 @@ class ChasePreprocessor(gym.Wrapper, AddOrigStateToInfoDictMixin):
 
 
 class CNN(km.FunctionApproximator):
-    def body(self, S, variable_scope):
-        assert variable_scope in ('primary', 'target')
-
-        def v(name):
-            return '{}/{}'.format(variable_scope, name)
+    def body(self, S):
 
         layers = [
             keras.layers.Lambda(lambda X: K.cast(X, 'float32')),
             keras.layers.Conv2D(
-                name=v('conv1'), filters=16, kernel_size=6, strides=3,
-                activation='relu'),
+                filters=16, kernel_size=6, strides=3, activation='relu'),
             keras.layers.Conv2D(
-                name=v('conv2'), filters=32, kernel_size=4, strides=2,
-                activation='relu'),
-            keras.layers.Flatten(name=v('flatten')),
-            keras.layers.Dense(
-                name=v('dense1'), units=256, activation='relu')]
+                filters=32, kernel_size=4, strides=2, activation='relu'),
+            keras.layers.Flatten(),
+            keras.layers.Dense(units=256, activation='relu')]
 
         # forward pass
         X = S

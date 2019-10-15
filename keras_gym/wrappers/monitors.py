@@ -73,7 +73,7 @@ class TrainMonitor(gym.Wrapper, ActionSpaceMixin, LoggerMixin):
         self.tensorboard = None
         if tensorboard_dir is not None:
             self.tensorboard = tf.summary.FileWriter(
-                tensorboard_dir, graph=K.get_session().graph, flush_secs=10)
+                tensorboard_dir, flush_secs=10)
 
     def reset_global(self):
         """ Reset the global counters, not just the episodic ones. """

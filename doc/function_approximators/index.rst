@@ -24,9 +24,9 @@ perceptron:
 
     class MLP(km.FunctionApproximator):
         """ multi-layer perceptron with one hidden layer """
-        def body(self, S, variable_scope):
+        def body(self, S):
             X = keras.layers.Flatten()(S)
-            X = keras.layers.Dense(units=4, name=(variable_scope + '/hidden'))(X)
+            X = keras.layers.Dense(units=4)(X)
             return X
 
 
@@ -156,10 +156,9 @@ Actor-Critics
 
 It's often useful to combine a policy with a value function into what is called
 an :term:`actor-critic`. The value function (critic) can be used to aid the
-update procedure for the policy (actor). The **keras-gym** package provides two
-kinds of actor-critic classes: :class:`ActorCritic <keras_gym.ActorCritic>` and
-:class:`ConjointActorCritic <keras_gym.ConjointActorCritic>`. The former is
-basically just a wrapper that combines a policy with a separate value function:
+update procedure for the policy (actor). The **keras-gym** package provides
+simple way of constructing an actor-critic using the :class:`ActorCritic
+<keras_gym.ActorCritic>` class:
 
 .. code:: python
 
@@ -169,23 +168,6 @@ basically just a wrapper that combines a policy with a separate value function:
 
     # combine them into a single actor-critic
     actor_critic = km.ActorCritic(pi, v)
-
-This works fine for relatively small function approximators. For very large
-ones, however, we might be better off sharing part of the computation graph
-between policy and value function. The part of the function approximator that's
-shared is the part defined in the :func:`body
-<keras_gym.FunctionApproximator.body>` method. The class that implements this
-configuration is :class:`ConjointActorCritic <keras_gym.ConjointActorCritic>`:
-
-.. code:: python
-
-    # a single actor-critic
-    actor_critic = km.ConjointActorCritic(
-        function_approximator, update_strategy='vanilla', gamma=0.9, bootstrap_n=1)
-
-    # the policy and value function are still separately accessible
-    pi = actor_critic.policy
-    v = actor_critic.value_function
 
 
 Objects

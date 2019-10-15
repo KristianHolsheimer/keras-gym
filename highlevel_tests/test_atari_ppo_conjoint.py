@@ -1,5 +1,22 @@
 import gym
 import keras_gym as km
+from tensorflow.keras.layers import Conv2D, Lambda, Dense, Flatten
+from tensorflow.keras import backend as K
+
+
+class Func(km.FunctionApproximator):
+    def body(self, S):
+        def diff_transform(S):
+            S = K.cast(S, 'float32') / 255
+            M = km.utils.diff_transform_matrix(num_frames=3)
+            return K.dot(S, M)
+
+        X = Lambda(diff_transform)(S)
+        X = Conv2D(filters=16, kernel_size=8, strides=4, activation='relu')(X)
+        X = Conv2D(filters=32, kernel_size=4, strides=2, activation='relu')(X)
+        X = Flatten()(X)
+        X = Dense(units=256, activation='relu')(X)
+        return X
 
 
 def test_atari_ppo_conjoint():
@@ -13,22 +30,20 @@ def test_atari_ppo_conjoint():
     # show logs from TrainMonitor
     km.enable_logging()
 
-    # actor-critic with shared weights between pi(a|s) and v(s)
-    func = km.predefined.AtariFunctionApproximator(env, lr=0.00025)
-    actor_critic = km.ConjointActorCritic(
-        func,
+    func = Func(env, lr=0.00025)
+    pi = km.SoftmaxPolicy(
+        function_approximator=func,
+        update_strategy='ppo')
+    v = km.V(
+        function_approximator=func,
         gamma=0.99,
         bootstrap_n=10,
-        update_strategy='ppo',
-        ppo_clip_eps=0.2,
-        entropy_beta=0.01)
-
-    v = actor_critic.value_function
-    pi = actor_critic.policy
+        bootstrap_with_target_model=True)
+    actor_critic = km.ActorCritic(pi, v)
 
     # we'll use this to temporarily store our experience
     buffer = km.caching.ExperienceReplayBuffer.from_value_function(
-        v, capacity=256, batch_size=64)
+        value_function=v, capacity=256, batch_size=64)
 
     # run episodes
     while env.T < 500000:

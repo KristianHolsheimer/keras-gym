@@ -33,9 +33,9 @@ class FunctionApproximator(ActionSpaceMixin):
 
         class MLP(km.FunctionApproximator):
             \"\"\" multi-layer perceptron with one hidden layer \"\"\"
-            def body(self, S, variable_scope):
+            def body(self, S):
                 X = Flatten()(S)
-                X = Dense(units=4, name=(variable_scope + '/hidden'))(X)
+                X = Dense(units=4)(X)
                 return X
 
         # environment

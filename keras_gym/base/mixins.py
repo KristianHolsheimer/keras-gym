@@ -95,8 +95,8 @@ class ActionSpaceMixin:
         return a
 
 
-class AddOrigStateToInfoDictMixin:
-    def _add_orig_to_info_dict(self, info):
+class AddOrigToInfoDictMixin:
+    def _add_s_orig_to_info_dict(self, info):
         if not isinstance(info, dict):
             assert info is None, "unexpected type for 'info' dict"
             info = {}
@@ -112,3 +112,13 @@ class AddOrigStateToInfoDictMixin:
             info['s_next_orig'] = [self._s_next_orig]
 
         self._s_orig = self._s_next_orig
+
+    def _add_a_orig_to_info_dict(self, info):
+        if not isinstance(info, dict):
+            assert info is None, "unexpected type for 'info' dict"
+            info = {}
+
+        if 'a_orig' in info:
+            info['a_orig'].append(self._a_orig)
+        else:
+            info['a_orig'] = [self._a_orig]

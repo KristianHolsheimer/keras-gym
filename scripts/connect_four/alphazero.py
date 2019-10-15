@@ -9,8 +9,11 @@ env = km.wrappers.TrainMonitor(env)
 km.enable_logging()
 
 
+# function approximators
 func = km.predefined.ConnectFourFunctionApproximator(env, lr=0.001)
-ac = km.ConjointActorCritic(func, update_strategy='cross_entropy')
+pi = km.SoftmaxPolicy(func, update_strategy='cross_entropy')
+v = km.V(func, gamma=0.99, bootstrap_n=10, bootstrap_with_target_model=True)
+ac = km.ActorCritic(pi, v)
 cache = km.caching.MonteCarloCache(env, gamma=1)
 
 

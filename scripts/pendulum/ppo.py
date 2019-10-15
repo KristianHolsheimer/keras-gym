@@ -40,6 +40,7 @@ tensorboard_dir = (
 )
 
 env = gym.make('Pendulum-v0')
+env = km.wrappers.BoxActionsToReals(env)
 env = km.wrappers.TrainMonitor(env, tensorboard_dir=tensorboard_dir)
 km.enable_logging()
 
@@ -49,14 +50,11 @@ km.enable_logging()
 ###############################################################################
 
 class MLP(km.FunctionApproximator):
-    def body(self, X, variable_scope):
+    def body(self, X):
         X = keras.layers.Lambda(
-            lambda x: K.concatenate([x, K.square(x)], axis=1),
-            name=f'{variable_scope}/polynomial_features')(X)
-        X = keras.layers.Dense(
-            units=6, name=f'{variable_scope}/dense1', activation='tanh')(X)
-        X = keras.layers.Dense(
-            units=6, name=f'{variable_scope}/dense2', activation='tanh')(X)
+            lambda x: K.concatenate([x, K.square(x)], axis=1))(X)
+        X = keras.layers.Dense(units=6, activation='tanh')(X)
+        X = keras.layers.Dense(units=6, activation='tanh')(X)
         return X
 
 

@@ -1,6 +1,7 @@
 import gym
 import keras_gym as km
-
+from tensorflow.keras.layers import Conv2D, Lambda, Dense, Flatten
+from tensorflow.keras import backend as K
 
 # env with preprocessing
 env = gym.make('PongDeterministic-v4')
@@ -12,8 +13,23 @@ env = km.wrappers.TrainMonitor(env)
 km.enable_logging()
 
 
+class Func(km.FunctionApproximator):
+    def body(self, S):
+        def diff_transform(S):
+            S = K.cast(S, 'float32') / 255
+            M = km.utils.diff_transform_matrix(num_frames=3)
+            return K.dot(S, M)
+
+        X = Lambda(diff_transform)(S)
+        X = Conv2D(filters=16, kernel_size=8, strides=4, activation='relu')(X)
+        X = Conv2D(filters=32, kernel_size=4, strides=2, activation='relu')(X)
+        X = Flatten()(X)
+        X = Dense(units=256, activation='relu')(X)
+        return X
+
+
 # function approximators
-func = km.predefined.AtariFunctionApproximator(env, lr=0.00025)
+func = Func(env, lr=0.00025)
 pi = km.SoftmaxPolicy(func, update_strategy='ppo')
 v = km.V(func, gamma=0.99, bootstrap_n=10, bootstrap_with_target_model=True)
 actor_critic = km.ActorCritic(pi, v)
@@ -21,7 +37,7 @@ actor_critic = km.ActorCritic(pi, v)
 
 # we'll use this to temporarily store our experience
 buffer = km.caching.ExperienceReplayBuffer.from_value_function(
-    v, capacity=256, batch_size=64)
+    value_function=v, capacity=256, batch_size=64)
 
 
 # run episodes
