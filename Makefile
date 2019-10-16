@@ -1,4 +1,4 @@
-PYTHON_EXEC = python3
+PYTHON_EXEC=$(VIRTUALENVWRAPPER_PYTHON)
 
 all: clean src wheel
 
