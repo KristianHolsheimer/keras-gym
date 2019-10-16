@@ -10,6 +10,6 @@ install:
   - pip install -r doc/requirements.txt
   - pip install .
 script:
-  - python -c "import keras-gym"  # patches tensorflow
+  - python -c "import keras_gym"  # patches tensorflow
   - flake8 keras_gym
   - pytest keras_gym
