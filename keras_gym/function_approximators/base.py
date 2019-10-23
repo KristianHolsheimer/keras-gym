@@ -439,8 +439,8 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
             eps = self.ppo_clip_eps
             ratio = K.exp(log_pi - log_pi_old)
             ratio_clip = K.clip(ratio, 1 - eps, 1 + eps)
-            check_tensor(log_pi, same_as=Adv)
-            check_tensor(log_pi_old, same_as=Adv)
+            check_tensor(ratio, same_as=Adv)
+            check_tensor(ratio_clip, same_as=Adv)
 
             clip_objective = K.mean(K.minimum(Adv * ratio, Adv * ratio_clip))
             entropy = K.mean(self.dist.entropy())
@@ -458,7 +458,8 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
                 "unknown update_strategy '{}'".format(self.update_strategy))
 
         # rename
-        loss = tf.identity(loss, name='policy_loss')
+        check_tensor(loss, ndim=0)
+        loss = tf.identity(loss, name='policy/loss')
 
         return loss, metrics
 
