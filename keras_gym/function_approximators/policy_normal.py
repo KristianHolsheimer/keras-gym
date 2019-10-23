@@ -138,9 +138,10 @@ class GaussianPolicy(BaseUpdateablePolicy):
         self.dist = NormalDist(mu=mu, logvar=logvar)
         self.target_dist = NormalDist(*self.target_param_model(S))
         loss, metrics = self.policy_loss_with_metrics(Adv, A)
+        check_tensor(loss, ndim=0)
 
         # models
-        self.train_model = keras.Model([S, A, Adv], [mu, logvar])
+        self.train_model = keras.Model([S, A, Adv], loss)
         self.train_model.add_loss(loss)
         for name, metric in metrics.items():
             self.train_model.add_metric(metric, name=name, aggregation='mean')

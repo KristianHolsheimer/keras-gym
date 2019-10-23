@@ -1,7 +1,8 @@
 import numpy as np
 from tensorflow import keras
+from tensorflow.keras import backend as K
 
-from ..utils import check_numpy_array
+from ..utils import check_numpy_array, check_tensor
 from ..caching import NStepCache
 
 from .base import BaseFunctionApproximator
@@ -197,18 +198,23 @@ class V(BaseFunctionApproximator):
         shape = self.env.observation_space.shape
         dtype = self.env.observation_space.dtype
 
-        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
+        S = keras.Input(name='value_v/S', shape=shape, dtype=dtype)
+        G = keras.Input(name='value_v/G', shape=(1,), dtype='float')
 
         # forward pass
         X = self.function_approximator.body(S)
         V = self.function_approximator.head_v(X)
 
-        # regular models
-        self.train_model = keras.Model(S, V)
-        self.train_model.compile(
-            loss=self.function_approximator.VALUE_LOSS_FUNCTION,
-            optimizer=self.function_approximator.optimizer)
-        self.predict_model = self.train_model  # yes, it's trivial for v(s)
+        # loss function
+        loss = self.function_approximator.VALUE_LOSS_FUNCTION(G, V)
+        check_tensor(loss, ndim=0)
 
-        # target model
+        # train model
+        self.train_model = keras.Model([S, G], loss)
+        self.train_model.add_loss(loss)
+        self.train_model.compile(
+            optimizer=self.function_approximator.optimizer)
+
+        # predict/target models
+        self.predict_model = keras.Model(S, V)
         self.target_model = keras.models.clone_model(self.predict_model)

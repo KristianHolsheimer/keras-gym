@@ -1,10 +1,12 @@
 from abc import abstractmethod
 
 import numpy as np
+import tensorflow as tf
 from tensorflow import keras
 
 from ..base.errors import ActionSpaceError
-from ..utils import one_hot, check_numpy_array, project_onto_actions_np
+from ..utils import (
+    one_hot, check_numpy_array, check_tensor, project_onto_actions_np)
 from ..caching import NStepCache
 from ..losses import ProjectedSemiGradientLoss
 
@@ -115,7 +117,6 @@ class BaseQ(BaseFunctionApproximator):
         while self._cache:
             self.batch_update(*self._cache.pop())  # pop with batch_size=1
 
-    @abstractmethod
     def batch_update(self, S, A, Rn, In, S_next, A_next=None):
         """
         Update the value function on a batch of transitions.
@@ -171,7 +172,9 @@ class BaseQ(BaseFunctionApproximator):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        pass
+        G = self.bootstrap_target(Rn, In, S_next, A_next)
+        losses = self._train_on_batch([S, A, G], None)
+        return losses
 
     def bootstrap_target(self, Rn, In, S_next, A_next=None):
         """
@@ -374,11 +377,6 @@ class QTypeI(BaseQ):
             check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
 
-    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
-        G = self.bootstrap_target(Rn, In, S_next, A_next)
-        losses = self._train_on_batch([S, A], G)
-        return losses
-
     def _init_models(self):
 
         # extract input shapes
@@ -392,21 +390,26 @@ class QTypeI(BaseQ):
             a_dtype = self.env.action_space.dtype
 
         # input
-        S = keras.Input(name='value/S', shape=s_shape, dtype=s_dtype)
-        A = keras.Input(name='value/A', shape=a_shape, dtype=a_dtype)
+        S = keras.Input(name='value_q1/S', shape=s_shape, dtype=s_dtype)
+        A = keras.Input(name='value_q1/A', shape=a_shape, dtype=a_dtype)
+        G = keras.Input(name='value_q1/G', shape=(1,), dtype='float')
 
         # forward pass
         X = self.function_approximator.body_q1(S, A)
         Q = self.function_approximator.head_q1(X)
 
+        # loss
+        loss = self.function_approximator.VALUE_LOSS_FUNCTION(G, Q)
+        check_tensor(loss, ndim=0)
+
         # regular models
-        self.train_model = keras.Model([S, A], Q)
+        self.train_model = keras.Model([S, A, G], loss)
+        self.train_model.add_loss(loss)
         self.train_model.compile(
-            loss=self.function_approximator.VALUE_LOSS_FUNCTION,
             optimizer=self.function_approximator.optimizer)
 
         # predict and target model
-        self.predict_model = self.train_model  # yes, it's trivial for type-I
+        self.predict_model = keras.Model([S, A], Q)
         self.target_model = keras.models.clone_model(self.predict_model)
 
 
@@ -494,35 +497,36 @@ class QTypeII(BaseQ):
             check_numpy_array(Q, ndim=2, axis_size=self.num_actions, axis=1)
             return Q  # shape: [batch_size, num_actions]
 
-    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
-        G = self.bootstrap_target(Rn, In, S_next, A_next)
-        losses = self._train_on_batch([S, G], A)
-        return losses
-
     def _init_models(self):
         if not self.action_space_is_discrete:
             raise ActionSpaceError(
                 "QTypeII is incompatible with non-discrete action spaces; "
                 "please use QTypeI instead")
 
-        shape = self.env.observation_space.shape
-        dtype = self.env.observation_space.dtype
+        s_shape = self.env.observation_space.shape
+        s_dtype = self.env.observation_space.dtype
+        a_shape = [self.num_actions]
+        a_dtype = 'float'
 
-        S = keras.Input(name='value/S', shape=shape, dtype=dtype)
-        G = keras.Input(name='value/G', shape=(), dtype='float')
+        S = keras.Input(name='value_q2/S', shape=s_shape, dtype=s_dtype)
+        A = keras.Input(name='value_q2/A', shape=a_shape, dtype=a_dtype)
+        G = keras.Input(name='value_q2/G', shape=(), dtype='float')
 
         # forward pass
         X = self.function_approximator.body(S)
         Q = self.function_approximator.head_q2(X)
 
         # loss
-        loss = ProjectedSemiGradientLoss(
-            G, base_loss=self.function_approximator.VALUE_LOSS_FUNCTION)
+        check_tensor(Q, ndim=2, axis_size=self.num_actions, axis=1)
+        Q_proj = tf.einsum('ij,ij->i', A, Q)
+        loss = self.function_approximator.VALUE_LOSS_FUNCTION(G, Q_proj)
+        check_tensor(loss)
 
         # regular models
-        self.train_model = keras.Model([S, G], Q)
+        self.train_model = keras.Model([S, A, G], loss)
+        self.train_model.add_loss(loss)
         self.train_model.compile(
-            loss=loss, optimizer=self.function_approximator.optimizer)
+            optimizer=self.function_approximator.optimizer)
 
         # predict and target model
         self.predict_model = keras.Model(S, Q)
