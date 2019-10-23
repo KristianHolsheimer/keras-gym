@@ -267,7 +267,7 @@ class FunctionApproximator(ActionSpaceMixin):
 
         X = keras.layers.Lambda(kronecker_product)([S, A])
         X = keras.layers.Flatten()(X)
-        return X
+        return self.body(X)
 
     def _init_optimizer(self, optimizer, optimizer_kwargs):
         if optimizer is None:
