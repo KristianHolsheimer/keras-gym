@@ -1,21 +1,27 @@
 import gym
 import keras_gym as km
+import tensorflow as tf
 from tensorflow import keras
+
+
+if tf.__version__ >= '2.0':
+    tf.compat.v1.disable_eager_execution()  # otherwise incredibly slow
 
 
 # the cart-pole MDP
 env = gym.make('CartPole-v0')
 
 
-class Linear(km.FunctionApproximator):
-    """ linear function approximator """
-    def body(self, X):
-        # body is trivial, only flatten and then pass to head (one dense layer)
-        return keras.layers.Flatten()(X)
+class MLP(km.FunctionApproximator):
+    """ multi-layer perceptron with one hidden layer """
+    def body(self, S):
+        X = keras.layers.Flatten()(S)
+        X = keras.layers.Dense(units=4, activation='tanh')(X)
+        return X
 
 
 # value function and its derived policy
-func = Linear(env, lr=0.001)
+func = MLP(env, lr=0.05)
 q = km.QTypeI(func, update_strategy='sarsa')
 policy = km.EpsilonGreedy(q)
 
