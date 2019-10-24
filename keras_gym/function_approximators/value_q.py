@@ -8,7 +8,6 @@ from ..base.errors import ActionSpaceError
 from ..utils import (
     one_hot, check_numpy_array, check_tensor, project_onto_actions_np)
 from ..caching import NStepCache
-from ..losses import ProjectedSemiGradientLoss
 
 from .base import BaseFunctionApproximator
 

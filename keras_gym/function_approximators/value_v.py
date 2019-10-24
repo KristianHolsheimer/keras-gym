@@ -1,6 +1,5 @@
 import numpy as np
 from tensorflow import keras
-from tensorflow.keras import backend as K
 
 from ..utils import check_numpy_array, check_tensor
 from ..caching import NStepCache
