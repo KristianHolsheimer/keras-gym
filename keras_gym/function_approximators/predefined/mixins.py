@@ -74,13 +74,3 @@ class InteractionMixin:
         n = self.input_dim + 1  # input_dim needs to be known before first call
         indices = [[i, j] for i in range(n) for j in range(max(1, i), n)]
         return tf.gather_nd(tensor, indices)
-
-    def _init_optimizer(self, optimizer, sgd_kwargs):
-        if optimizer is None:
-            self.optimizer = keras.optimizers.SGD(**sgd_kwargs)
-        elif isinstance(optimizer, keras.optimizers.Optimizer):
-            self.optimizer = optimizer
-        else:
-            raise ValueError(
-                "unknown optimizer, expected a keras.optimizers.Optimizer or "
-                "None (which sets the default keras.optimizers.SGD optimizer)")
