@@ -1,4 +1,3 @@
-import tensorflow as tf
 from tensorflow import keras
 
 from ..utils import check_numpy_array, is_vfunction, is_qfunction, is_policy
