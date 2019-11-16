@@ -1,12 +1,8 @@
 import numpy as np
 import keras_gym as km
-import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
-
-if tf.__version__ >= '2.0':
-    tf.compat.v1.disable_eager_execution()  # otherwise incredibly slow
 
 
 # the MDP

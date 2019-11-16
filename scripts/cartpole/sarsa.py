@@ -1,11 +1,6 @@
 import gym
 import keras_gym as km
-import tensorflow as tf
 from tensorflow import keras
-
-
-if tf.__version__ >= '2.0':
-    tf.compat.v1.disable_eager_execution()  # otherwise incredibly slow
 
 
 # the cart-pole MDP

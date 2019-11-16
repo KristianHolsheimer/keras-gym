@@ -9,7 +9,29 @@ class PatchException(Exception):
 
 
 def run():
+    _disable_eager_execution()
     _monkey_patch_tensorflow()
+
+
+def _disable_eager_execution():
+    if tensorflow.executing_eagerly():
+        if tensorflow.__version__ >= '2.0':
+            # Eager execution is swithed on be default, so it may not be the
+            # user's choice to use it. Therefore, we override tf2's default
+            # behavior and disable eager execution.
+            tensorflow.compat.v1.disable_eager_execution()
+            warnings.warn(
+                "keras-gym has known issues with eager execution mode; eager "
+                "execution has been disabled as a precaution. You may try and "
+                "enable eager execution with: "
+                "tf.compat.v1.enable_eager_execution()")
+        else:
+            # Eager execution is not swithed on be default in tf1, so the user
+            # explicitly chose to enable it. In this case, we only warn the
+            # user.
+            warnings.warn(
+                "keras-gym has known issues with eager execution mode; try "
+                "disabling eager execution if you encounter any issues")
 
 
 def _monkey_patch_tensorflow():

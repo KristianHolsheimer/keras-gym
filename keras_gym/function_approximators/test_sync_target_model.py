@@ -2,7 +2,6 @@ from gym.envs.toy_text.frozen_lake import FrozenLakeEnv, UP, DOWN, LEFT, RIGHT
 
 import pytest
 import numpy as np
-import tensorflow as tf
 
 from ..caching import MonteCarloCache
 from ..wrappers import TrainMonitor
@@ -10,10 +9,6 @@ from .generic import FunctionApproximator
 from .value_v import V
 from .value_q import QTypeI, QTypeII
 from .policy_categorical import SoftmaxPolicy
-
-
-if tf.__version__ >= '2.0':
-    tf.compat.v1.disable_eager_execution()  # otherwise incredibly slow
 
 
 # the MDP
