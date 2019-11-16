@@ -409,7 +409,7 @@ class QTypeI(BaseQ):
 
         # predict and target model
         self.predict_model = keras.Model([S, A], Q)
-        self.target_model = keras.models.clone_model(self.predict_model)
+        self.target_model = self._create_target_model(self.predict_model)
 
 
 class QTypeII(BaseQ):
@@ -529,4 +529,4 @@ class QTypeII(BaseQ):
 
         # predict and target model
         self.predict_model = keras.Model(S, Q)
-        self.target_model = keras.models.clone_model(self.predict_model)
+        self.target_model = self._create_target_model(self.predict_model)

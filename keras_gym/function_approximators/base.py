@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import backend as K
 
 from ..base.mixins import RandomStateMixin, ActionSpaceMixin, LoggerMixin
@@ -69,6 +70,12 @@ class BaseFunctionApproximator(ABC, LoggerMixin, ActionSpaceMixin, RandomStateMi
             self.env.record_losses(losses)
 
         return losses
+
+    @staticmethod
+    def _create_target_model(model):
+        target_model = keras.models.clone_model(model)
+        target_model.trainable = False  # exclude from trainable weights
+        return target_model
 
     def sync_target_model(self, tau=1.0):
         """

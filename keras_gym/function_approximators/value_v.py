@@ -216,4 +216,4 @@ class V(BaseFunctionApproximator):
 
         # predict/target models
         self.predict_model = keras.Model(S, V)
-        self.target_model = keras.models.clone_model(self.predict_model)
+        self.target_model = self._create_target_model(self.predict_model)

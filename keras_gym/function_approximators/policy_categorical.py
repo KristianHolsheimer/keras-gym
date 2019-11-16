@@ -119,12 +119,12 @@ class SoftmaxPolicy(BaseUpdateablePolicy):
 
         # output models
         self.predict_model = keras.Model(S, A_sample)
-        self.target_model = keras.models.clone_model(self.predict_model)
+        self.target_model = self._create_target_model(self.predict_model)
         self.predict_greedy_model = keras.Model(S, A_greedy)
-        self.target_greedy_model = keras.models.clone_model(
+        self.target_greedy_model = self._create_target_model(
             self.predict_greedy_model)
         self.predict_param_model = keras.Model(S, logits)
-        self.target_param_model = keras.models.clone_model(
+        self.target_param_model = self._create_target_model(
             self.predict_param_model)
 
         # loss and target tensor
