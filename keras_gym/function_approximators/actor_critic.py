@@ -160,7 +160,7 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         else:
             raise ActionSpaceError.feature_request(self.env)
 
-        losses = self._train_on_batch([S, A, G], None)
+        losses = self._train_on_batch([S, A, G])
         return losses
 
     def __call__(self, s):
@@ -276,29 +276,19 @@ class ActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         S, A = self.policy.train_model.inputs[:2]
         G = keras.Input(name='G', shape=(1,), dtype='float')
 
-        # predictions
+        # get TD advantages
         V = self.value_function.predict_model(S)
-        params = self.policy.predict_param_model(S)
-
-        # combine outputs
-        if isinstance(params, list):
-            outputs = params + [V]
-        elif isinstance(params, tuple):
-            outputs = list(params) + [V]
-        elif isinstance(params, tf.Tensor):
-            outputs = [params, V]
-        else:
-            raise TypeError(f"unexpected type for params: {type(params)}")
+        Adv = G - V
 
         # update loss with advantage coming directly from graph
-        policy_loss, metrics = self.policy.policy_loss_with_metrics(G - V, A)
-        value_loss = self.value_function.train_model.loss(V, G)
+        policy_loss, metrics = self.policy.policy_loss_with_metrics(Adv, A)
+        value_loss = self.value_function.train_model([S, G])
         metrics['policy/loss'] = policy_loss
         metrics['value/loss'] = value_loss
         loss = policy_loss + self.value_loss_weight * value_loss
 
         # joint model
-        self.train_model = keras.Model([S, A, G], outputs)
+        self.train_model = keras.Model([S, A, G], loss)
         self.train_model.add_loss(loss)
         for name, metric in metrics.items():
             self.train_model.add_metric(metric, name=name, aggregation='mean')

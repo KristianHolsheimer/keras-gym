@@ -172,7 +172,7 @@ class BaseQ(BaseFunctionApproximator):
 
         """
         G = self.bootstrap_target(Rn, In, S_next, A_next)
-        losses = self._train_on_batch([S, A, G], None)
+        losses = self._train_on_batch([S, A, G])
         return losses
 
     def bootstrap_target(self, Rn, In, S_next, A_next=None):

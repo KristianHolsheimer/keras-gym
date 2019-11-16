@@ -48,7 +48,7 @@ class BaseFunctionApproximator(ABC, LoggerMixin, ActionSpaceMixin, RandomStateMi
             raise AttributeError(
                 "missing attributes: {}".format(missing_attrs))
 
-    def _train_on_batch(self, inputs, outputs):
+    def _train_on_batch(self, inputs, outputs=None):
         """
         Run self.train_model.train_on_batch(inputs, outputs) and return the
         losses as a dict of type: {loss_name <str>: loss_value <float>}.
@@ -374,7 +374,7 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
             A dict of losses/metrics, of type ``{name <str>: value <float>}``.
 
         """
-        losses = self._train_on_batch([S, A, Adv], None)
+        losses = self._train_on_batch([S, A, Adv])
         return losses
 
     def policy_loss_with_metrics(self, Adv, A):

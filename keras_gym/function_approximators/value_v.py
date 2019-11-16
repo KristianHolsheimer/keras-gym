@@ -161,7 +161,7 @@ class V(BaseFunctionApproximator):
         V_next = self.batch_eval(
             S_next, use_target_model=self.bootstrap_with_target_model)
         Gn = Rn + In * V_next
-        losses = self._train_on_batch(S, Gn)
+        losses = self._train_on_batch([S, Gn])
         return losses
 
     def batch_eval(self, S, use_target_model=False):
