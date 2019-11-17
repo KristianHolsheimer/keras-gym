@@ -224,14 +224,8 @@ class FunctionApproximator(ActionSpaceMixin):
             The intermediate keras tensor.
 
         """
-        def to_vector(x):
-            if K.ndim(x) == 1 and K.dtype(x).startswith('int'):
-                x = K.one_hot(x, self.env.observation_space.n)
-            elif K.ndim(S) > 2:
-                x = keras.layers.Flatten()(x)
-            return x
-
-        return keras.layers.Lambda(to_vector)(S)
+        return keras.layers.Lambda(
+            lambda x: self._to_vector(x, self.env.observation_space))(S)
 
     def body_q1(self, S, A):
         """
@@ -257,10 +251,8 @@ class FunctionApproximator(ActionSpaceMixin):
         """
         def kronecker_product(args):
             S, A = args
-            if K.ndim(S) == 1 and K.dtype(S).startswith('int'):
-                S = K.one_hot(S, self.env.observation_space.n)
-            elif K.ndim(S) > 2:
-                S = keras.layers.Flatten()(S)
+            S = self._to_vector(S, self.env.observation_space)
+            A = self._to_vector(A, self.env.action_space)
             check_tensor(S, ndim=2, dtype=('float32', 'float64'))
             check_tensor(A, ndim=2, dtype=('float32', 'float64'))
             return tf.einsum('ij,ik->ijk', S, A)
@@ -279,3 +271,11 @@ class FunctionApproximator(ActionSpaceMixin):
                 "unknown optimizer, expected a keras.optimizers.Optimizer or "
                 "None (which sets the default keras.optimizers.Adam "
                 "optimizer)")
+
+    @staticmethod
+    def _to_vector(X, space):
+        if K.ndim(X) == 1 and K.dtype(X).startswith('int'):
+            X = K.one_hot(X, space.n)
+        elif K.ndim(X) > 2:
+            X = keras.layers.Flatten()(X)
+        return X
