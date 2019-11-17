@@ -16,7 +16,7 @@ class MLP(km.FunctionApproximator):
 
 
 # value function and its derived policy
-func = MLP(env, lr=0.05)
+func = MLP(env, lr=0.02)
 q = km.QTypeI(func, update_strategy='sarsa')
 policy = km.EpsilonGreedy(q)
 
@@ -56,4 +56,5 @@ for ep in range(num_episodes):
 
 
 # run env one more time to render
-km.render_episode(env, policy, step_delay_ms=25)
+km.utils.generate_gif(env, policy, filepath="data/sarsa.gif", duration=25)
+print("saved rendered episode to ./data/sarsa.gif")

@@ -223,11 +223,11 @@ def generate_gif(env, policy, filepath, resize_to=None, duration=50):
         s_next, r, done, info = env.step(a)
 
         # store frame
-        frame = info.get('s_orig', [s])[0]
+        frame = env.render(mode='rgb_array')
         frame = Image.fromarray(frame)
         frame = frame.convert('P', palette=Image.ADAPTIVE)
         if resize_to is not None:
-            if len(resize_to) != 2:
+            if not (isinstance(resize_to, tuple) and len(resize_to) == 2):
                 raise TypeError("expected a tuple of size 2, resize_to=(w, h)")
             frame = frame.resize(resize_to)
 
@@ -239,7 +239,7 @@ def generate_gif(env, policy, filepath, resize_to=None, duration=50):
         s = s_next
 
     # store last frame
-    frame = info.get('s_next_orig', [s_next])[0]
+    frame = env.render(mode='rgb_array')
     frame = Image.fromarray(frame)
     frame = frame.convert('P', palette=Image.ADAPTIVE)
     if resize_to is not None:
