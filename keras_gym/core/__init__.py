@@ -1,6 +1,6 @@
 # flake8: noqa
 from .function_approximator import FunctionApproximator
-from .actor_critic import ActorCritic
+from .actor_critic import ActorCritic, SoftActorCritic
 from .value_v import V
 from .value_q import QTypeI, QTypeII
 from .policy_categorical import SoftmaxPolicy
@@ -15,6 +15,7 @@ __all__ = (
     'QTypeI',
     'QTypeII',
     'SoftmaxPolicy',
+    'SoftActorCritic',
     'GaussianPolicy',
     'V',
 

@@ -343,7 +343,7 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
         Returns
         -------
-        A : 2d array, shape: [batch_size]
+        A : nd array, shape: [batch_size, ...]
 
             A batch of sampled actions.
 
@@ -418,7 +418,6 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
 
         """
-        Adv = K.stop_gradient(Adv)
         if K.ndim(Adv) == 2:
             Adv = K.squeeze(Adv, axis=1)
         check_tensor(Adv, ndim=1)

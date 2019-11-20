@@ -15,6 +15,6 @@ from . import (
 # Expose some commonly used classes to the package root:
 from .core import (
     predefined, FunctionApproximator, V, QTypeI, QTypeII, SoftmaxPolicy,
-    GaussianPolicy, ActorCritic)
+    GaussianPolicy, ActorCritic, SoftActorCritic)
 from .policies import EpsilonGreedy, RandomPolicy, UserInputPolicy
 from .utils import render_episode, enable_logging
