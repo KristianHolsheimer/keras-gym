@@ -25,7 +25,7 @@ Updateable Policies and Actor-Critics
 For :term:`updateable policies <updateable policy>` have a look at the relevant
 :term:`function approximator` section:
 
-- :doc:`Function Approximators <../function_approximators/index>`.
+- :doc:`Function Approximators <../core/index>`.
 
 
 

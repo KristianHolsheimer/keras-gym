@@ -1,7 +1,7 @@
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..generic import FunctionApproximator
+from ..function_approximator import FunctionApproximator
 from .mixins import InteractionMixin
 
 

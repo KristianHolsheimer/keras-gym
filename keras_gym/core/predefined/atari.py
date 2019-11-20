@@ -1,19 +1,20 @@
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-from ..generic import FunctionApproximator
+from ...utils import diff_transform_matrix, get_env_attr
+from ..function_approximator import FunctionApproximator
 
 
 __all__ = (
-    'ConnectFourFunctionApproximator',
+    'AtariFunctionApproximator',
 )
 
 
-class ConnectFourFunctionApproximator(FunctionApproximator):
+class AtariFunctionApproximator(FunctionApproximator):
     """
 
-    A :term:`function approximator` specifically designed for the
-    :class:`ConnectFour <keras_gym.envs.ConnectFourEnv>` environment.
+    A :term:`function approximator` specifically designed for Atari 2600
+    environments.
 
     Parameters
     ----------
@@ -36,33 +37,26 @@ class ConnectFourFunctionApproximator(FunctionApproximator):
     """
     def body(self, S):
 
-        def extract_state(S):
-            return K.cast(S[:, 1:, :, :], 'float')
-
-        def extract_available_actions_mask(S):
-            return K.cast(S[:, 0, :, 0], 'bool')
-
-        # extract the mask over available actions from the state observation
-        self.available_actions_mask = keras.layers.Lambda(
-            extract_available_actions_mask,
-            name='extract_available_actions_mask')(S)
+        def diff_transform(S):
+            num_frames = get_env_attr(self.env, 'num_frames')
+            S = K.cast(S, 'float32') / 255
+            M = diff_transform_matrix(num_frames=num_frames)
+            return K.dot(S, M)
 
         layers = [
-            keras.layers.Lambda(extract_state, name='extract_state'),
+            keras.layers.Lambda(diff_transform, name='diff_transform'),
             keras.layers.Conv2D(
-                name='conv1', filters=20, kernel_size=4, strides=1,
+                name='conv1', filters=16, kernel_size=8, strides=4,
                 activation='relu'),
             keras.layers.Conv2D(
-                name='conv2', filters=40, kernel_size=2, strides=1,
+                name='conv2', filters=32, kernel_size=4, strides=2,
                 activation='relu'),
             keras.layers.Flatten(name='flatten'),
             keras.layers.Dense(
-                name='dense1', units=64, activation='linear'),
-        ]
+                name='dense1', units=256, activation='relu')]
 
         # forward pass
         X = S
         for layer in layers:
             X = layer(X)
-
         return X

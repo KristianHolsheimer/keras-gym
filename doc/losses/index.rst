@@ -25,7 +25,7 @@ on :term:`updateable policy` objects (see below). If you need to implement a
 custom policy loss, you can override this :func:`policy_loss_with_metrics`
 method.
 
-.. automethod:: keras_gym.function_approximators.base.BaseUpdateablePolicy.policy_loss_with_metrics
+.. automethod:: keras_gym.core.base.BaseUpdateablePolicy.policy_loss_with_metrics
 
 
 Objects

@@ -5,7 +5,7 @@ import numpy as np
 
 from ..caching import MonteCarloCache
 from ..wrappers import TrainMonitor
-from .generic import FunctionApproximator
+from .function_approximator import FunctionApproximator
 from .value_v import V
 from .value_q import QTypeI, QTypeII
 from .policy_categorical import SoftmaxPolicy

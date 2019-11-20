@@ -273,7 +273,7 @@ def is_vfunction(obj):
 
     """
     # import at runtime to avoid circular dependence
-    from ..function_approximators.value_v import V
+    from ..core.value_v import V
     return isinstance(obj, V)
 
 
@@ -303,7 +303,7 @@ def is_qfunction(obj, qtype=None):
 
     """
     # import at runtime to avoid circular dependence
-    from ..function_approximators.value_q import QTypeI, QTypeII
+    from ..core.value_q import QTypeI, QTypeII
 
     if qtype is None:
         return isinstance(obj, (QTypeI, QTypeII))
@@ -341,7 +341,7 @@ def is_policy(obj, check_updateable=False):
     """
     # import at runtime to avoid circular dependence
     from ..policies.base import BasePolicy
-    from ..function_approximators.base import BaseUpdateablePolicy
+    from ..core.base import BaseUpdateablePolicy
 
     if check_updateable:
         return isinstance(obj, BaseUpdateablePolicy)

@@ -23,7 +23,7 @@ Documentation
     :maxdepth: 1
 
     notebooks/index
-    function_approximators/index
+    core/index
     policies/index
     proba_dists/index
     caching/index

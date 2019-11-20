@@ -9,11 +9,11 @@ del run
 
 # ensure that all submodules are visible
 from . import (
-    base, caching, envs, function_approximators, losses, planning, policies,
+    base, caching, envs, core, losses, planning, policies,
     wrappers, utils)
 
 # Expose some commonly used classes to the package root:
-from .function_approximators import (
+from .core import (
     predefined, FunctionApproximator, V, QTypeI, QTypeII, SoftmaxPolicy,
     GaussianPolicy, ActorCritic)
 from .policies import EpsilonGreedy, RandomPolicy, UserInputPolicy

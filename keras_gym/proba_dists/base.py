@@ -22,9 +22,10 @@ class BaseProbaDist(ABC, RandomStateMixin):
 
         Returns
         -------
-        sample : 1d Tensor, shape: [batch_size, \\*variate_shape]
+        sample : 1d Tensor, shape: [batch_size, ...]
 
-            The sampled variates.
+            The sampled variates. The precise shape depends on the shape of the
+            individual variates.
 
         """
         pass

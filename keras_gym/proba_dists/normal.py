@@ -47,6 +47,16 @@ class NormalDist(BaseProbaDist):
         self.random_seed = random_seed  # also sets self.random (RandomState)
 
     def sample(self):
+        """
+        Sample from the (multi) normal distribution.
+
+        Returns
+        -------
+        sample : 1d Tensor, shape: [batch_size, actions_ndim]
+
+            The sampled normally-distributed variates.
+
+        """
         sigma = K.exp(self.logvar / 2)
         noise = tf.random.normal(
             shape=K.shape(sigma),

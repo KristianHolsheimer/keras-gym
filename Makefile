@@ -1,4 +1,4 @@
-PYTHON_EXEC=$(VIRTUALENVWRAPPER_PYTHON)
+PYTHON_EXEC=/usr/bin/python3
 
 all: clean src wheel
 
@@ -8,6 +8,7 @@ clean:
 
 docs: clean_docs
 	$(PYTHON_EXEC) setup.py build_sphinx
+	x-www-browser build/sphinx/html/index.html
 
 clean_docs:
 	rm -rf build/sphinx doc/build .hypothesis

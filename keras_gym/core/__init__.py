@@ -1,5 +1,5 @@
 # flake8: noqa
-from .generic import FunctionApproximator
+from .function_approximator import FunctionApproximator
 from .actor_critic import ActorCritic
 from .value_v import V
 from .value_q import QTypeI, QTypeII
