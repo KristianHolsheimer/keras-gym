@@ -461,8 +461,6 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
             metrics = {'policy/entropy': entropy, 'policy/kl_div': kl_div}
 
         elif self.update_strategy == 'sac':
-            assert A is None
-
             self.logger.debug("using update_strategy 'sac'")
             loss = -K.mean(Adv)
             metrics = {'policy/entropy': K.mean(self.dist.entropy())}

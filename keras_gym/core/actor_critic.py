@@ -6,7 +6,10 @@ from ..utils import (
 from ..base.mixins import ActionSpaceMixin
 from ..base.errors import ActionSpaceError
 from ..policies.base import BasePolicy
+
 from .base import BaseFunctionApproximator
+from .value_v import V
+from .value_q import QTypeI, QTypeII
 
 
 __all__ = (
@@ -253,6 +256,116 @@ class ActorCritic(BaseActorCritic):
         self._check_function_types()
         self._init_models()
 
+    @classmethod
+    def from_func(
+            cls, function_approximator,
+            gamma=0.9,
+            bootstrap_n=1,
+            bootstrap_with_target_model=False,
+            entropy_beta=0.01,
+            update_strategy='vanilla',
+            random_seed=None):
+
+        """
+
+        Create instance directly from a :class:`FunctionApproximator
+        <keras_gym.FunctionApproximator>` object.
+
+        Parameters
+        ----------
+        function_approximator : FunctionApproximator object
+
+            The main :term:`function approximator`.
+
+        gamma : float, optional
+
+            The discount factor for discounting future rewards.
+
+        bootstrap_n : positive int, optional
+
+            The number of steps in n-step bootstrapping. It specifies the
+            number of steps over which we're willing to delay bootstrapping.
+            Large :math:`n` corresponds to Monte Carlo updates and :math:`n=1`
+            corresponds to TD(0).
+
+        bootstrap_with_target_model : bool, optional
+
+            Whether to use the :term:`target_model` when constructing a
+            bootstrapped target. If False (default), the primary
+            :term:`predict_model` is used.
+
+        entropy_beta : float, optional
+
+            The coefficient of the entropy bonus term in the policy objective.
+
+        update_strategy : str, callable, optional
+
+            The strategy for updating our policy. This determines the loss
+            function that we use for our policy function approximator. If you
+            wish to use a custom policy loss, you can override the
+            :func:`policy_loss_with_metrics` method.
+
+            Provided options are:
+
+                'vanilla'
+                    Plain vanilla policy gradient. The corresponding
+                    (surrogate) loss function that we use is:
+
+                    .. math::
+
+                        J(\\theta)\\ =\\
+                            -\\mathcal{A}(s,a)\\,\\ln\\pi(a|s,\\theta)
+
+                'ppo'
+                    `Proximal policy optimization
+                    <https://arxiv.org/abs/1707.06347>`_ uses a clipped
+                    proximal loss:
+
+                    .. math::
+
+                        J(\\theta)\\ =\\ \\min\\Big(
+                            r(\\theta)\\,\\mathcal{A}(s,a)\\,,\\
+                            \\text{clip}\\big(
+                                r(\\theta), 1-\\epsilon, 1+\\epsilon\\big)
+                                    \\,\\mathcal{A}(s,a)\\Big)
+
+                    where :math:`r(\\theta)` is the probability ratio:
+
+                    .. math::
+
+                        r(\\theta)\\ =\\ \\frac
+                            {\\pi(a|s,\\theta)}
+                            {\\pi(a|s,\\theta_\\text{old})}
+
+                'cross_entropy'
+                    Straightforward categorical cross-entropy (from logits).
+                    This loss function does *not* make use of the advantages
+                    :term:`Adv`. Instead, it minimizes the cross entropy
+                    between the behavior policy :math:`\\pi_b(a|s)` and the
+                    learned policy :math:`\\pi_\\theta(a|s)`:
+
+                    .. math::
+
+                        J(\\theta)\\ =\\ \\hat{\\mathbb{E}}_t\\left\\{
+                            -\\sum_a \\pi_b(a|S_t)\\, \\log \\pi_\\theta(a|S_t)
+                        \\right\\}
+
+        random_seed : int, optional
+
+            Sets the random state to get reproducible results.
+
+        """
+        func = function_approximator  # just an abbreviation
+
+        policy_cls = func._get_policy_class()
+        pi = policy_cls(
+            func, entropy_beta=entropy_beta, random_seed=random_seed)
+        v = V(
+            func, gamma=gamma, bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=bootstrap_with_target_model)
+
+        return cls(pi, v)
+
     def _check_function_types(self):
         if not is_vfunction(self.v_func):
             if is_qfunction(self.v_func):
@@ -292,6 +405,44 @@ class ActorCritic(BaseActorCritic):
 
 
 class SoftActorCritic(BaseActorCritic):
+    """
+
+    Implementation of a `soft actor-critic <https://arxiv.org/abs/1801.01290>`_
+    (SAC), which uses entropy regularization in the value function as well as
+    in its policy updates.
+
+    Parameters
+    ----------
+
+    policy : a policy object
+
+        An :term:`updateable policy` object :math:`\\pi(a|s)`.
+
+    v_func : v-function object
+
+        A state-action value function. This is used as the entropy-regularized
+        value function (critic).
+
+    q_func1 : q-function object
+
+        A :term:`type-I state-action value function`. This is used as the
+        target for both the policy (actor) and the state value function
+        (critic).
+
+    q_func2 : q-function object
+
+        Same as ``q_func1``. SAC uses two q-functions to avoid overfitting due
+        to overly optimistic value estimates.
+
+    value_loss_weight : float, optional
+
+        Relative weight to give to the value-function loss:
+
+        .. code:: python
+
+            loss = policy_loss + value_loss_weight * value_loss
+
+    """
     def __init__(
             self, policy, v_func, q_func1, q_func2,
             value_loss_weight=1.0):
@@ -304,6 +455,68 @@ class SoftActorCritic(BaseActorCritic):
 
         self._check_function_types()
         self._init_models()
+
+    @classmethod
+    def from_func(
+            cls, function_approximator,
+            gamma=0.9,
+            bootstrap_n=1,
+            entropy_beta=0.01,
+            random_seed=None):
+
+        """
+
+        Create instance directly from a :class:`FunctionApproximator
+        <keras_gym.FunctionApproximator>` object.
+
+        Parameters
+        ----------
+        function_approximator : FunctionApproximator object
+
+            The main :term:`function approximator`.
+
+        gamma : float, optional
+
+            The discount factor for discounting future rewards.
+
+        bootstrap_n : positive int, optional
+
+            The number of steps in n-step bootstrapping. It specifies the
+            number of steps over which we're willing to delay bootstrapping.
+            Large :math:`n` corresponds to Monte Carlo updates and :math:`n=1`
+            corresponds to TD(0).
+
+        entropy_beta : float, optional
+
+            The coefficient of the entropy bonus term in the policy objective.
+
+        random_seed : int, optional
+
+            Sets the random state to get reproducible results.
+
+        """
+        func = function_approximator  # just an abbreviation
+        policy_cls = func._get_policy_class()
+        pi = policy_cls(
+            func,
+            entropy_beta=entropy_beta,
+            random_seed=random_seed,
+            update_strategy='sac')
+        v = V(
+            func,
+            gamma=gamma,
+            bootstrap_n=bootstrap_n,
+            bootstrap_with_target_model=True)
+        q1 = QTypeI(
+            func,
+            gamma=gamma,
+            bootstrap_n=bootstrap_n)
+        q2 = QTypeI(
+            func,
+            gamma=gamma,
+            bootstrap_n=bootstrap_n)
+
+        return cls(pi, v, q1, q2)
 
     def _check_function_types(self):
         if not is_vfunction(self.v_func):

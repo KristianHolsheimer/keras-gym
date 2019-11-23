@@ -9,3 +9,4 @@ In these notebooks we solve a non-slippery version of the `FrozenLake-v0
 
     REINFORCE <reinforce>
     Actor-Critic <actor_critic>
+    Soft Actor-Critic (SAC) <sac>

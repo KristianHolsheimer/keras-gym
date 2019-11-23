@@ -40,7 +40,7 @@ def enable_logging(level=logging.INFO, level_tf=logging.ERROR):
 
         Log level for native python logging. For instance, if you'd like to see
         more verbose logging messages you might set
-        :python:`level=logging.DEBUG`.
+        ``level=logging.DEBUG``.
 
     level_tf : int, optional
 

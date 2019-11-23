@@ -94,6 +94,18 @@ class ActionSpaceMixin:
             a = one_hot(a, self.num_actions)
         return a
 
+    def _get_policy_class(self):
+        # note: import policy classes at runtime to avoid circular dependence
+        if self.action_space_is_discrete:
+            from ..core.policy_categorical import SoftmaxPolicy
+            return SoftmaxPolicy
+
+        if self.action_space_is_box:
+            from ..core.policy_normal import GaussianPolicy
+            return GaussianPolicy
+
+        raise ActionSpaceError("cannot infer policy class from env")
+
 
 class AddOrigToInfoDictMixin:
     def _add_s_orig_to_info_dict(self, info):

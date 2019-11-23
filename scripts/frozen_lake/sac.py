@@ -23,12 +23,8 @@ class LinearFunc(km.FunctionApproximator):
 
 # define function approximators
 func = LinearFunc(env, lr=0.01)
-pi = km.SoftmaxPolicy(func, entropy_beta=0.02)
-v = km.V(func, gamma=0.9, bootstrap_n=1)
-q1 = km.QTypeI(func, gamma=0.9, bootstrap_n=1)
-q2 = km.QTypeI(func, gamma=0.9, bootstrap_n=1)
-
-sac = km.SoftActorCritic(pi, v, q1, q2)
+sac = km.SoftActorCritic.from_func(func)
+pi = sac.policy
 
 
 # static parameters
@@ -41,7 +37,7 @@ for ep in range(num_episodes):
     s = env.reset()
 
     for t in range(env.spec.max_episode_steps):
-        a = pi(s, use_target_model=False)
+        a = pi(s)
         s_next, r, done, info = env.step(a)
 
         # small incentive to keep moving
@@ -51,7 +47,7 @@ for ep in range(num_episodes):
         sac.update(s, a, r, done)
 
         if env.T % target_model_sync_period == 0:
-            pi.sync_target_model(tau=1.0)
+            sac.sync_target_model(tau=1.0)
 
         if done:
             break
@@ -66,7 +62,7 @@ env.render()
 for t in range(env.spec.max_episode_steps):
 
     # print individual action probabilities
-    print("  v(s) = {:.3f}".format(v(s)))
+    print("  v(s) = {:.3f}".format(sac.v_func(s)))
     for i, p in enumerate(km.utils.softmax(sac.policy.dist_params(s))):
         print("  π({:s}|s) = {:.3f}".format(actions[i], p))
     for i, q in enumerate(sac.q_func1(s)):
