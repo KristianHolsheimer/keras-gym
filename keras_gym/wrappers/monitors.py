@@ -6,6 +6,9 @@ import tensorflow as tf
 
 from ..base.mixins import ActionSpaceMixin, LoggerMixin
 
+# use tensorflow v1 for writing Tensorboard summaries
+tf1 = tf if tf.__version__ < '2.0' else tf.compat.v1
+
 
 __all__ = (
     'TrainMonitor',
@@ -71,7 +74,7 @@ class TrainMonitor(gym.Wrapper, ActionSpaceMixin, LoggerMixin):
 
         self.tensorboard = None
         if tensorboard_dir is not None:
-            self.tensorboard = tf.summary.FileWriter(
+            self.tensorboard = tf1.summary.FileWriter(
                 tensorboard_dir, flush_secs=10)
 
     def reset_global(self):
@@ -148,8 +151,8 @@ class TrainMonitor(gym.Wrapper, ActionSpaceMixin, LoggerMixin):
     def _write_scalars_to_tensorboard(self, diagnostics):
 
         for k, v in diagnostics.items():
-            summary = tf.Summary(
-                value=[tf.Summary.Value(
+            summary = tf1.summary.Summary(
+                value=[tf1.summary.Summary.Value(
                     tag=f'TrainMonitor/{k}', simple_value=v)])
             self.tensorboard.add_summary(summary, global_step=self.T)
 
@@ -171,7 +174,7 @@ class TrainMonitor(gym.Wrapper, ActionSpaceMixin, LoggerMixin):
             bin_edges = bin_edges[1:]
 
         # Fill fields of histogram proto
-        hist = tf.HistogramProto()
+        hist = tf1.HistogramProto()
         hist.min = float(np.min(values))
         hist.max = float(np.max(values))
         hist.num = int(np.prod(values.shape))
@@ -185,8 +188,8 @@ class TrainMonitor(gym.Wrapper, ActionSpaceMixin, LoggerMixin):
             hist.bucket.append(c)
 
         # Create and write Summary
-        summary = tf.Summary(
-            value=[tf.Summary.Value(tag=f'TrainMonitor/{name}', histo=hist)])
+        summary = tf1.summary.Summary(value=[
+            tf1.summary.Summary.Value(tag=f'TrainMonitor/{name}', histo=hist)])
         self.tensorboard.add_summary(summary, global_step=self.T)
 
     def record_losses(self, losses):
