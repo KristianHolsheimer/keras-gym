@@ -19,31 +19,37 @@ __all__ = (
 )
 
 
-def enable_logging(silence_tf_logging=True):
+def enable_logging(level=logging.INFO, level_tf=logging.ERROR):
     """
 
     Enable logging output.
 
-    This runs the following lines of code:
+    This executes the following two lines of code:
 
     .. code:: python
 
         import logging
         logging.basicConfig(level=logging.INFO)
-        if silence_tf_logging:
-            set_tf_loglevel(logging.ERROR)  # another helper function
+        set_tf_loglevel(logging.ERROR)
 
+    Note that :func:`set_tf_loglevel` is another keras-gym utility function.
 
     Parameters
     ----------
-    silence_tf_logging : bool, optional
+    level : int, optional
 
-        Whether to silence Tensorflow logging.
+        Log level for native python logging. For instance, if you'd like to see
+        more verbose logging messages you might set
+        :python:`level=logging.DEBUG`.
+
+    level_tf : int, optional
+
+        Log level for tensorflow-specific logging (logs coming from the C++
+        layer).
 
     """
     logging.basicConfig(level=logging.INFO)
-    if silence_tf_logging:
-        set_tf_loglevel(logging.ERROR)
+    set_tf_loglevel(logging.ERROR)
 
 
 def get_transition(env):
