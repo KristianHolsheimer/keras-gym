@@ -384,7 +384,7 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
         losses = self._train_on_batch([S, A, Adv])
         return losses
 
-    def policy_loss_with_metrics(self, Adv, A):
+    def policy_loss_with_metrics(self, Adv, A=None):
         """
 
         This method constructs the policy loss as a scalar-valued Tensor,
@@ -401,7 +401,9 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
         A : nd Tensor, shape: [batch_size, ...]
 
-            A batch of actions taken under the behavior policy.
+            A batch of actions taken under the behavior policy. For some
+            choices of policy loss, e.g. ``update_strategy='sac'`` this input
+            is ignored.
 
         Returns
         -------
@@ -423,6 +425,7 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
         check_tensor(Adv, ndim=1)
 
         if self.update_strategy == 'vanilla':
+            assert A is not None
 
             log_pi = self.dist.log_proba(A)
             check_tensor(log_pi, same_as=Adv)
@@ -436,6 +439,7 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
             metrics = {'policy/entropy': entropy}
 
         elif self.update_strategy == 'ppo':
+            assert A is not None
 
             log_pi = self.dist.log_proba(A)
             log_pi_old = K.stop_gradient(self.target_dist.log_proba(A))
@@ -455,6 +459,13 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
             # flip sign to get loss from objective
             loss = -(clip_objective + self.entropy_beta * entropy)
             metrics = {'policy/entropy': entropy, 'policy/kl_div': kl_div}
+
+        elif self.update_strategy == 'sac':
+            assert A is None
+
+            self.logger.debug("using update_strategy 'sac'")
+            loss = -K.mean(Adv)
+            metrics = {'policy/entropy': K.mean(self.dist.entropy())}
 
         elif self.update_strategy == 'cross_entropy':
             raise NotImplementedError('cross_entropy')

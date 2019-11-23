@@ -1,6 +1,3 @@
-from abc import abstractmethod
-
-import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
@@ -214,9 +211,9 @@ class BaseActorCritic(BasePolicy, BaseFunctionApproximator, ActionSpaceMixin):
         losses = self._train_on_batch([S, A, G])
         return losses
 
-    @abstractmethod
     def sync_target_model(self, tau=1.0):
-        pass
+        self.policy.sync_target_model(tau=tau)
+        self.v_func.sync_target_model(tau=tau)
 
 
 class ActorCritic(BaseActorCritic):
@@ -255,10 +252,6 @@ class ActorCritic(BaseActorCritic):
 
         self._check_function_types()
         self._init_models()
-
-    def sync_target_model(self, tau=1.0):
-        self.policy.sync_target_model(tau=tau)
-        self.v_func.sync_target_model(tau=tau)
 
     def _check_function_types(self):
         if not is_vfunction(self.v_func):
@@ -312,12 +305,6 @@ class SoftActorCritic(BaseActorCritic):
         self._check_function_types()
         self._init_models()
 
-    def sync_target_model(self, tau=1.0):
-        self.policy.sync_target_model(tau=tau)
-        self.v_func.sync_target_model(tau=tau)
-        self.q_func1.sync_target_model(tau=tau)
-        self.q_func2.sync_target_model(tau=tau)
-
     def _check_function_types(self):
         if not is_vfunction(self.v_func):
             raise TypeError("'v_func' must be a v-function: v(s)")
@@ -333,39 +320,38 @@ class SoftActorCritic(BaseActorCritic):
                 "the envs of policy and value function(s) do not match")
 
     def _init_models(self):
+        # make sure that the policy loss is set to 'sac'
+        if self.policy.update_strategy != 'sac':
+            self.policy.update_strategy = 'sac'
+            self.logger.warn("policy.update_strategy has been set to 'sac'")
+
         # inputs
         S, A = self.policy.train_model.inputs[:2]
         G = keras.Input(name='G', shape=(1,), dtype='float')
 
-        # get policy entropy
-        H = self.policy.dist.entropy()  # differentiable
-
-        # construct entropy-corrected target for state value function
+        # constuct log(pi(a_sampled, s))
         A_sampled = self.policy.dist.sample()  # differentiable
         log_pi = self.policy.dist.log_proba(A_sampled)
-        Q1 = self.q_func1.predict_model([S, A_sampled])
-        Q2 = self.q_func2.predict_model([S, A_sampled])
+
+        # use target models for q-values, because they're non-trainable
+        Q1 = self.q_func1.target_model([S, A_sampled])
+        Q2 = self.q_func2.target_model([S, A_sampled])
         check_tensor(Q1, ndim=2, axis_size=1, axis=1)
         check_tensor(Q2, same_as=Q1)
         Q_both = keras.layers.Concatenate()([Q1, Q2])
+
+        # construct entropy-corrected target for state value function
         Q_min = keras.layers.Lambda(lambda x: K.min(x, axis=1))(Q_both)
         V_target = K.stop_gradient(Q_min - self.policy.entropy_beta * log_pi)
         check_tensor(V_target, ndim=1)
 
-        def randomly_select_qvalue(q_both):
-            check_tensor(q_both, ndim=2, axis_size=2, axis=1)
-            indices = K.argmax(K.random_uniform(shape=K.shape(q_both)))
-            proj = K.one_hot(indices, 2)
-            return tf.einsum('ij,ij->i', q_both, proj)
-
         # compute advantages from q-function
         V = self.v_func.predict_model(S)
-        Q = keras.layers.Lambda(randomly_select_qvalue)(Q_both)
-        Adv = Q - self.policy.entropy_beta * log_pi
+        Q = keras.layers.Lambda(lambda x: K.mean(x, axis=1))(Q_both)
+        Adv = Q - self.policy.entropy_beta * log_pi - K.stop_gradient(V)
 
         # update loss with advantage coming directly from graph
-        policy_loss, metrics = self.policy.policy_loss_with_metrics(
-            Adv=Adv, A=A_sampled)
+        policy_loss, metrics = self.policy.policy_loss_with_metrics(Adv)
         v_loss = self.v_func.train_model([S, V_target])
         q_loss1 = self.q_func1.train_model([S, A, G])
         q_loss2 = self.q_func2.train_model([S, A, G])
@@ -374,7 +360,6 @@ class SoftActorCritic(BaseActorCritic):
         # add losses to metrics dict
         metrics.update({
             'policy/loss': policy_loss,
-            'policy/entropy': H,
             'v_func/loss': v_loss,
             'q_func1/loss': q_loss1,
             'q_func2/loss': q_loss2,
@@ -391,3 +376,8 @@ class SoftActorCritic(BaseActorCritic):
         for name, metric in metrics.items():
             self.train_model.add_metric(metric, name=name, aggregation='mean')
         self.train_model.compile(optimizer=self.policy.train_model.optimizer)
+
+    def batch_update(self, S, A, Rn, In, S_next, A_next=None):
+        super().batch_update(S, A, Rn, In, S_next, A_next)
+        self.q_func1.sync_target_model(tau=1.0)
+        self.q_func2.sync_target_model(tau=1.0)
