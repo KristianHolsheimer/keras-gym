@@ -9,7 +9,7 @@ from ..policies.base import BasePolicy
 
 from .base import BaseFunctionApproximator
 from .value_v import V
-from .value_q import QTypeI, QTypeII
+from .value_q import QTypeI
 
 
 __all__ = (
