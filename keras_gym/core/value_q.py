@@ -509,7 +509,7 @@ class QTypeII(BaseQ):
 
         S = keras.Input(name='value_q2/S', shape=s_shape, dtype=s_dtype)
         A = keras.Input(name='value_q2/A', shape=a_shape, dtype=a_dtype)
-        G = keras.Input(name='value_q2/G', shape=(), dtype='float')
+        G = keras.Input(name='value_q2/G', shape=(1,), dtype='float')
 
         # forward pass
         X = self.function_approximator.body(S)
@@ -519,7 +519,7 @@ class QTypeII(BaseQ):
         check_tensor(Q, ndim=2, axis_size=self.num_actions, axis=1)
         Q_proj = tf.einsum('ij,ij->i', A, Q)
         loss = self.function_approximator.VALUE_LOSS_FUNCTION(G, Q_proj)
-        check_tensor(loss)
+        check_tensor(loss, ndim=0)
 
         # regular models
         self.train_model = keras.Model([S, A, G], loss)
