@@ -1,3 +1,5 @@
+import os
+import datetime
 import time
 
 import gym
@@ -74,6 +76,9 @@ class TrainMonitor(gym.Wrapper, ActionSpaceMixin, LoggerMixin):
 
         self.tensorboard = None
         if tensorboard_dir is not None:
+            tensorboard_dir = os.path.join(
+                tensorboard_dir,
+                datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
             self.tensorboard = tf1.summary.FileWriter(
                 tensorboard_dir, flush_secs=10)
 
