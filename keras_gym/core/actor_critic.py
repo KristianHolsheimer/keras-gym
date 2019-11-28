@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
@@ -9,7 +10,7 @@ from ..policies.base import BasePolicy
 
 from .base import BaseFunctionApproximator
 from .value_v import V
-from .value_q import QTypeI
+from .value_q import QTypeI, QTypeII
 
 
 __all__ = (
@@ -461,6 +462,7 @@ class SoftActorCritic(BaseActorCritic):
             cls, function_approximator,
             gamma=0.9,
             bootstrap_n=1,
+            q_type=None,
             entropy_beta=0.01,
             random_seed=None):
 
@@ -486,6 +488,13 @@ class SoftActorCritic(BaseActorCritic):
             Large :math:`n` corresponds to Monte Carlo updates and :math:`n=1`
             corresponds to TD(0).
 
+        q_type : 1 or 2, optional
+
+            Whether to model the q-function as :term:`type-I <type-I
+            state-action value function>` or :term:`type-II <type-II
+            state-action value function>`. This defaults to type-II for
+            discrete action spaces and type-I otherwise.
+
         entropy_beta : float, optional
 
             The coefficient of the entropy bonus term in the policy objective.
@@ -496,7 +505,11 @@ class SoftActorCritic(BaseActorCritic):
 
         """
         func = function_approximator  # just an abbreviation
+        if q_type is None:
+            q_type = 2 if func.action_space_is_discrete else 1
+        q_func_cls = QTypeII if q_type == 2 else QTypeI
         policy_cls = func._get_policy_class()
+
         pi = policy_cls(
             func,
             entropy_beta=entropy_beta,
@@ -507,11 +520,11 @@ class SoftActorCritic(BaseActorCritic):
             gamma=gamma,
             bootstrap_n=bootstrap_n,
             bootstrap_with_target_model=True)
-        q1 = QTypeI(
+        q1 = q_func_cls(
             func,
             gamma=gamma,
             bootstrap_n=bootstrap_n)
-        q2 = QTypeI(
+        q2 = q_func_cls(
             func,
             gamma=gamma,
             bootstrap_n=bootstrap_n)
@@ -532,6 +545,19 @@ class SoftActorCritic(BaseActorCritic):
             raise ValueError(
                 "the envs of policy and value function(s) do not match")
 
+    @staticmethod
+    def _get_q_value(q_func, S, A):
+        if is_qfunction(q_func, qtype=2):
+            Q = q_func.target_model(S)
+            check_tensor(Q, ndim=2, axis_size=q_func.num_actions, axis=1)
+            check_tensor(A, ndim=2, axis_size=q_func.num_actions, axis=1)
+            Q = tf.expand_dims(tf.einsum('ij,ij->i', Q, A), axis=1)
+        else:
+            Q = q_func.target_model([S, A])
+
+        check_tensor(Q, ndim=2, axis_size=1, axis=1)
+        return Q
+
     def _init_models(self):
         # make sure that the policy loss is set to 'sac'
         if self.policy.update_strategy != 'sac':
@@ -547,11 +573,10 @@ class SoftActorCritic(BaseActorCritic):
         log_pi = self.policy.dist.log_proba(A_sampled)
 
         # use target models for q-values, because they're non-trainable
-        Q1 = self.q_func1.target_model([S, A_sampled])
-        Q2 = self.q_func2.target_model([S, A_sampled])
-        check_tensor(Q1, ndim=2, axis_size=1, axis=1)
-        check_tensor(Q2, same_as=Q1)
+        Q1 = self._get_q_value(self.q_func1, S, A_sampled)
+        Q2 = self._get_q_value(self.q_func2, S, A_sampled)
         Q_both = keras.layers.Concatenate()([Q1, Q2])
+        check_tensor(Q_both, ndim=2, axis_size=2, axis=1)
 
         # construct entropy-corrected target for state value function
         Q_min = keras.layers.Lambda(lambda x: K.min(x, axis=1))(Q_both)
@@ -560,8 +585,10 @@ class SoftActorCritic(BaseActorCritic):
 
         # compute advantages from q-function
         V = self.v_func.predict_model(S)
+        check_tensor(V, axis_size=1, axis=1)
+        V = K.stop_gradient(K.squeeze(V, axis=1))
         Q = keras.layers.Lambda(lambda x: K.mean(x, axis=1))(Q_both)
-        Adv = Q - self.policy.entropy_beta * log_pi - K.stop_gradient(V)
+        Adv = Q - self.policy.entropy_beta * log_pi - V
 
         # update loss with advantage coming directly from graph
         policy_loss, metrics = self.policy.policy_loss_with_metrics(Adv)

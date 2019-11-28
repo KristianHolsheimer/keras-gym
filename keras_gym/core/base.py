@@ -421,6 +421,7 @@ class BaseUpdateablePolicy(BasePolicy, BaseFunctionApproximator):
 
         """
         if K.ndim(Adv) == 2:
+            check_tensor(Adv, axis_size=1, axis=1)
             Adv = K.squeeze(Adv, axis=1)
         check_tensor(Adv, ndim=1)
 
