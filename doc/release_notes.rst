@@ -1,6 +1,16 @@
 Release Notes
 =============
 
+
+v0.2.17
+-------
+
+- Made keras-gym compatible with tensorflow v2.0 (unfortunately had to disable eager mode)
+- Added :class:`SoftActorCritic <keras_gym.SoftActorCritic>` class
+- Added ``frozen_lake/sac`` script and notebook
+- Added ``atari/sac`` script, which is still WIP
+
+
 v0.2.16
 -------
 
