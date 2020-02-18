@@ -196,12 +196,14 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
         A_next = []
 
         for attempt in range(10 * self.batch_size):
-            # js are the S indices and ks are the S_next indices
-            J = len(self) - self.num_frames
-            assert J > 0, "please insert more transitions before sampling"
-            js = self.random.randint(J) + np.arange(self.num_frames)
-            ks = js + self.bootstrap_n
-            ls = np.arange(js[-1], ks[-1])
+            if not self._num_transitions:
+                raise RuntimeError(
+                    "please insert more transitions before sampling")
+            j = self.random.randint(self._num_transitions)
+            ep = self._e[j]                       # current episode id
+            js = j - np.arange(self.num_frames - 1, -1, -1)   # indices for s
+            ks = js + self.bootstrap_n            # indices for s_next
+            ls = j + np.arange(self.bootstrap_n)  # indices for n-step rewards
 
             # wrap around
             js %= self.capacity + self.bootstrap_n
@@ -209,17 +211,18 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
             ls %= self.capacity + self.bootstrap_n
 
             # check if S indices are all from the same episode
-            ep = self._e[js[-1]]
-            if any(self._e[j] > ep for j in js[:-1]):
+            if np.any(self._e[js[:-1]] > ep):
                 # Check if all js are from the current episode or from the
                 # immediately preceding episodes. Otherwise, we would generate
                 # spurious data because it would probably mean that 'js' spans
                 # the overwrite-boundary.
                 continue
-            for i, j in reversed(list(enumerate(js[:-1]))):
+            for i in range(1, self.num_frames):
                 # if j is from a previous episode, replace it by its successor
-                if self._e[j] < ep:
-                    js[i] = js[i + 1]
+                if self._e[js[~i]] < ep:
+                    js[~i] = js[~i + 1]
+                if self._e[ks[~i]] < ep:
+                    ks[~i] = ks[~i + 1]
 
             # gather partial returns
             rn = np.zeros(1)
@@ -230,16 +233,17 @@ class ExperienceReplayBuffer(RandomStateMixin, ActionSpaceMixin):
                 if done:
                     break
 
-            if not done and any(self._e[k] != ep for k in ks):
+            if not done and np.any(self._e[ks] > ep):
+                # this shouldn't happen (TODO: investigate)
                 continue
 
             # permutation to transpose 'num_frames' axis to axis=-1
             perm = np.roll(np.arange(self._s.ndim), -1)
             S.append(self._s[js].transpose(perm))
-            A.append(self._a[js[-1:]])
+            A.append(self._a[js[~0:]])
             Rn.append(rn)
             S_next.append(self._s[ks].transpose(perm))
-            A_next.append(self._a[ks[-1:]])
+            A_next.append(self._a[ks[~0:]])
             if done:
                 In.append(np.zeros(1))
             else:
