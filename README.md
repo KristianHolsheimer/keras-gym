@@ -1,3 +1,12 @@
+# DEPRECATION NOTICE
+
+This project was ported to **coax**:
+- code: https://github.com/microsoft/coax
+- docs: https://coax.readthedocs.io
+- video: https://youtu.be/5h5_MTE0g_E
+
+---
+
 [![Build Status](https://travis-ci.org/KristianHolsheimer/keras-gym.svg?branch=master)](https://travis-ci.org/KristianHolsheimer/keras-gym)
 [![Docs Status](https://readthedocs.org/projects/keras-gym/badge/?version=latest)](https://keras-gym.readthedocs.io/en/latest/)
 
